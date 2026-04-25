@@ -1,0 +1,335 @@
+import { useEffect, useState } from "react";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { PwaInstallBanner } from "@/components/PwaInstallBanner";
+import { useLanguage } from "@/lib/useLanguage";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { initSentry, setSentryUser } from "@/lib/sentry";
+import { initAnalytics, identifyUser } from "@/lib/analytics";
+import { registerPush } from "@/lib/push";
+import { initErrorReporter, reportError } from "@/lib/error-reporter";
+import { AdminAuthProvider, useAdminAuth } from "@/lib/adminAuthContext";
+import { setupAdminFetcherHandlers } from "@/lib/adminFetcher";
+import { setTokenHandlers } from "@/lib/api";
+
+// Layout & Pages
+import { AdminLayout } from "@/components/layout/AdminLayout";
+import Login from "@/pages/login";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
+import SetNewPassword from "@/pages/set-new-password";
+import RolesPermissions from "@/pages/roles-permissions";
+import Dashboard from "@/pages/dashboard";
+import Users from "@/pages/users";
+import Orders from "@/pages/orders";
+import Rides from "@/pages/rides";
+import Pharmacy from "@/pages/pharmacy";
+import Parcel from "@/pages/parcel";
+import Products from "@/pages/products";
+import Broadcast from "@/pages/broadcast";
+import Transactions from "@/pages/transactions";
+import Settings from "@/pages/settings";
+import FlashDeals from "@/pages/flash-deals";
+import Categories from "@/pages/categories";
+import Banners from "@/pages/banners";
+import AppManagement from "@/pages/app-management";
+import Vendors from "@/pages/vendors";
+import Riders from "@/pages/riders";
+import PromoCodes from "@/pages/promo-codes";
+import Notifications from "@/pages/notifications";
+import Withdrawals from "@/pages/Withdrawals";
+import DepositRequests from "@/pages/DepositRequests";
+import Security from "@/pages/security";
+import LiveRidersMap from "@/pages/live-riders-map";
+import SosAlerts from "@/pages/sos-alerts";
+import ReviewsPage from "@/pages/reviews";
+import KycPage from "@/pages/kyc";
+import VanService from "@/pages/van";
+import DeliveryAccess from "@/pages/delivery-access";
+import AccountConditions from "@/pages/account-conditions";
+import ConditionRules from "@/pages/condition-rules";
+import Popups from "@/pages/popups";
+import PromotionsHub from "@/pages/promotions-hub";
+import SupportChat from "@/pages/support-chat";
+import FaqManagement from "@/pages/faq-management";
+import SearchAnalytics from "@/pages/search-analytics";
+import ErrorMonitor from "@/pages/error-monitor";
+import Communication from "@/pages/communication";
+import Loyalty from "@/pages/loyalty";
+import WalletTransfers from "@/pages/wallet-transfers";
+import ChatMonitor from "@/pages/chat-monitor";
+import WishlistInsights from "@/pages/wishlist-insights";
+import QrCodes from "@/pages/qr-codes";
+import Experiments from "@/pages/experiments";
+import WebhookManager from "@/pages/webhook-manager";
+import DeepLinks from "@/pages/deep-links";
+import LaunchControl from "@/pages/launch-control";
+import OtpControl from "@/pages/otp-control";
+import SmsGateways from "@/pages/sms-gateways";
+import NotFound from "@/pages/not-found";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+/* Auto-logout when an authenticated query returns 401.
+   Guard: only remove token + redirect if we're actually logged in.
+   This prevents pre-login query failures (expected 401s) from redirecting. */
+queryClient.getQueryCache().subscribe(event => {
+  if (event.type === "updated" && event.action.type === "error") {
+    const err = event.action.error as any;
+    const msg = (err?.message || "").toLowerCase();
+    const is401 =
+      msg.includes("unauthorized") ||
+      msg.includes("session expired") ||
+      msg.includes("please log in") ||
+      err?.status === 401;
+    // Note: Auth state is managed by adminAuthContext (in-memory only)
+    // The fetcher will handle 401 with auto-refresh + redirect
+    if (is401) {
+      console.warn("Received 401 from query - auth will be handled by fetcher");
+    }
+  }
+});
+
+function ProtectedRoute({
+  component: Component,
+  /** When true, the must-change-password gate does NOT redirect away from
+   *  this route — used for the `/set-new-password` screen itself. */
+  bypassPasswordGate = false,
+}: {
+  component: React.ComponentType;
+  bypassPasswordGate?: boolean;
+}) {
+  const [, setLocation] = useLocation();
+  const { state } = useAdminAuth();
+
+  useEffect(() => {
+    if (!state.isLoading && !state.accessToken) {
+      setLocation("/login");
+      return;
+    }
+    if (
+      !state.isLoading &&
+      state.accessToken &&
+      state.mustChangePassword &&
+      !bypassPasswordGate
+    ) {
+      setLocation("/set-new-password");
+    }
+  }, [
+    state.accessToken,
+    state.isLoading,
+    state.mustChangePassword,
+    bypassPasswordGate,
+    setLocation,
+  ]);
+
+  if (state.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!state.accessToken) {
+    return null;
+  }
+
+  if (state.mustChangePassword && !bypassPasswordGate) {
+    return null;
+  }
+
+  // The set-new-password screen renders without the full admin chrome so the
+  // user is not tempted to navigate elsewhere via the sidebar.
+  if (bypassPasswordGate) {
+    return <Component />;
+  }
+
+  return (
+    <AdminLayout>
+      <Component />
+    </AdminLayout>
+  );
+}
+
+function Router() {
+  const { state } = useAdminAuth();
+  const [, setLocation] = useLocation();
+
+  return (
+    <Switch>
+      {/* Public Routes */}
+      <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+      {/* Authenticated, but reachable while the password gate is active. */}
+      <Route path="/set-new-password">
+        <ProtectedRoute component={SetNewPassword} bypassPasswordGate />
+      </Route>
+      <Route path="/">
+        {() => {
+          if (state.isLoading) {
+            return (
+              <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            );
+          }
+          if (state.accessToken) {
+            setLocation(state.mustChangePassword ? "/set-new-password" : "/dashboard");
+            return null;
+          }
+          return <Login />;
+        }}
+      </Route>
+
+      {/* Protected Routes */}
+      <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
+      <Route path="/users"><ProtectedRoute component={Users} /></Route>
+      <Route path="/orders"><ProtectedRoute component={Orders} /></Route>
+      <Route path="/rides"><ProtectedRoute component={Rides} /></Route>
+      <Route path="/pharmacy"><ProtectedRoute component={Pharmacy} /></Route>
+      <Route path="/parcel"><ProtectedRoute component={Parcel} /></Route>
+      <Route path="/products"><ProtectedRoute component={Products} /></Route>
+      <Route path="/broadcast"><ProtectedRoute component={Broadcast} /></Route>
+      <Route path="/transactions"><ProtectedRoute component={Transactions} /></Route>
+      <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
+      <Route path="/flash-deals"><ProtectedRoute component={FlashDeals} /></Route>
+      <Route path="/categories"><ProtectedRoute component={Categories} /></Route>
+      <Route path="/banners"><ProtectedRoute component={Banners} /></Route>
+      <Route path="/app-management"><ProtectedRoute component={AppManagement} /></Route>
+      <Route path="/vendors"><ProtectedRoute component={Vendors} /></Route>
+      <Route path="/riders"><ProtectedRoute component={Riders} /></Route>
+      <Route path="/promo-codes"><ProtectedRoute component={PromoCodes} /></Route>
+      <Route path="/notifications"><ProtectedRoute component={Notifications} /></Route>
+      <Route path="/withdrawals"><ProtectedRoute component={Withdrawals} /></Route>
+      <Route path="/deposit-requests"><ProtectedRoute component={DepositRequests} /></Route>
+      <Route path="/security"><ProtectedRoute component={Security} /></Route>
+      <Route path="/sos-alerts"><ProtectedRoute component={SosAlerts} /></Route>
+      <Route path="/live-riders-map"><ProtectedRoute component={LiveRidersMap} /></Route>
+      <Route path="/reviews"><ProtectedRoute component={ReviewsPage} /></Route>
+      <Route path="/kyc"><ProtectedRoute component={KycPage} /></Route>
+      <Route path="/van"><ProtectedRoute component={VanService} /></Route>
+      <Route path="/delivery-access"><ProtectedRoute component={DeliveryAccess} /></Route>
+      <Route path="/account-conditions"><ProtectedRoute component={AccountConditions} /></Route>
+      <Route path="/condition-rules"><ProtectedRoute component={ConditionRules} /></Route>
+      <Route path="/popups"><ProtectedRoute component={Popups} /></Route>
+      <Route path="/promotions"><ProtectedRoute component={PromotionsHub} /></Route>
+      <Route path="/support-chat"><ProtectedRoute component={SupportChat} /></Route>
+      <Route path="/faq-management"><ProtectedRoute component={FaqManagement} /></Route>
+      <Route path="/search-analytics"><ProtectedRoute component={SearchAnalytics} /></Route>
+      <Route path="/error-monitor"><ProtectedRoute component={ErrorMonitor} /></Route>
+      <Route path="/communication"><ProtectedRoute component={Communication} /></Route>
+      <Route path="/loyalty"><ProtectedRoute component={Loyalty} /></Route>
+      <Route path="/wallet-transfers"><ProtectedRoute component={WalletTransfers} /></Route>
+      <Route path="/chat-monitor"><ProtectedRoute component={ChatMonitor} /></Route>
+      <Route path="/wishlist-insights"><ProtectedRoute component={WishlistInsights} /></Route>
+      <Route path="/qr-codes"><ProtectedRoute component={QrCodes} /></Route>
+      <Route path="/experiments"><ProtectedRoute component={Experiments} /></Route>
+      <Route path="/webhooks"><ProtectedRoute component={WebhookManager} /></Route>
+      <Route path="/deep-links"><ProtectedRoute component={DeepLinks} /></Route>
+      <Route path="/launch-control"><ProtectedRoute component={LaunchControl} /></Route>
+      <Route path="/otp-control"><ProtectedRoute component={OtpControl} /></Route>
+      <Route path="/sms-gateways"><ProtectedRoute component={SmsGateways} /></Route>
+      <Route path="/roles-permissions"><ProtectedRoute component={RolesPermissions} /></Route>
+
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function LanguageInit() {
+  useLanguage();
+  return null;
+}
+
+function IntegrationsInit() {
+  const { state, refreshAccessToken } = useAdminAuth();
+
+  useEffect(() => {
+    // Setup fetcher with auth handlers
+    setupAdminFetcherHandlers(
+      () => state.accessToken,
+      () => refreshAccessToken()
+    );
+    
+    // Setup token handlers for api.ts bridge layer
+    setTokenHandlers(
+      () => state.accessToken,
+      () => refreshAccessToken()
+    );
+  }, [state.accessToken, refreshAccessToken]);
+
+  useEffect(() => {
+    initErrorReporter();
+
+    /* /api/* is proxied by Vite (and served by the api-server in production)
+       regardless of BASE_URL. Prefixing with BASE_URL turned this into
+       `/admin/api/platform-config`, which falls outside the proxy rule and
+       returns the SPA index.html — silently breaking integrations init. */
+    fetch(`/api/platform-config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(raw => {
+        if (!raw) return;
+        const d = raw?.data ?? raw;
+        const integ = d?.integrations;
+        if (!integ) return;
+        if (integ.sentry && integ.sentryDsn) {
+          initSentry({
+            dsn: integ.sentryDsn,
+            environment: integ.sentryEnvironment || "production",
+            sampleRate: integ.sentrySampleRate ?? 1.0,
+            tracesSampleRate: integ.sentryTracesSampleRate ?? 0.1,
+          });
+        }
+        if (integ.analytics && integ.analyticsTrackingId) {
+          initAnalytics(integ.analyticsPlatform, integ.analyticsTrackingId, integ.analyticsDebug ?? false);
+        }
+      })
+      .catch(() => {});
+
+    /* Register admin push when authenticated */
+    if (state.accessToken && !state.isLoading) {
+      if (typeof Notification !== "undefined" && Notification.requestPermission) {
+        Notification.requestPermission()
+          .then(perm => { if (perm === "granted") registerPush().catch(() => {}); })
+          .catch(() => {});
+      }
+      setSentryUser(state.user?.id || "admin");
+      identifyUser(state.user?.id || "admin");
+    }
+  }, [state.accessToken, state.user, state.isLoading]);
+
+  return null;
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AdminAuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <LanguageInit />
+              <IntegrationsInit />
+              <Router />
+            </WouterRouter>
+            <Toaster />
+            <PwaInstallBanner />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </AdminAuthProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;

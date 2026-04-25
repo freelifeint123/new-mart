@@ -1,0 +1,198 @@
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+
+run = "nix develop --command bash -lc 'pnpm install && pnpm run start:all'"
+
+[[artifacts]]
+id = "artifacts/api-server"
+
+[[artifacts]]
+id = "artifacts/mockup-sandbox"
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "artifacts/api-server: API Server"
+author = "agent"
+mode = "parallel"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run dev"
+cwd = "./artifacts/api-server"
+waitForPort = 8080
+
+[workflows.workflow.tasks.env]
+PORT = "8080"
+
+[[workflows.workflow]]
+name = "artifacts/rider-app: web"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/rider-app"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/rider-app run dev"
+cwd = "./artifacts/rider-app"
+waitForPort = 22969
+router = "path"
+
+[workflows.workflow.tasks.env]
+PORT = "22969"
+BASE_PATH = "/rider/"
+
+[[workflows.workflow]]
+name = "artifacts/mockup-sandbox: Component Preview Server"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "XegfDyZt7HqfW2Bb8Ghoy"
+isCanvasWorkflow = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/mockup-sandbox run dev"
+cwd = "./artifacts/mockup-sandbox"
+waitForPort = 8081
+
+[workflows.workflow.tasks.env]
+PORT = "8081"
+BASE_PATH = "/__mockup"
+
+[[workflows.workflow]]
+name = "artifacts/vendor-app: web"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/vendor-app"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/vendor-app run dev"
+cwd = "./artifacts/vendor-app"
+waitForPort = 21463
+router = "path"
+
+[workflows.workflow.tasks.env]
+PORT = "21463"
+BASE_PATH = "/vendor/"
+
+[[workflows.workflow]]
+name = "artifacts/ajkmart: expo"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/ajkmart"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/ajkmart run dev:web"
+cwd = "./artifacts/ajkmart"
+waitForPort = 20716
+router = "expo-domain"
+
+[workflows.workflow.tasks.env]
+PORT = "20716"
+BASE_PATH = "/"
+
+[[workflows.workflow]]
+name = "artifacts/admin: web"
+author = "agent"
+mode = "sequential"
+
+[workflows.workflow.metadata]
+outputType = "console"
+artifactId = "artifacts/admin"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=23744 BASE_PATH=/admin/ pnpm --filter @workspace/admin run dev"
+waitForPort = 23744
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/admin: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Server"
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/api-server && pnpm run dev"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[agent]
+stack = "BEST_EFFORT_FALLBACK"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 300000
+
+[nix]
+channel = "stable-25_05"
+packages = ["psmisc", "tree", "uwhoisd"]
+
+[userenv]
+
+[userenv.shared]
+ADMIN_SECRET = "AJK-hig2QXaC_VG7OPZqgMT-VsVHtN8"
+ADMIN_JWT_SECRET = "QOHAcA0Y3m6yyQ1jW8FnQu995T5e8XupSnhKch6SF8RIKFn5KNZatDnFzqUDX2OL"
+VAPID_PUBLIC_KEY = "BEmlZZIGCb7ZhembOoH02qzZlnhkFrYkib27NwFgtXBFDcvtHhhWC2hfZEHU4JpDbfHIRgbrCiM_f9gEEc_JHLg"
+VAPID_PRIVATE_KEY = "b3egnGyDJYSVsOB4z-PGhf5YbGeuVKcHtNpJPQ-r-eM"
+VAPID_CONTACT_EMAIL = "mailto:admin@ajkmart.app"
+DATABASE_URL = "postgresql://neondb_owner:npg_5VFzHmZ6NTWn@ep-solitary-credit-a188hgj0-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+PORT = "8080"
+JWT_SECRET = "PUkuIh+8NSn80k68j1sAR1zPGtK7xryE8LTbaM6hGA2jA2fHq1MJuyud4YYtSMtB"
+GEMINI_API_KEY = "AIzaSyDdujmMRDG4_z0z8zG908_f4jNHACg9EHk"
+
+[userenv.production]
+LOG_LEVEL = "warn"
+
+[rules]
+
+[rules.formatter]
+
+[rules.formatter.fileExtensions]
+
+[rules.formatter.fileExtensions.".ts"]
+id = "module:nodejs-24/languageServer:typescript-language-server"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080

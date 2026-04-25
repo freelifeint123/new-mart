@@ -1,0 +1,159 @@
+const SOURCE_APP = "admin";
+let _initialized = false;
+let _queue: Array<Record<string, unknown>> = [];
+let _flushing = false;
+
+/** Deduplicate window.error and unhandledrejection events (not just console.error) */
+const _recentEventErrors = new Map<string, number>();
+const DEDUP_WINDOW_MS = 30_000;
+
+function getApiBase(): string {
+  return `${window.location.origin}/api`;
+}
+
+/**
+ * DJB2-variant hash for deterministic error fingerprinting.
+ * Used to deduplicate identical errors before sending to the server.
+ */
+function computeErrorHash(errorMessage: string, errorType: string): string {
+  const key = `${errorType}::${SOURCE_APP}::${errorMessage.slice(0, 300)}`;
+  let hash = 5381;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) + hash) ^ key.charCodeAt(i);
+    hash = hash >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function isDuplicate(hash: string): boolean {
+  const now = Date.now();
+  const last = _recentEventErrors.get(hash);
+  if (last !== undefined && now - last < DEDUP_WINDOW_MS) return true;
+  _recentEventErrors.set(hash, now);
+  if (_recentEventErrors.size > 200) {
+    const oldest = _recentEventErrors.keys().next().value;
+    if (oldest) _recentEventErrors.delete(oldest);
+  }
+  return false;
+}
+
+async function sendReport(report: Record<string, unknown>): Promise<void> {
+  try {
+    await fetch(`${getApiBase()}/error-reports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(report),
+    });
+  } catch {}
+}
+
+async function flushQueue(): Promise<void> {
+  if (_flushing || _queue.length === 0) return;
+  _flushing = true;
+  const batch = _queue.splice(0, 10);
+  for (const report of batch) {
+    await sendReport(report);
+  }
+  _flushing = false;
+  if (_queue.length > 0) setTimeout(flushQueue, 1000);
+}
+
+function enqueue(report: Record<string, unknown>): void {
+  _queue.push(report);
+  if (_queue.length > 50) _queue.shift();
+  setTimeout(flushQueue, 100);
+}
+
+export function reportError(opts: {
+  errorType: "frontend_crash" | "api_error" | "ui_error" | "unhandled_exception";
+  errorMessage: string;
+  functionName?: string;
+  moduleName?: string;
+  componentName?: string;
+  stackTrace?: string;
+  metadata?: Record<string, unknown>;
+  statusCode?: number;
+}): void {
+  const message = (opts.errorMessage || "Unknown error").slice(0, 5000);
+  const hash = computeErrorHash(message, opts.errorType);
+
+  enqueue({
+    sourceApp: SOURCE_APP,
+    ...opts,
+    errorMessage: message,
+    stackTrace: opts.stackTrace?.slice(0, 50000),
+    errorHash: hash,
+  });
+}
+
+export function initErrorReporter(): void {
+  if (_initialized) return;
+  _initialized = true;
+
+  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
+    const err = event.reason;
+    const msg = err?.message || String(err) || "Unhandled promise rejection";
+    const hash = computeErrorHash(msg, "unhandled_exception");
+    if (isDuplicate(hash)) return;
+    reportError({
+      errorType: "unhandled_exception",
+      errorMessage: msg,
+      stackTrace: err?.stack,
+      functionName: "unhandledrejection",
+    });
+  });
+
+  window.addEventListener("error", (event: ErrorEvent) => {
+    const msg = event.message || "Window error";
+    const hash = computeErrorHash(msg, "frontend_crash");
+    if (isDuplicate(hash)) return;
+    reportError({
+      errorType: "frontend_crash",
+      errorMessage: msg,
+      stackTrace: event.error?.stack,
+      functionName: event.filename,
+      metadata: { lineno: event.lineno, colno: event.colno },
+    });
+  });
+
+  const origConsoleError = console.error;
+  const _recentConsoleErrors = new Map<string, number>();
+  console.error = (...args: unknown[]) => {
+    origConsoleError.apply(console, args);
+    const msg = args.map(a => {
+      if (a instanceof Error) return a.message;
+      if (typeof a === "string") return a;
+      try { return JSON.stringify(a); } catch { return String(a); }
+    }).join(" ");
+
+    if (msg.includes("[ErrorReporter]") || msg.includes("error-reports")) return;
+
+    const key = msg.slice(0, 200);
+    const now = Date.now();
+    const lastSeen = _recentConsoleErrors.get(key);
+    if (lastSeen && now - lastSeen < 30000) return;
+    _recentConsoleErrors.set(key, now);
+    if (_recentConsoleErrors.size > 100) {
+      const oldest = _recentConsoleErrors.keys().next().value;
+      if (oldest) _recentConsoleErrors.delete(oldest);
+    }
+
+    reportError({
+      errorType: "ui_error",
+      errorMessage: msg.slice(0, 5000),
+      functionName: "console.error",
+      stackTrace: args.find((a): a is Error => a instanceof Error)?.stack,
+    });
+  };
+}
+
+export function reportApiError(path: string, status: number, message: string): void {
+  reportError({
+    errorType: "api_error",
+    errorMessage: message,
+    functionName: path,
+    moduleName: "API Call",
+    statusCode: status,
+    metadata: { path, status },
+  });
+}
