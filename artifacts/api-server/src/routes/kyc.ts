@@ -666,8 +666,12 @@ router.post("/admin/:id/reject", adminAuth, async (req, res) => {
   const adminId = req.adminId;
 
   const { reason } = req.body;
-  if (!reason?.trim()) { res.status(400).json({ error: "Rejection reason is required" }); return; }
-  const trimmedReason = reason.trim();
+  if (typeof reason !== "string" || !reason.trim()) {
+    res.status(400).json({ error: "Rejection reason is required" });
+    return;
+  }
+  const trimmedReason = stripHtml(reason).slice(0, 500);
+  if (!trimmedReason) { res.status(400).json({ error: "Rejection reason is required" }); return; }
 
   const [record] = await db
     .select()
