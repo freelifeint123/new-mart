@@ -38,8 +38,9 @@ interface IntegrationHealth {
   status: HealthStatus;
   missingFields: string[];
   hint?: string;
-  testType?: "email" | "sms" | "whatsapp" | "maps" | "jazzcash" | "easypaisa";
+  testType?: "email" | "sms" | "whatsapp" | "maps" | "fcm" | "jazzcash" | "easypaisa";
   needsPhone?: boolean;
+  needsToken?: boolean;
   navigateTo?: IntTab;
 }
 
@@ -56,15 +57,28 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
     : fcmMissing.length < Object.keys(fcmKeys).length ? "partial"
     : "missing";
 
-  /* SMS */
+  /* SMS — provider-specific required fields */
   const smsEnabled = on("integration_sms");
   const smsProvider = v("sms_provider") || "console";
   const smsIsConsole = smsProvider === "console";
-  const smsKey = v("sms_api_key") || v("sms_msg91_key") || v("sms_account_sid");
-  const smsMissing = smsIsConsole ? [] : (!smsKey ? ["API Key"] : []);
+  let smsMissing: string[] = [];
+  if (!smsIsConsole) {
+    if (smsProvider === "twilio") {
+      if (!v("sms_account_sid")) smsMissing.push("Account SID");
+      if (!v("sms_api_key"))     smsMissing.push("Auth Token");
+      if (!v("sms_sender_id"))   smsMissing.push("From Phone Number");
+    } else if (smsProvider === "msg91") {
+      if (!v("sms_msg91_key"))   smsMissing.push("MSG91 Auth Key");
+      if (!v("sms_sender_id"))   smsMissing.push("Sender ID");
+    } else {
+      if (!v("sms_api_key"))     smsMissing.push("API Key");
+      if (!v("sms_sender_id"))   smsMissing.push("Sender ID");
+    }
+  }
   const smsStatus: HealthStatus = !smsEnabled ? "disabled"
     : smsIsConsole ? "partial"
     : smsMissing.length === 0 ? "configured"
+    : smsMissing.length < (smsProvider === "twilio" ? 3 : 2) ? "partial"
     : "missing";
 
   /* Email / SMTP */
@@ -99,6 +113,10 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
   const sentryStatus: HealthStatus = !sentryEnabled ? "disabled"
     : sentryDsn ? "configured"
     : "missing";
+
+  /* Weather Widget */
+  const weatherEnabled = on("feature_weather", "on");
+  const weatherStatus: HealthStatus = weatherEnabled ? "configured" : "disabled";
 
   /* Maps */
   const mapsEnabled = on("integration_maps");
@@ -142,6 +160,8 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
       id: "firebase", label: "Firebase FCM", icon: <Flame className="w-4 h-4 text-orange-500" />,
       status: fcmStatus, missingFields: fcmMissing,
       hint: fcmStatus === "partial" ? "Server Key or Project ID missing" : undefined,
+      testType: fcmStatus === "configured" ? "fcm" as const : undefined,
+      needsToken: true,
       navigateTo: "firebase",
     },
     {
@@ -179,6 +199,11 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
       id: "sentry", label: "Sentry", icon: <Bug className="w-4 h-4 text-red-500" />,
       status: sentryStatus, missingFields: sentryDsn ? [] : ["Sentry DSN URL"],
       navigateTo: "sentry",
+    },
+    {
+      id: "weather", label: "Weather Widget", icon: <Activity className="w-4 h-4 text-sky-500" />,
+      status: weatherStatus, missingFields: [],
+      hint: weatherEnabled ? "Widget enabled — configure cities in Widgets → Weather" : "Widget disabled in feature flags",
     },
     {
       id: "jazzcash", label: `JazzCash ${jcType === "manual" ? "(Manual)" : "(API)"}`,
@@ -233,13 +258,21 @@ function IntegrationHealthPanel({
       } else {
         const body: Record<string, string> = {};
         if (row.testType === "sms" || row.testType === "whatsapp") {
-          const phone = (phoneInputs[id] ?? "").trim();
+          const phone = (phoneInputs[id + "_phone"] ?? "").trim();
           if (!phone) {
-            setPhoneInputs(p => ({ ...p, [id + "_err"]: "1" }));
+            setPhoneInputs(p => ({ ...p, [id + "_phone_err"]: "1" }));
             setTestingMap(prev => ({ ...prev, [id]: false }));
             return;
           }
           body["phone"] = phone;
+        } else if (row.testType === "fcm") {
+          const token = (phoneInputs[id + "_token"] ?? "").trim();
+          if (!token) {
+            setPhoneInputs(p => ({ ...p, [id + "_token_err"]: "1" }));
+            setTestingMap(prev => ({ ...prev, [id]: false }));
+            return;
+          }
+          body["deviceToken"] = token;
         }
         data = await fetcher(`/system/test-integration/${row.testType}`, { method: "POST", body: JSON.stringify(body) });
       }
@@ -286,9 +319,12 @@ function IntegrationHealthPanel({
           const cfg = STATUS_CONFIG[row.status];
           const testing = isTesting(row.id);
           const res = result(row.id);
-          const needPhone = (row.testType === "sms" || row.testType === "whatsapp") && row.testType;
-          const phoneVal = phoneInputs[row.id] ?? "";
-          const phoneErr = phoneInputs[row.id + "_err"];
+          const needPhone = row.testType === "sms" || row.testType === "whatsapp";
+          const needToken = row.testType === "fcm";
+          const phoneVal = phoneInputs[row.id + "_phone"] ?? "";
+          const phoneErr = phoneInputs[row.id + "_phone_err"];
+          const tokenVal = phoneInputs[row.id + "_token"] ?? "";
+          const tokenErr = phoneInputs[row.id + "_token_err"];
           const canTest = !!row.testType && row.status !== "disabled";
 
           return (
@@ -333,30 +369,28 @@ function IntegrationHealthPanel({
                   <div className="relative">
                     <Input
                       value={phoneVal}
-                      onChange={e => {
-                        setPhoneInputs(p => ({ ...p, [row.id]: e.target.value, [row.id + "_err"]: "" }));
-                      }}
+                      onChange={e => setPhoneInputs(p => ({ ...p, [row.id + "_phone"]: e.target.value, [row.id + "_phone_err"]: "" }))}
                       placeholder="03xxxxxxxxx"
                       className={`h-7 text-xs w-32 font-mono ${phoneErr ? "border-red-400" : ""}`}
                     />
-                    {phoneErr && (
-                      <p className="text-[9px] text-red-500 absolute -bottom-3.5 left-0">Phone required</p>
-                    )}
+                    {phoneErr && <p className="text-[9px] text-red-500 absolute -bottom-3.5 left-0">Phone required</p>}
+                  </div>
+                )}
+                {needToken && canTest && (
+                  <div className="relative">
+                    <Input
+                      value={tokenVal}
+                      onChange={e => setPhoneInputs(p => ({ ...p, [row.id + "_token"]: e.target.value, [row.id + "_token_err"]: "" }))}
+                      placeholder="FCM device token"
+                      className={`h-7 text-xs w-36 font-mono ${tokenErr ? "border-red-400" : ""}`}
+                    />
+                    {tokenErr && <p className="text-[9px] text-red-500 absolute -bottom-3.5 left-0">Token required</p>}
                   </div>
                 )}
                 {canTest && (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (needPhone) {
-                        const phone = (phoneInputs[row.id] ?? "").trim();
-                        if (!phone) {
-                          setPhoneInputs(p => ({ ...p, [row.id + "_err"]: "1" }));
-                          return;
-                        }
-                      }
-                      handleTest(row);
-                    }}
+                    onClick={() => handleTest(row)}
                     disabled={testing}
                     title={`Test ${row.label}`}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-all focus-visible:ring-2 focus-visible:ring-indigo-500 focus:outline-none"
