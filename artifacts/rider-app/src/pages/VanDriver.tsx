@@ -88,6 +88,18 @@ async function fetchMetrics(): Promise<DriverMetrics> {
   return (data ?? {}) as DriverMetrics;
 }
 
+interface EligibilityResult {
+  eligible: boolean;
+  reason: string | null;
+  conditions: Array<{ id: string; conditionType: string; severity: string; reason: string | null }>;
+  triggered: Array<{ ruleName: string; metric: string; value: number }>;
+}
+
+async function fetchEligibility(): Promise<EligibilityResult> {
+  const data = await apiFetch("/van/driver/eligibility");
+  return (data ?? { eligible: true, reason: null, conditions: [], triggered: [] }) as EligibilityResult;
+}
+
 const STATUS_STYLE: Record<string, string> = {
   confirmed: "bg-blue-100 text-blue-700",
   boarded:   "bg-green-100 text-green-700",
@@ -113,6 +125,12 @@ export default function VanDriver() {
     queryKey: ["van-driver-metrics"],
     queryFn: fetchMetrics,
     refetchInterval: 30_000,
+  });
+
+  const { data: eligibility, isLoading: loadingEligibility } = useQuery<EligibilityResult>({
+    queryKey: ["van-driver-eligibility"],
+    queryFn: fetchEligibility,
+    refetchInterval: 60_000,
   });
 
   const { data: passengers = [], isLoading: loadingPassengers } = useQuery<Passenger[]>({
@@ -223,6 +241,29 @@ export default function VanDriver() {
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
             <button className="ml-auto font-bold" onClick={() => setError("")}>×</button>
+          </div>
+        )}
+
+        {/* Eligibility banner — blocks van mode entry when account conditions are active */}
+        {!loadingEligibility && eligibility && !eligibility.eligible && (
+          <div className="bg-red-50 border border-red-300 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="text-sm font-bold text-red-800">Van driver mode unavailable</div>
+                <div className="text-xs text-red-700 mt-1">{eligibility.reason || "Your account has an active restriction."}</div>
+                {eligibility.conditions.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {eligibility.conditions.slice(0, 3).map((c) => (
+                      <li key={c.id} className="text-[11px] text-red-700">
+                        • <span className="font-semibold">{c.severity}</span> — {c.reason || c.conditionType}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="text-[11px] text-red-600 mt-2">Contact support to lift the restriction.</div>
+              </div>
+            </div>
           </div>
         )}
 

@@ -7,6 +7,7 @@ import {
   conditionSettingsTable,
   vanBookingsTable,
   vanSchedulesTable,
+  vanDriversTable,
 } from "@workspace/db/schema";
 import { and, desc, eq, gte, inArray, lte, ilike, or, sql } from "drizzle-orm";
 import { generateId } from "../../lib/id.js";
@@ -73,6 +74,32 @@ async function getUserRole(userId: string): Promise<string> {
     .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (!u?.roles) return "customer";
   return u.roles.split(",")[0]?.trim() || "customer";
+}
+
+/** Returns ALL roles a user has, including the synthetic "van_driver" role
+ *  if they're an approved + active van driver. Used by the rule engine to
+ *  match rules whose targetRole is "van_driver". */
+async function getUserRoleSet(userId: string): Promise<Set<string>> {
+  const roles = new Set<string>();
+  const [u] = await db.select({ roles: usersTable.roles })
+    .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (u?.roles) {
+    for (const r of u.roles.split(",")) {
+      const t = r.trim();
+      if (t) roles.add(t);
+    }
+  }
+  if (roles.size === 0) roles.add("customer");
+  // Synthetic van_driver role
+  const [vd] = await db
+    .select({ approvalStatus: vanDriversTable.approvalStatus, isActive: vanDriversTable.isActive })
+    .from(vanDriversTable)
+    .where(eq(vanDriversTable.userId, userId))
+    .limit(1);
+  if (vd && vd.isActive && vd.approvalStatus === "approved") {
+    roles.add("van_driver");
+  }
+  return roles;
 }
 
 export async function reconcileUserFlags(userId: string): Promise<{ success: boolean; conditions?: number; error?: string }> {
@@ -411,10 +438,10 @@ const DEFAULT_RULES: Array<Partial<typeof conditionRulesTable.$inferInsert>> = [
   { name: "Rider rating low", targetRole: "rider", metric: "avg_rating_30d", operator: "<", threshold: "3.5", conditionType: "warning_l1", severity: "warning", cooldownHours: 72 },
   { name: "Rider GPS spoofing", targetRole: "rider", metric: "gps_spoofing", operator: ">=", threshold: "1", conditionType: "ban_fraud", severity: "ban", cooldownHours: 0 },
   { name: "Rider cancellation debt", targetRole: "rider", metric: "cancellation_debt", operator: ">", threshold: "500", conditionType: "restriction_new_order_block", severity: "restriction_strict", cooldownHours: 24 },
-  // Van driver (rider role)
-  { name: "Van driver excessive cancellations", targetRole: "rider", metric: "van_cancellation_count_30d", operator: ">=", threshold: "5", conditionType: "warning_l2", severity: "warning", cooldownHours: 48, description: "Cancelled too many van trips in last 30 days" },
-  { name: "Van driver no-shows", targetRole: "rider", metric: "van_noshow_count", operator: ">=", threshold: "3", conditionType: "restriction_service_block", severity: "restriction_normal", cooldownHours: 72, description: "Multiple passenger no-shows on van trips" },
-  { name: "Van driver missed start", targetRole: "rider", metric: "van_driver_missed_start", operator: ">=", threshold: "2", conditionType: "warning_l1", severity: "warning", cooldownHours: 24, description: "Missed scheduled trip starts" },
+  // Van driver (synthetic role — matched via getUserRoleSet)
+  { name: "Van driver excessive cancellations", targetRole: "van_driver", metric: "van_cancellation_count_30d", operator: ">=", threshold: "5", conditionType: "warning_l2", severity: "warning", cooldownHours: 48, description: "Cancelled too many van trips in last 30 days" },
+  { name: "Van driver no-shows", targetRole: "van_driver", metric: "van_noshow_count", operator: ">=", threshold: "3", conditionType: "restriction_service_block", severity: "restriction_normal", cooldownHours: 72, description: "Multiple passenger no-shows on van trips" },
+  { name: "Van driver missed start", targetRole: "van_driver", metric: "van_driver_missed_start", operator: ">=", threshold: "2", conditionType: "warning_l1", severity: "warning", cooldownHours: 24, description: "Missed scheduled trip starts" },
   // Vendor
   { name: "Vendor complaint reports", targetRole: "vendor", metric: "complaint_reports", operator: ">=", threshold: "5", conditionType: "warning_l2", severity: "warning", cooldownHours: 72 },
   { name: "Vendor fake item complaints", targetRole: "vendor", metric: "fake_item_complaints", operator: ">=", threshold: "3", conditionType: "restriction_new_order_block", severity: "restriction_strict", cooldownHours: 168 },
@@ -529,74 +556,85 @@ function compareMetric(value: number, operator: string, threshold: string): bool
   }
 }
 
+/**
+ * Evaluate all active rules whose targetRole matches any role of the user
+ * (including the synthetic "van_driver" role for approved van drivers).
+ * Honors per-rule cooldown and inserts new conditions when thresholds are met.
+ * Exported so other routes (e.g. van mode entry) can trigger evaluation.
+ */
+export async function evaluateRulesForUser(userId: string) {
+  const roleSet = await getUserRoleSet(userId);
+  const primaryRole = await getUserRole(userId);
+  const roleArr = Array.from(roleSet);
+
+  const rules = await db
+    .select()
+    .from(conditionRulesTable)
+    .where(and(
+      eq(conditionRulesTable.isActive, true),
+      inArray(conditionRulesTable.targetRole, roleArr),
+    ));
+
+  const triggered: Array<{ ruleId: string; ruleName: string; metric: string; value: number; conditionId?: string }> = [];
+  const skipped: Array<{ ruleId: string; ruleName: string; reason: string }> = [];
+
+  for (const rule of rules) {
+    const value = await computeUserMetric(userId, rule.metric);
+    if (value == null) {
+      skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "metric_not_implemented" });
+      continue;
+    }
+    if (!compareMetric(value, rule.operator, rule.threshold)) continue;
+
+    if (rule.cooldownHours > 0) {
+      const cutoff = new Date(Date.now() - rule.cooldownHours * 60 * 60 * 1000);
+      const [recent] = await db
+        .select({ id: accountConditionsTable.id })
+        .from(accountConditionsTable)
+        .where(and(
+          eq(accountConditionsTable.userId, userId),
+          eq(accountConditionsTable.conditionType, rule.conditionType),
+          gte(accountConditionsTable.appliedAt, cutoff),
+        ))
+        .limit(1);
+      if (recent) {
+        skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "cooldown" });
+        continue;
+      }
+    }
+    const [created] = await db
+      .insert(accountConditionsTable)
+      .values({
+        id: generateId(),
+        userId,
+        userRole: rule.targetRole === "van_driver" ? "van_driver" : primaryRole,
+        conditionType: rule.conditionType,
+        severity: rule.severity,
+        category: SEVERITY_TO_CATEGORY[rule.severity] || "warning",
+        reason: `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
+        appliedBy: "rule_engine",
+        isActive: true,
+        metadata: { ruleId: rule.id, metric: rule.metric, observed: value, threshold: rule.threshold },
+      })
+      .returning();
+    triggered.push({ ruleId: rule.id, ruleName: rule.name, metric: rule.metric, value, conditionId: created?.id });
+  }
+
+  return {
+    userId,
+    primaryRole,
+    roles: roleArr,
+    evaluated: rules.length,
+    triggered: triggered.length,
+    skipped: skipped.length,
+    details: { triggered, skipped },
+  };
+}
+
 router.post("/condition-rules/evaluate/:userId", async (req, res) => {
   try {
-    const { userId } = req.params;
-    const userRole = await getUserRole(userId);
-
-    const rules = await db
-      .select()
-      .from(conditionRulesTable)
-      .where(and(eq(conditionRulesTable.isActive, true), eq(conditionRulesTable.targetRole, userRole)));
-
-    const triggered: Array<{ ruleId: string; ruleName: string; metric: string; value: number; conditionId?: string }> = [];
-    const skipped: Array<{ ruleId: string; ruleName: string; reason: string }> = [];
-
-    for (const rule of rules) {
-      const value = await computeUserMetric(userId, rule.metric);
-      if (value == null) {
-        skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "metric_not_implemented" });
-        continue;
-      }
-      if (!compareMetric(value, rule.operator, rule.threshold)) {
-        continue;
-      }
-      // Cooldown: skip if active condition of same type was applied within cooldown
-      if (rule.cooldownHours > 0) {
-        const cutoff = new Date(Date.now() - rule.cooldownHours * 60 * 60 * 1000);
-        const [recent] = await db
-          .select({ id: accountConditionsTable.id })
-          .from(accountConditionsTable)
-          .where(and(
-            eq(accountConditionsTable.userId, userId),
-            eq(accountConditionsTable.conditionType, rule.conditionType),
-            gte(accountConditionsTable.appliedAt, cutoff),
-          ))
-          .limit(1);
-        if (recent) {
-          skipped.push({ ruleId: rule.id, ruleName: rule.name, reason: "cooldown" });
-          continue;
-        }
-      }
-      const [created] = await db
-        .insert(accountConditionsTable)
-        .values({
-          id: generateId(),
-          userId,
-          userRole,
-          conditionType: rule.conditionType,
-          severity: rule.severity,
-          category: SEVERITY_TO_CATEGORY[rule.severity] || "warning",
-          reason: `Auto: ${rule.name} (${rule.metric} ${rule.operator} ${rule.threshold}, observed ${value})`,
-          appliedBy: "rule_engine",
-          isActive: true,
-          metadata: { ruleId: rule.id, metric: rule.metric, observed: value, threshold: rule.threshold },
-        })
-        .returning();
-      triggered.push({ ruleId: rule.id, ruleName: rule.name, metric: rule.metric, value, conditionId: created?.id });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        userId,
-        userRole,
-        evaluated: rules.length,
-        triggered: triggered.length,
-        skipped: skipped.length,
-        details: { triggered, skipped },
-      },
-    });
+    const result = await evaluateRulesForUser(req.params.userId);
+    res.json({ success: true, data: result });
   } catch (error) {
     console.error("[admin/condition-rules] evaluate error:", error);
     res.status(500).json({ success: false, error: String(error) });

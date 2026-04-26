@@ -5,6 +5,7 @@ import { db } from "@workspace/db";
 import {
   vanRoutesTable, vanVehiclesTable, vanSchedulesTable, vanBookingsTable,
   vanDriversTable, usersTable, notificationsTable, walletTransactionsTable,
+  accountConditionsTable,
 } from "@workspace/db/schema";
 import { generateId } from "../lib/id.js";
 import type { Request, Response, NextFunction } from "express";
@@ -87,6 +88,33 @@ async function vanDriverAuth(req: Request, res: Response, next: NextFunction) {
         .limit(1);
       if (!driver) { sendForbidden(res, "You are not registered as a van driver."); return; }
       if (driver.approvalStatus !== "approved") { sendForbidden(res, "Van driver account is not approved."); return; }
+
+      // Block when an active suspension/ban or van-service restriction is in force
+      const blockingConditions = await db
+        .select({
+          id: accountConditionsTable.id,
+          conditionType: accountConditionsTable.conditionType,
+          severity: accountConditionsTable.severity,
+          reason: accountConditionsTable.reason,
+          expiresAt: accountConditionsTable.expiresAt,
+        })
+        .from(accountConditionsTable)
+        .where(and(
+          eq(accountConditionsTable.userId, driverId),
+          eq(accountConditionsTable.isActive, true),
+        ));
+
+      const now = Date.now();
+      const blocker = blockingConditions.find((c) => {
+        if (c.expiresAt && c.expiresAt.getTime() < now) return false;
+        if (c.severity === "ban" || c.severity === "suspension") return true;
+        if (c.conditionType === "restriction_service_block" || c.conditionType === "restriction_new_order_block") return true;
+        return false;
+      });
+      if (blocker) {
+        sendForbidden(res, `Van driver mode unavailable: ${blocker.reason || blocker.conditionType}`);
+        return;
+      }
       next();
     } catch (e) {
       sendError(res, "Authorization check failed.", 500);
@@ -839,6 +867,71 @@ router.patch("/driver/schedules/:scheduleId/date/:date/complete", vanDriverAuth,
   } catch (e) {
     logger.error({ err: e }, "[van] complete trip error");
     sendError(res, "Failed to complete trip.", 500);
+  }
+});
+
+/* ─── Driver eligibility: returns active blocking conditions + triggers rule engine ─── */
+router.get("/driver/eligibility", riderAuth, async (req, res) => {
+  try {
+    const driverId = req.riderId!;
+    const [driver] = await db
+      .select({ approvalStatus: vanDriversTable.approvalStatus, isActive: vanDriversTable.isActive })
+      .from(vanDriversTable)
+      .where(and(eq(vanDriversTable.userId, driverId), eq(vanDriversTable.isActive, true)))
+      .limit(1);
+
+    if (!driver) {
+      sendSuccess(res, { eligible: false, reason: "not_registered", conditions: [], triggered: [] });
+      return;
+    }
+    if (driver.approvalStatus !== "approved") {
+      sendSuccess(res, { eligible: false, reason: "not_approved", conditions: [], triggered: [] });
+      return;
+    }
+
+    // Trigger rule engine (best-effort; errors don't block the response)
+    let triggered: any[] = [];
+    try {
+      const mod = await import("./admin/conditions.js");
+      if (typeof (mod as any).evaluateRulesForUser === "function") {
+        const result = await (mod as any).evaluateRulesForUser(driverId);
+        triggered = result?.triggered ?? [];
+      }
+    } catch (err) {
+      logger.warn({ err }, "[van] rule evaluation failed (non-fatal)");
+    }
+
+    const activeConditions = await db
+      .select({
+        id: accountConditionsTable.id,
+        conditionType: accountConditionsTable.conditionType,
+        severity: accountConditionsTable.severity,
+        reason: accountConditionsTable.reason,
+        expiresAt: accountConditionsTable.expiresAt,
+      })
+      .from(accountConditionsTable)
+      .where(and(
+        eq(accountConditionsTable.userId, driverId),
+        eq(accountConditionsTable.isActive, true),
+      ));
+
+    const now = Date.now();
+    const blocker = activeConditions.find((c) => {
+      if (c.expiresAt && c.expiresAt.getTime() < now) return false;
+      if (c.severity === "ban" || c.severity === "suspension") return true;
+      if (c.conditionType === "restriction_service_block" || c.conditionType === "restriction_new_order_block") return true;
+      return false;
+    });
+
+    sendSuccess(res, {
+      eligible: !blocker,
+      reason: blocker ? (blocker.reason || blocker.conditionType) : null,
+      conditions: activeConditions,
+      triggered,
+    });
+  } catch (e) {
+    logger.error({ err: e }, "[van] eligibility error");
+    sendError(res, "Could not check van driver eligibility.", 500);
   }
 });
 

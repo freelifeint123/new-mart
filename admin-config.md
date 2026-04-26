@@ -284,7 +284,7 @@ Port: **23744** | Path prefix: `/admin/`
 | KYC Review | `/admin/kyc` | ✅ Complete | Filter chips (incl. resubmit), search by name/phone/CNIC, zoom/rotate/fullscreen document preview, vehicle-papers section for riders (driving license + vehicle photo), predefined approve/reject reason chips with custom note, push + SMS to user on decision, audit log entry per decision |
 | Roles & Permissions | `/admin/roles-permissions` | ✅ Complete | RBAC with presets |
 | Account Conditions | `/admin/account-conditions` | ✅ Complete | |
-| Condition Rules | `/admin/condition-rules` | ✅ Working | Full CRUD + 15 default rules incl. 3 van-driver rules |
+| Condition Rules | `/admin/condition-rules` | ✅ Complete | Full CRUD + 15 default rules incl. 3 van-driver rules |
 
 ### 4.3 Vendor Management / وینڈر انتظام
 
@@ -496,7 +496,7 @@ Framework: **React + Vite** | Port: varies (dev)
 | Profile | `Profile.tsx` | ✅ Complete | KYC, documents |
 | Security Settings | `SecuritySettings.tsx` | ✅ Complete | Change password, MPIN |
 | Wallet | `Wallet.tsx` | ✅ Complete | Balance, withdrawals |
-| Van Driver Mode | `VanDriver.tsx` | ✅ Working | Daily/monthly metrics card + trip dispatch flow |
+| Van Driver Mode | `VanDriver.tsx` | ✅ Complete | Daily/monthly metrics card, eligibility banner driven by `/van/driver/eligibility`, trip dispatch flow |
 | Chat | `Chat.tsx` | ✅ Complete | Rider ↔ customer |
 | Not Found | `not-found.tsx` | ✅ Complete | |
 
