@@ -130,30 +130,33 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
   /* JazzCash */
   const jcEnabled = on("jazzcash_enabled");
   const jcType = v("jazzcash_type") || "manual";
-  const jcManualReady = !!(v("jazzcash_manual_name") && v("jazzcash_manual_number"));
   const jcApiReady = !!(v("jazzcash_merchant_id") && v("jazzcash_password") && v("jazzcash_salt"));
-  const jcMissing = jcType === "manual"
-    ? [...(!v("jazzcash_manual_name") ? ["Account Name"] : []), ...(!v("jazzcash_manual_number") ? ["JazzCash Number"] : [])]
-    : [...(!v("jazzcash_merchant_id") ? ["Merchant ID"] : []), ...(!v("jazzcash_password") ? ["Password"] : []), ...(!v("jazzcash_salt") ? ["Integrity Salt"] : [])];
+  const jcApiMissing = [
+    ...(!v("jazzcash_merchant_id") ? ["Merchant ID"] : []),
+    ...(!v("jazzcash_password")    ? ["Password"] : []),
+    ...(!v("jazzcash_salt")        ? ["Integrity Salt"] : []),
+  ];
   const jcStatus: HealthStatus = !jcEnabled ? "disabled"
-    : jcType === "manual" ? (jcManualReady ? "manual" : "missing")
+    : jcType === "manual" ? "manual"
     : jcApiReady ? "configured"
-    : jcMissing.length < 3 ? "partial"
+    : jcApiMissing.length < 3 ? "partial"
     : "missing";
+  const jcMissing = jcType === "manual" ? [] : jcApiMissing;
 
   /* EasyPaisa */
   const epEnabled = on("easypaisa_enabled");
   const epType = v("easypaisa_type") || "manual";
-  const epManualReady = !!(v("easypaisa_manual_name") && v("easypaisa_manual_number"));
   const epApiReady = !!(v("easypaisa_store_id") && v("easypaisa_hash_key"));
-  const epMissing = epType === "manual"
-    ? [...(!v("easypaisa_manual_name") ? ["Account Name"] : []), ...(!v("easypaisa_manual_number") ? ["EasyPaisa Number"] : [])]
-    : [...(!v("easypaisa_store_id") ? ["Store ID"] : []), ...(!v("easypaisa_hash_key") ? ["Hash Key"] : [])];
+  const epApiMissing = [
+    ...(!v("easypaisa_store_id")  ? ["Store ID"] : []),
+    ...(!v("easypaisa_hash_key")  ? ["Hash Key"] : []),
+  ];
   const epStatus: HealthStatus = !epEnabled ? "disabled"
-    : epType === "manual" ? (epManualReady ? "manual" : "missing")
+    : epType === "manual" ? "manual"
     : epApiReady ? "configured"
-    : epMissing.length < 2 ? "partial"
+    : epApiMissing.length < 2 ? "partial"
     : "missing";
+  const epMissing = epType === "manual" ? [] : epApiMissing;
 
   return [
     {
