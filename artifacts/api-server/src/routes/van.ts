@@ -889,13 +889,17 @@ router.get("/driver/eligibility", riderAuth, async (req, res) => {
       return;
     }
 
-    // Trigger rule engine (best-effort; errors don't block the response)
+    // Trigger rule engine (best-effort; errors don't block the response).
+    // evaluateRulesForUser returns { triggered: number, details: { triggered: [...] } }
+    // — we surface the array under `triggered` and the count under `triggeredCount`.
     let triggered: any[] = [];
+    let triggeredCount = 0;
     try {
       const mod = await import("./admin/conditions.js");
       if (typeof (mod as any).evaluateRulesForUser === "function") {
         const result = await (mod as any).evaluateRulesForUser(driverId);
-        triggered = result?.triggered ?? [];
+        triggered = result?.details?.triggered ?? [];
+        triggeredCount = typeof result?.triggered === "number" ? result.triggered : triggered.length;
       }
     } catch (err) {
       logger.warn({ err }, "[van] rule evaluation failed (non-fatal)");
@@ -928,6 +932,7 @@ router.get("/driver/eligibility", riderAuth, async (req, res) => {
       reason: blocker ? (blocker.reason || blocker.conditionType) : null,
       conditions: activeConditions,
       triggered,
+      triggeredCount,
     });
   } catch (e) {
     logger.error({ err: e }, "[van] eligibility error");
@@ -1022,6 +1027,7 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res) => {
         gte(vanBookingsTable.cancelledAt, ago30),
       ));
 
+    // Only count past-dated trips as no-shows; future confirmed bookings excluded.
     const [{ c: noShowsLast30d } = { c: 0 }] = await db
       .select({ c: sql<number>`count(*)::int` })
       .from(vanBookingsTable)
@@ -1029,6 +1035,7 @@ router.get("/driver/metrics", vanDriverAuth, async (req, res) => {
         inArray(vanBookingsTable.scheduleId, scheduleIds),
         eq(vanBookingsTable.status, "confirmed"),
         gte(vanBookingsTable.createdAt, ago30),
+        sql`${vanBookingsTable.travelDate} < ${today}`,
         sql`${vanBookingsTable.boardedAt} IS NULL`,
       ));
 

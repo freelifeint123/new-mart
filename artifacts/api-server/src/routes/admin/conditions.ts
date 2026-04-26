@@ -499,6 +499,10 @@ async function computeUserMetric(userId: string, metric: string): Promise<number
       return Number(row?.c ?? 0);
     }
     case "van_noshow_count": {
+      // Only count past-dated trips (travelDate < today) where the booking
+      // remained "confirmed" but the passenger never boarded — i.e. an actual
+      // no-show. Future/upcoming confirmed bookings must not be counted.
+      const today = now.toISOString().split("T")[0]!;
       const driverSchedules = await db.select({ id: vanSchedulesTable.id })
         .from(vanSchedulesTable).where(eq(vanSchedulesTable.driverId, userId));
       const ids = driverSchedules.map((s) => s.id);
@@ -509,6 +513,7 @@ async function computeUserMetric(userId: string, metric: string): Promise<number
           inArray(vanBookingsTable.scheduleId, ids),
           eq(vanBookingsTable.status, "confirmed"),
           gte(vanBookingsTable.createdAt, ago30),
+          sql`${vanBookingsTable.travelDate} < ${today}`,
           sql`${vanBookingsTable.boardedAt} IS NULL`,
         ));
       return Number(row?.c ?? 0);

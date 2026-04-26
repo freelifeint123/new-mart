@@ -93,11 +93,12 @@ interface EligibilityResult {
   reason: string | null;
   conditions: Array<{ id: string; conditionType: string; severity: string; reason: string | null }>;
   triggered: Array<{ ruleName: string; metric: string; value: number }>;
+  triggeredCount?: number;
 }
 
 async function fetchEligibility(): Promise<EligibilityResult> {
   const data = await apiFetch("/van/driver/eligibility");
-  return (data ?? { eligible: true, reason: null, conditions: [], triggered: [] }) as EligibilityResult;
+  return (data ?? { eligible: true, reason: null, conditions: [], triggered: [], triggeredCount: 0 }) as EligibilityResult;
 }
 
 const STATUS_STYLE: Record<string, string> = {
