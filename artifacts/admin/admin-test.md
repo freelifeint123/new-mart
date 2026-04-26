@@ -197,7 +197,9 @@ No route was left in PARTIAL or FAIL state at the end of this pass.
 
 ### Items NOT verified end-to-end here (manual operator checklist)
 
-The QA pass intentionally did not exercise external integrations end-to-end (no real money moved, no real SMS / push sent, no real OAuth round-trip). Before going live, the operator must verify each item below from the admin panel's "Settings → Integrations" tab and from a real device:
+The QA pass intentionally did not exercise external integrations end-to-end (no real money moved, no real SMS / push sent, no real OAuth round-trip). Before going live, the operator must verify each item below from the admin panel's "Settings → Integrations" tab and from a real device.
+
+> **Operator runbook:** the step-by-step procedure for each item below — exact admin pages, fields to fill, test endpoints, expected results, and PASS/FAIL evidence rows — lives in `artifacts/admin/production-readiness-checklist.md`. Work top to bottom in that runbook on the live system; once every row is ✅, sign it off and reference the completed runbook from this section.
 
 - [ ] **SMS provider** — set `sms_provider` + provider credentials in *Settings → Integrations → SMS*, then trigger an OTP request from the customer app to a real phone and confirm delivery + audit-log entry. Smoke-send from `/sms-gateways` is **not** a real send in dev mode.
 - [ ] **Email / SMTP** — set `smtp_host`, `smtp_user`, `smtp_password` in *Settings → Integrations → Email*, then trigger the *Send password reset* button against a real address.
