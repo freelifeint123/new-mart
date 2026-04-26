@@ -281,7 +281,7 @@ Port: **23744** | Path prefix: `/admin/`
 |------|-------|--------|-------|
 | Users List | `/admin/users` | ✅ Complete | Search, filter, ban/unban, KYC |
 | User Detail | `/admin/users/:id` | ✅ Complete | Full profile, orders, wallet |
-| KYC Review | `/admin/kyc` | ✅ Complete | Filter chips, search by name/phone/CNIC, zoom/rotate/fullscreen document preview, predefined reject reasons, push + SMS on rejection, audit log entry per decision |
+| KYC Review | `/admin/kyc` | ✅ Complete | Filter chips (incl. resubmit), search by name/phone/CNIC, zoom/rotate/fullscreen document preview, vehicle-papers section for riders (driving license + vehicle photo), predefined approve/reject reason chips with custom note, push + SMS to user on decision, audit log entry per decision |
 | Roles & Permissions | `/admin/roles-permissions` | ✅ Complete | RBAC with presets |
 | Account Conditions | `/admin/account-conditions` | ✅ Complete | |
 | Condition Rules | `/admin/condition-rules` | ⚠️ Partial | Van driver rules (fix task open) |
@@ -598,7 +598,7 @@ Auth: Bearer JWT for all `/api/admin/*` routes
 | Categories | `/api/admin/categories/*` | ✅ Complete | |
 | Finance | `/api/admin/finance/*` | ✅ Complete | GST, payouts, settlements |
 | Fleet | `/api/admin/fleet/*` | ✅ Complete | Rider management |
-| KYC | `/api/admin/kyc/*` | ✅ Complete | List with status + search filters, approve/reject endpoints with audit log + push + SMS notifications |
+| KYC | `/api/admin/kyc/*` | ✅ Complete | List with status + search (q) filters, detail endpoint joins rider_profiles for vehicle papers, approve/reject endpoints accept reason, write audit log entry (admin id + IP + reason), and dispatch push + (SMS on reject) notifications |
 | Promotions | `/api/admin/promotions/*` | ✅ Complete | |
 | Banners | `/api/admin/banners/*` | ✅ Complete | |
 | Communication | `/api/admin/communication/*` | ✅ Complete | AI messaging |

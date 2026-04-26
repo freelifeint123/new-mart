@@ -5,6 +5,7 @@ import {
   User, Phone, CreditCard, MapPin, Calendar, Eye,
   Filter, RefreshCw, X, ChevronDown, Search,
   ZoomIn, ZoomOut, RotateCw, Maximize2, Minimize2,
+  Car, FileText,
 } from "lucide-react";
 
 import { apiAbsoluteFetchRaw } from "@/lib/api";
@@ -16,6 +17,15 @@ const STATUS_CONFIG = {
   resubmit: { label: "Resubmit",       color: "text-blue-700",   bg: "bg-blue-100",   border: "border-blue-300",   dot: "bg-blue-500",   Icon: AlertCircle },
 };
 
+type RiderProfile = {
+  vehicleType?: string | null;
+  vehiclePlate?: string | null;
+  vehicleRegNo?: string | null;
+  drivingLicense?: string | null;
+  vehiclePhoto?: string | null;
+  documents?: string | null;
+};
+
 type KycRecord = {
   id: string; userId: string; status: string;
   fullName?: string; cnic?: string; dateOfBirth?: string; gender?: string;
@@ -23,7 +33,8 @@ type KycRecord = {
   frontIdPhoto?: string; backIdPhoto?: string; selfiePhoto?: string;
   rejectionReason?: string; reviewedAt?: string; submittedAt: string;
   userName?: string; userPhone?: string; userEmail?: string;
-  user?: { name: string; phone: string; email: string; avatar?: string };
+  user?: { name: string; phone: string; email: string; avatar?: string; roles?: string };
+  riderProfile?: RiderProfile | null;
 };
 
 function PhotoModal({ url, label, onClose }: { url: string; label?: string; onClose: () => void }) {
@@ -106,6 +117,42 @@ function PhotoModal({ url, label, onClose }: { url: string; label?: string; onCl
   );
 }
 
+function ApproveModal({ onConfirm, onClose, loading }: { onConfirm: (reason: string) => void; onClose: () => void; loading: boolean }) {
+  const [reason, setReason] = useState("");
+  const QUICK = [
+    "Documents clear and valid — approved",
+    "CNIC matches selfie — approved",
+    "Vehicle papers verified",
+    "Identity confirmed via call-back",
+  ];
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <h3 className="font-bold text-gray-900 text-lg mb-1">Approve KYC</h3>
+        <p className="text-gray-500 text-sm mb-4">Optionally add a verification note. This is recorded in the audit log.</p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {QUICK.map(q => (
+            <button key={q} onClick={() => setReason(q)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition ${reason === q ? "bg-green-600 text-white border-green-600" : "bg-gray-50 text-gray-600 border-gray-200 hover:border-green-300"}`}>
+              {q}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Verification note (optional)…"
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-400 mb-4" />
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 font-semibold text-sm py-2.5 rounded-xl hover:bg-gray-50">Cancel</button>
+          <button onClick={() => onConfirm(reason.trim())} disabled={loading}
+            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+            {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "Approve KYC"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RejectModal({ onConfirm, onClose, loading }: { onConfirm: (reason: string) => void; onClose: () => void; loading: boolean }) {
   const [reason, setReason] = useState("");
   const QUICK = [
@@ -150,13 +197,17 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
 }) {
   const [photo, setPhoto] = useState<{ url: string; label: string } | null>(null);
   const [showReject, setShowReject] = useState(false);
+  const [showApprove, setShowApprove] = useState(false);
   const qc = useQueryClient();
 
   const approveMut = useMutation({
-    mutationFn: async () => {
-      return apiAbsoluteFetchRaw(`/api/kyc/admin/${record.id}/approve`, { method: "POST" });
+    mutationFn: async (reason: string) => {
+      return apiAbsoluteFetchRaw(`/api/kyc/admin/${record.id}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); onApprove(); onClose(); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-kyc"] }); setShowApprove(false); onApprove(); onClose(); },
   });
 
   const rejectMut = useMutation({
@@ -189,6 +240,7 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
   return (
     <>
       {photo && <PhotoModal url={photo.url} label={photo.label} onClose={() => setPhoto(null)} />}
+      {showApprove && <ApproveModal onConfirm={r => approveMut.mutate(r)} onClose={() => setShowApprove(false)} loading={approveMut.isPending} />}
       {showReject && <RejectModal onConfirm={r => rejectMut.mutate(r)} onClose={() => setShowReject(false)} loading={rejectMut.isPending} />}
 
       <div className="fixed inset-0 z-40 flex items-start justify-end bg-black/40 p-4" onClick={onClose}>
@@ -281,6 +333,67 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
               </div>
             </div>
 
+            {/* Vehicle papers (riders only) */}
+            {details.riderProfile && (
+              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                <div className="bg-indigo-600 px-4 py-2.5 flex items-center gap-2">
+                  <Car size={14} className="text-white" />
+                  <p className="text-white font-semibold text-sm">Vehicle Papers</p>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {[
+                    { label: "Vehicle Type",     val: details.riderProfile.vehicleType },
+                    { label: "Number Plate",     val: details.riderProfile.vehiclePlate },
+                    { label: "Registration No.", val: details.riderProfile.vehicleRegNo },
+                    { label: "Driving License",  val: details.riderProfile.drivingLicense && !/^https?:|^\//.test(details.riderProfile.drivingLicense) ? details.riderProfile.drivingLicense : null },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex items-center gap-3 px-4 py-2.5">
+                      <FileText size={14} className="text-gray-400 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-gray-400">{label}</p>
+                        <p className="text-sm text-gray-800 font-medium">{val ?? <span className="text-gray-300 italic text-xs">Not provided</span>}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-4 grid grid-cols-2 gap-3">
+                  {[
+                    { key: "vehiclePhoto"   as const, label: "Vehicle Photo" },
+                    { key: "drivingLicense" as const, label: "Driving License" },
+                  ].map(({ key, label }) => {
+                    const raw = details.riderProfile?.[key] ?? null;
+                    const isImage = !!raw && /^https?:|^\//.test(raw);
+                    const url = isImage ? fullApiUrl(raw) : null;
+                    return (
+                      <div key={key} className="text-center">
+                        {url ? (
+                          <button onClick={() => setPhoto({ url, label })} className="w-full group relative">
+                            <img src={url} alt={label} className="w-full h-28 object-cover rounded-xl border border-gray-100" />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 rounded-xl transition flex items-center justify-center">
+                              <Eye size={18} className="text-white" />
+                            </div>
+                          </button>
+                        ) : (
+                          <div className="w-full h-28 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-gray-300">
+                            <FileText size={20} />
+                            {raw && !isImage && <span className="text-[10px] text-gray-500 mt-1 px-2 truncate max-w-full">{raw}</span>}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-gray-500 mt-1">{label}</p>
+                        <p className="text-[10px]">{url ? <span className="text-green-600">✓ Uploaded</span> : raw ? <span className="text-amber-500">Text on file</span> : <span className="text-red-400">Missing</span>}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {details.riderProfile.documents && (
+                  <div className="px-4 pb-4">
+                    <p className="text-[10px] text-gray-400 mb-1">Additional Documents</p>
+                    <p className="text-xs text-gray-700 bg-gray-50 rounded-lg px-3 py-2 break-all">{details.riderProfile.documents}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Rejection reason */}
             {details.rejectionReason && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
@@ -302,7 +415,7 @@ function KycDetailPanel({ record, onClose, onApprove, onReject }: {
                   className="flex-1 border-2 border-red-300 text-red-600 font-bold text-sm py-3 rounded-xl hover:bg-red-50 transition flex items-center justify-center gap-2">
                   <XCircle size={16} /> Reject
                 </button>
-                <button onClick={() => approveMut.mutate()} disabled={approveMut.isPending}
+                <button onClick={() => setShowApprove(true)} disabled={approveMut.isPending}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-sm py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-md shadow-green-100">
                   {approveMut.isPending ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCircle size={16} /> Approve</>}
                 </button>

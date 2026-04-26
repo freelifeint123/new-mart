@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { kycVerificationsTable, usersTable, notificationsTable } from "@workspace/db/schema";
+import { kycVerificationsTable, usersTable, notificationsTable, riderProfilesTable } from "@workspace/db/schema";
 import { eq, desc, and, ne, or, ilike } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { customerAuth } from "../middleware/security.js";
@@ -536,10 +536,36 @@ router.get("/admin/:id", adminAuth, async (req, res) => {
   if (!record) { res.status(404).json({ error: "KYC record not found" }); return; }
 
   const [user] = await db
-    .select({ name: usersTable.name, phone: usersTable.phone, email: usersTable.email, avatar: usersTable.avatar })
+    .select({ name: usersTable.name, phone: usersTable.phone, email: usersTable.email, avatar: usersTable.avatar, roles: usersTable.roles })
     .from(usersTable)
     .where(eq(usersTable.id, record.userId))
     .limit(1);
+
+  /* For rider users, also fetch vehicle papers / driving license from rider_profiles */
+  let riderProfile: {
+    vehicleType: string | null;
+    vehiclePlate: string | null;
+    vehicleRegNo: string | null;
+    drivingLicense: string | null;
+    vehiclePhoto: string | null;
+    documents: string | null;
+  } | null = null;
+  const isRider = (user?.roles ?? "").split(",").map(r => r.trim()).includes("rider");
+  if (isRider) {
+    const [rp] = await db
+      .select({
+        vehicleType: riderProfilesTable.vehicleType,
+        vehiclePlate: riderProfilesTable.vehiclePlate,
+        vehicleRegNo: riderProfilesTable.vehicleRegNo,
+        drivingLicense: riderProfilesTable.drivingLicense,
+        vehiclePhoto: riderProfilesTable.vehiclePhoto,
+        documents: riderProfilesTable.documents,
+      })
+      .from(riderProfilesTable)
+      .where(eq(riderProfilesTable.userId, record.userId))
+      .limit(1);
+    riderProfile = rp ?? null;
+  }
 
   res.json({
     ...record,
@@ -548,6 +574,7 @@ router.get("/admin/:id", adminAuth, async (req, res) => {
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     user: user ?? null,
+    riderProfile,
   });
 });
 
@@ -558,6 +585,9 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
     return;
   }
   const adminId = req.adminId;
+
+  const rawReason = typeof req.body?.reason === "string" ? req.body.reason : "";
+  const approveNote = rawReason.trim() ? stripHtml(rawReason).slice(0, 500) : "";
 
   const [record] = await db
     .select()
@@ -614,13 +644,14 @@ router.post("/admin/:id/approve", adminAuth, async (req, res) => {
     data: { kycId: record.id, status: "approved" },
   }).catch((e: Error) => logger.warn({ userId: record.userId, err: e.message }, "[kyc/approve] push failed"));
 
-  /* ── Audit log entry ── */
+  /* ── Audit log entry (with admin id, timestamp, optional verification note) ── */
   logAdminAudit("kyc_approve", {
     adminId,
     ip: getClientIp(req),
     userAgent: req.headers["user-agent"],
     result: "success",
-    metadata: { kycId: record.id, userId: record.userId, cnic: record.cnic },
+    reason: approveNote || "Documents verified — KYC approved",
+    metadata: { kycId: record.id, userId: record.userId, cnic: record.cnic, note: approveNote || null },
   }).catch(() => {});
 
   res.json({ success: true, message: "KYC approved and account activated" });
