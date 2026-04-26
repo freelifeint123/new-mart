@@ -161,10 +161,38 @@ function ProtectedRoute({
   );
 }
 
-function Router() {
+/* Root "/" gate: bounce authenticated users to dashboard (or the
+ * forced-password screen) and otherwise render the login page.
+ * The redirect must run from a useEffect so wouter's navigate isn't called
+ * during render — calling setLocation in a render body produces the
+ * "Cannot update a component while rendering a different component" warning.
+ */
+function RootRedirect() {
   const { state } = useAdminAuth();
   const [, setLocation] = useLocation();
 
+  useEffect(() => {
+    if (state.isLoading) return;
+    if (state.accessToken) {
+      setLocation(state.mustChangePassword ? "/set-new-password" : "/dashboard");
+    }
+  }, [state.isLoading, state.accessToken, state.mustChangePassword, setLocation]);
+
+  if (state.isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (state.accessToken) {
+    // Effect above will navigate; render nothing in the meantime.
+    return null;
+  }
+  return <Login />;
+}
+
+function Router() {
   return (
     <Switch>
       {/* Public Routes */}
@@ -176,20 +204,7 @@ function Router() {
         <ProtectedRoute component={SetNewPassword} bypassPasswordGate />
       </Route>
       <Route path="/">
-        {() => {
-          if (state.isLoading) {
-            return (
-              <div className="min-h-screen flex items-center justify-center bg-background">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              </div>
-            );
-          }
-          if (state.accessToken) {
-            setLocation(state.mustChangePassword ? "/set-new-password" : "/dashboard");
-            return null;
-          }
-          return <Login />;
-        }}
+        <RootRedirect />
       </Route>
 
       {/* Protected Routes */}
