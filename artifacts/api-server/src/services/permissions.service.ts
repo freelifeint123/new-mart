@@ -41,32 +41,50 @@ export async function seedPermissionCatalog(): Promise<void> {
   }
 }
 
-export async function seedDefaultRoles(): Promise<void> {
-  for (const [slug, perms] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
-    let [row] = await db.select().from(rolesTable).where(eq(rolesTable.slug, slug)).limit(1);
-    if (!row) {
-      const id = `role_${generateId()}`;
-      await db.insert(rolesTable).values({
-        id,
-        slug,
-        name: slugToName(slug),
-        description: `Default ${slugToName(slug)} role`,
-        isBuiltIn: true,
-      });
-      row = { id, slug, name: slugToName(slug), description: null, isBuiltIn: true,
-              createdAt: new Date(), updatedAt: new Date() } as RbacRole;
-    } else if (!row.isBuiltIn) {
-      await db.update(rolesTable).set({ isBuiltIn: true }).where(eq(rolesTable.id, row.id));
-    }
+/**
+ * Stable 64-bit advisory-lock key for the built-in role seeder. Picked
+ * once and never changed so concurrent API instances always contend for
+ * the same lock. The literal must fit in a signed bigint.
+ */
+const SEED_DEFAULT_ROLES_LOCK_KEY = 7426193845012345678n;
 
-    // Replace permissions for built-in roles to keep them in sync with the catalog.
-    await db.delete(rolePermissionsTable).where(eq(rolePermissionsTable.roleId, row.id));
-    if (perms.length > 0) {
-      await db.insert(rolePermissionsTable).values(
-        perms.map(pid => ({ roleId: row!.id, permissionId: pid })),
-      );
+export async function seedDefaultRoles(): Promise<void> {
+  // Serialize seeding across concurrent API instances. Without this, two
+  // workers booting at once both run delete-then-insert against
+  // rbac_role_permissions and one of them races into a duplicate-key
+  // error on the primary key. The transaction-scoped advisory lock is
+  // released automatically on COMMIT/ROLLBACK.
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${SEED_DEFAULT_ROLES_LOCK_KEY})`);
+
+    for (const [slug, perms] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+      let [row] = await tx.select().from(rolesTable).where(eq(rolesTable.slug, slug)).limit(1);
+      if (!row) {
+        const id = `role_${generateId()}`;
+        await tx.insert(rolesTable).values({
+          id,
+          slug,
+          name: slugToName(slug),
+          description: `Default ${slugToName(slug)} role`,
+          isBuiltIn: true,
+        });
+        row = { id, slug, name: slugToName(slug), description: null, isBuiltIn: true,
+                createdAt: new Date(), updatedAt: new Date() } as RbacRole;
+      } else if (!row.isBuiltIn) {
+        await tx.update(rolesTable).set({ isBuiltIn: true }).where(eq(rolesTable.id, row.id));
+      }
+
+      // Replace permissions for built-in roles to keep them in sync with the catalog.
+      // Belt-and-suspenders: onConflictDoNothing keeps the insert idempotent even
+      // if some other path inserted the same (role,permission) pair concurrently.
+      await tx.delete(rolePermissionsTable).where(eq(rolePermissionsTable.roleId, row.id));
+      if (perms.length > 0) {
+        await tx.insert(rolePermissionsTable).values(
+          perms.map(pid => ({ roleId: row!.id, permissionId: pid })),
+        ).onConflictDoNothing();
+      }
     }
-  }
+  });
 }
 
 function slugToName(slug: string): string {
