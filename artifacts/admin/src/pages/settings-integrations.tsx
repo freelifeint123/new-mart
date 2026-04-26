@@ -213,14 +213,14 @@ function computeHealth(localValues: Record<string, string>): IntegrationHealth[]
       icon: <CreditCard className="w-4 h-4 text-red-600" />,
       status: jcStatus, missingFields: jcMissing,
       hint: jcType === "manual" && jcStatus === "manual" ? "Manual mode — always ready, no API needed" : undefined,
-      testType: jcEnabled ? "jazzcash" : undefined,
+      testType: (jcStatus === "configured" || jcStatus === "manual") ? "jazzcash" as const : undefined,
     },
     {
       id: "easypaisa", label: `EasyPaisa ${epType === "manual" ? "(Manual)" : "(API)"}`,
       icon: <CreditCard className="w-4 h-4 text-green-600" />,
       status: epStatus, missingFields: epMissing,
       hint: epType === "manual" && epStatus === "manual" ? "Manual mode — always ready, no API needed" : undefined,
-      testType: epEnabled ? "easypaisa" : undefined,
+      testType: (epStatus === "configured" || epStatus === "manual") ? "easypaisa" as const : undefined,
     },
   ];
 }
