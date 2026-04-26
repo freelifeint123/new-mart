@@ -50,11 +50,29 @@ function GatewayCard({
   const handleTest = async () => {
     setTesting(true); setTestResult(null);
     try {
-      const data = await apiAbsoluteFetchRaw(`/api/payments/test-connection/${prefix}`) as any;
-      setTestResult({ ok: data.ok, message: data.message });
-      toast({ title: data.ok ? `${name} Connected ✅` : `${name} Failed`, description: data.message, variant: data.ok ? "default" : "destructive" });
-    } catch {
-      setTestResult({ ok: false, message: "Connection failed — check if API server is running" });
+      const raw = await apiAbsoluteFetchRaw(`/api/payments/test-connection/${prefix}`) as any;
+      // Backend uses sendSuccess(res, { ok, message }) → envelope { success, data: { ok, message } }.
+      // apiAbsoluteFetchRaw does NOT unwrap, so read the inner payload first; fall back if a future
+      // route returns the bare object directly.
+      const payload = raw?.data ?? raw;
+      const ok = payload?.ok === true;
+      const message = payload?.message || raw?.message || (ok ? "Connection succeeded" : "Connection failed");
+      setTestResult({ ok, message });
+      toast({
+        title: ok ? `${name} Connected ✅` : `${name} Failed`,
+        description: message,
+        variant: ok ? "default" : "destructive",
+      });
+    } catch (err: any) {
+      // Surface real error info instead of swallowing every failure as the same generic line.
+      let detail = err?.message || String(err) || "Unknown error";
+      // Common cases: HTTP error codes embedded in apiAbsoluteFetchRaw error message
+      if (/401|403/.test(detail)) detail = "Unauthorized — please re-login as admin";
+      else if (/404/.test(detail))  detail = "Endpoint not found — check that the API server is up to date";
+      else if (/500|502|503/.test(detail)) detail = `Server error: ${detail}`;
+      else if (/network|fetch/i.test(detail)) detail = "Network error — could not reach API server";
+      setTestResult({ ok: false, message: detail });
+      toast({ title: `${name} Test Failed`, description: detail, variant: "destructive" });
     }
     setTesting(false);
   };

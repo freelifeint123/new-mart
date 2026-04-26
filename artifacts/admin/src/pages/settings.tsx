@@ -26,52 +26,151 @@ import { SystemSection } from "./settings-system";
 import { WeatherSection } from "./settings-weather";
 import { renderSection, Setting, CatKey, TEXT_KEYS } from "./settings-render";
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────
+ * TOP-10 settings model
+ *
+ * The DB still stores ~30 fine-grained `category` values on each setting row
+ * (general, features, dispatch, …). The render layer maps those legacy
+ * categories into 10 top-level groups via LEGACY_TO_TOP10 below. Every legacy
+ * category remains a sub-section inside its top-10 parent — this keeps the
+ * existing renderSection() dispatch and dedicated section components
+ * untouched while presenting a clean Top-10 navigation.
+ *
+ * Deep links: both `?tab=` (new) and `?cat=` (legacy) are accepted, and both
+ * top-10 keys *and* legacy category names resolve to the right tab.
+ * ───────────────────────────────────────────────────────────────────────── */
 
-const CAT_ORDER = [
-  "general","features",
-  "dispatch","rides","orders","delivery",
-  "notifications","uploads","pagination",
-  "customer","rider","vendor",
-  "finance","payment",
-  "branding","content","integrations",
-  "van","onboarding","moderation",
-  "security","network","system_limits","system","weather",
-  "regional",
-  "cache","jwt","ratelimit","geo","localization",
-] as const;
+export type Top10Key =
+  | "general" | "services" | "operations" | "roles" | "finance_payments"
+  | "communication" | "integrations" | "security_access" | "system_perf" | "widgets";
 
-const NAV_GROUPS: { label: string; emoji: string; items: CatKey[] }[] = [
-  { label: "App & Platform",  emoji: "🏢", items: ["general", "features"] },
-  { label: "Dispatch & Ops",  emoji: "🚀", items: ["dispatch"] },
-  { label: "Service Config",  emoji: "⚙️", items: ["rides", "orders", "delivery"] },
-  { label: "Notifications",   emoji: "🔔", items: ["notifications"] },
-  { label: "Upload & Display",emoji: "📤", items: ["uploads", "pagination"] },
-  { label: "Role Settings",   emoji: "👤", items: ["customer", "rider", "vendor"] },
-  { label: "Finance",         emoji: "💰", items: ["finance", "payment"] },
-  { label: "Branding & UI",   emoji: "🎨", items: ["branding"] },
-  { label: "Communication",   emoji: "📢", items: ["content", "integrations"] },
-  { label: "Transport & UX",  emoji: "🚐", items: ["van", "onboarding"] },
-  { label: "Moderation",      emoji: "🛡️", items: ["moderation"] },
-  { label: "Security",        emoji: "🔒", items: ["security"] },
-  { label: "Network & Retry", emoji: "🌐", items: ["network"] },
-  { label: "System",          emoji: "🔧", items: ["system_limits", "system", "cache"] },
-  { label: "Regional",        emoji: "🌍", items: ["regional", "localization"] },
-  { label: "Auth & Tokens",   emoji: "🔑", items: ["jwt"] },
-  { label: "Rate Limits",     emoji: "⏱️", items: ["ratelimit"] },
-  { label: "Geo & Zones",     emoji: "📍", items: ["geo"] },
-  { label: "Widgets",         emoji: "🌤️", items: ["weather"] },
+const TOP10_ORDER: readonly Top10Key[] = [
+  "general", "services", "operations", "roles", "finance_payments",
+  "communication", "integrations", "security_access", "system_perf", "widgets",
 ];
 
+/** Map every legacy DB category → its Top-10 parent. */
+export const LEGACY_TO_TOP10: Record<string, Top10Key> = {
+  // 1. General  (identity + regional + branding theme)
+  general:       "general",
+  regional:      "general",
+  localization:  "general",
+  branding:      "general",
+  // 2. Services & Features
+  features:      "services",
+  // 3. Operations & Dispatch  (includes onboarding flows for vendors/riders/customers)
+  dispatch:      "operations",
+  orders:        "operations",
+  delivery:      "operations",
+  rides:         "operations",
+  van:           "operations",
+  onboarding:    "operations",
+  // 4. Roles
+  customer:      "roles",
+  rider:         "roles",
+  vendor:        "roles",
+  // 5. Finance & Payments
+  finance:       "finance_payments",
+  payment:       "finance_payments",
+  // 6. Communication
+  notifications: "communication",
+  content:       "communication",
+  // 7. Integrations
+  integrations:  "integrations",
+  // 8. Security & Access  (auth + abuse-prevention: moderation, rate limits, JWT)
+  security:      "security_access",
+  jwt:           "security_access",
+  moderation:    "security_access",
+  ratelimit:     "security_access",
+  // 9. System & Performance
+  system:        "system_perf",
+  system_limits: "system_perf",
+  cache:         "system_perf",
+  network:       "system_perf",
+  geo:           "system_perf",
+  uploads:       "system_perf",
+  pagination:    "system_perf",
+  // 10. Widgets & Add-ons
+  weather:       "widgets",
+};
+
+/** Top-10 group metadata (sidebar entries + section header). */
+const TOP10_CONFIG: Record<Top10Key, {
+  label: string; emoji: string; icon: any; color: string; bg: string;
+  description: string; children: CatKey[];
+}> = {
+  general: {
+    label: "General", emoji: "🏢", icon: Globe,
+    color: "text-gray-700", bg: "bg-gray-50",
+    description: "App identity, regional formats, locale and brand colors",
+    children: ["general", "regional", "localization", "branding"],
+  },
+  services: {
+    label: "Services & Features", emoji: "⚡", icon: Zap,
+    color: "text-violet-600", bg: "bg-violet-50",
+    description: "Master toggles for every service across the platform",
+    children: ["features"],
+  },
+  operations: {
+    label: "Operations & Dispatch", emoji: "🚀", icon: Gauge,
+    color: "text-cyan-600", bg: "bg-cyan-50",
+    description: "Dispatch, orders, delivery, rides, van and onboarding flows",
+    children: ["dispatch", "orders", "delivery", "rides", "van", "onboarding"],
+  },
+  roles: {
+    label: "Roles", emoji: "👤", icon: Users,
+    color: "text-blue-600", bg: "bg-blue-50",
+    description: "Per-role limits, permissions and approval rules",
+    children: ["customer", "rider", "vendor"],
+  },
+  finance_payments: {
+    label: "Finance & Payments", emoji: "💰", icon: BarChart3,
+    color: "text-purple-600", bg: "bg-purple-50",
+    description: "Tax, commissions, payouts and payment providers",
+    children: ["finance", "payment"],
+  },
+  communication: {
+    label: "Communication", emoji: "📢", icon: MessageSquare,
+    color: "text-pink-600", bg: "bg-pink-50",
+    description: "Notifications, banners and announcements",
+    children: ["notifications", "content"],
+  },
+  integrations: {
+    label: "Integrations", emoji: "🔌", icon: Puzzle,
+    color: "text-indigo-600", bg: "bg-indigo-50",
+    description: "Maps, push, SMS, email, WhatsApp, analytics and monitoring",
+    children: ["integrations"],
+  },
+  security_access: {
+    label: "Security & Access", emoji: "🔒", icon: Shield,
+    color: "text-red-600", bg: "bg-red-50",
+    description: "Auth, OTP, sessions, JWT, content moderation and rate limits",
+    children: ["security", "jwt", "moderation", "ratelimit"],
+  },
+  system_perf: {
+    label: "System & Performance", emoji: "🔧", icon: Server,
+    color: "text-slate-700", bg: "bg-slate-100",
+    description: "Database, limits, cache, network, geo and pagination",
+    children: ["system", "system_limits", "cache", "network", "geo", "uploads", "pagination"],
+  },
+  widgets: {
+    label: "Widgets & Add-ons", emoji: "✨", icon: Sparkles,
+    color: "text-fuchsia-600", bg: "bg-fuchsia-50",
+    description: "Weather widget and other optional dashboard add-ons",
+    children: ["weather"],
+  },
+};
+
+/** Sub-section labels (one per legacy category) — used as headings inside a top-10 group. */
 const CATEGORY_CONFIG: Record<CatKey, { label: string; icon: any; color: string; bg: string; activeBg: string; description: string }> = {
   general:      { label: "General",             icon: Globe,        color: "text-gray-600",    bg: "bg-gray-50",    activeBg: "bg-gray-700",    description: "App name, support contact, version and maintenance mode" },
   features:     { label: "Feature Toggles",     icon: Zap,          color: "text-violet-600",  bg: "bg-violet-50",  activeBg: "bg-violet-600",  description: "Enable or disable each service across the entire platform instantly" },
-  rides:        { label: "Ride Pricing & Rules", icon: Car,          color: "text-teal-600",    bg: "bg-teal-50",    activeBg: "bg-teal-600",    description: "Bike & car pricing, surge, Mol-Tol bargaining and cancellation rules — for live operations use Rides in the main menu" },
+  rides:        { label: "Ride Pricing & Rules", icon: Car,          color: "text-teal-600",    bg: "bg-teal-50",    activeBg: "bg-teal-600",    description: "Bike & car pricing, surge, Mol-Tol bargaining and cancellation rules" },
   orders:       { label: "Order Rules",          icon: ShoppingCart, color: "text-amber-600",   bg: "bg-amber-50",   activeBg: "bg-amber-600",   description: "Min/max cart amounts, scheduling, timing and auto-cancel rules" },
   delivery:     { label: "Delivery Charges",     icon: Truck,        color: "text-sky-600",     bg: "bg-sky-50",     activeBg: "bg-sky-600",     description: "Delivery charges per service and free delivery thresholds" },
   customer:     { label: "Customer App",         icon: Users,        color: "text-blue-600",    bg: "bg-blue-50",    activeBg: "bg-blue-600",    description: "Wallet limits, loyalty points, referral bonuses and order caps for customers" },
   rider:        { label: "Rider App",            icon: Bike,         color: "text-green-600",   bg: "bg-green-50",   activeBg: "bg-green-600",   description: "Earnings %, acceptance radius, payout limits and withdrawal rules for riders" },
-  vendor:       { label: "Vendor Portal",        icon: Store,        color: "text-orange-600",  bg: "bg-orange-50",  activeBg: "bg-orange-600",  description: "Commission rate, menu limits, settlement cycle and approval rules — for live vendors use Vendors in the main menu" },
+  vendor:       { label: "Vendor Portal",        icon: Store,        color: "text-orange-600",  bg: "bg-orange-50",  activeBg: "bg-orange-600",  description: "Commission rate, menu limits, settlement cycle and approval rules" },
   finance:      { label: "Finance & Tax",        icon: BarChart3,    color: "text-purple-600",  bg: "bg-purple-50",  activeBg: "bg-purple-600",  description: "GST/tax, cashback, platform commissions, invoicing and payouts" },
   payment:      { label: "Payment Methods",      icon: CreditCard,   color: "text-emerald-600", bg: "bg-emerald-50", activeBg: "bg-emerald-600", description: "JazzCash, EasyPaisa, Bank Transfer, COD and AJK Wallet settings" },
   content:      { label: "Content & Banners",    icon: MessageSquare,color: "text-pink-600",    bg: "bg-pink-50",    activeBg: "bg-pink-600",    description: "Banners, announcements, notices for riders & vendors, policy links" },
@@ -97,6 +196,14 @@ const CATEGORY_CONFIG: Record<CatKey, { label: string; icon: any; color: string;
   network:      { label: "Network & Retry",     icon: Wifi,         color: "text-cyan-600",    bg: "bg-cyan-50",    activeBg: "bg-cyan-600",    description: "API timeout, retry attempts, backoff delay, GPS queue size and dismissed-request TTL" },
 };
 
+/** Resolve a deep-link param (?tab= or ?cat=) — accepts both top-10 keys and legacy names. */
+function resolveTop10(raw: string | null | undefined): Top10Key | null {
+  if (!raw) return null;
+  if ((TOP10_ORDER as readonly string[]).includes(raw)) return raw as Top10Key;
+  if (LEGACY_TO_TOP10[raw]) return LEGACY_TO_TOP10[raw];
+  return null;
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const [settings, setSettings] = useState<Setting[]>([]);
@@ -106,11 +213,18 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<CatKey>(() => {
+  const [activeTop10, setActiveTop10] = useState<Top10Key>(() => {
     const p = new URLSearchParams(window.location.search);
-    const cat = p.get("cat");
-    return (cat && (CAT_ORDER as readonly string[]).includes(cat)) ? (cat as CatKey) : "features";
+    return resolveTop10(p.get("tab")) ?? resolveTop10(p.get("cat")) ?? "services";
   });
+
+  /* Keep deep links in sync — both ?tab= (canonical) and ?cat= (legacy) work on load. */
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", activeTop10);
+    url.searchParams.delete("cat");
+    window.history.replaceState({}, "", url.toString());
+  }, [activeTop10]);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -239,23 +353,23 @@ export default function SettingsPage() {
     return "";
   };
 
-  const activeCfg = CATEGORY_CONFIG[activeTab];
+  const activeCfg = TOP10_CONFIG[activeTop10];
   const ActiveIcon = activeCfg.icon;
-  const activeSettings = grouped[activeTab] || [];
 
-  /* keys that appear in a different tab than their DB category */
+  /* keys that appear in a different sub-section than their raw DB category */
   const DISPLAY_CAT_OVERRIDE: Record<string,string> = {
     vendor_min_payout:        "finance",
     customer_referral_bonus:  "payment",
     customer_signup_bonus:    "payment",
   };
+  /* Roll dirty keys up into Top-10 buckets. */
   const dirtyCounts: Record<string,number> = {};
   for (const k of dirtyKeys) {
     const s = settings.find(x => x.key === k);
-    if (s) {
-      const displayCat = DISPLAY_CAT_OVERRIDE[k] ?? s.category;
-      dirtyCounts[displayCat] = (dirtyCounts[displayCat] || 0) + 1;
-    }
+    if (!s) continue;
+    const displayCat = DISPLAY_CAT_OVERRIDE[k] ?? s.category;
+    const top10 = LEGACY_TO_TOP10[displayCat] ?? LEGACY_TO_TOP10[s.category];
+    if (top10) dirtyCounts[top10] = (dirtyCounts[top10] || 0) + 1;
   }
 
   if (loading) {
@@ -274,10 +388,60 @@ export default function SettingsPage() {
   const appNameValue = (localValues["app_name"] ?? settings.find(s => s.key === "app_name")?.value ?? "").trim();
   const appNameBlank = appNameValue === "";
 
-  /* helper: is a category visible */
-  const isCatVisible = (cat: CatKey) =>
-    (grouped[cat]?.length ?? 0) > 0 || cat === "payment" || cat === "system" || cat === "security" || cat === "weather"
-    || cat === "notifications" || cat === "uploads" || cat === "pagination" || cat === "van" || cat === "onboarding" || cat === "moderation";
+  /* Children of the active top-10 group + total settings rendered in this view. */
+  const activeChildren = activeCfg.children;
+  const activeChildSettingsCount = activeChildren.reduce(
+    (n, c) => n + (grouped[c]?.length ?? 0),
+    0,
+  );
+
+  /* Renders one legacy sub-section inside the active top-10 group. */
+  const renderLegacyChild = (cat: CatKey) => {
+    if (cat === "payment") {
+      return (
+        <PaymentSection
+          localValues={localValues} dirtyKeys={dirtyKeys}
+          handleChange={handleChange} handleToggle={handleToggle}
+          onNavigateFeatures={() => setActiveTop10("services")}
+        />
+      );
+    }
+    if (cat === "integrations") {
+      return (
+        <IntegrationsSection
+          localValues={localValues} dirtyKeys={dirtyKeys}
+          handleChange={handleChange} handleToggle={handleToggle}
+        />
+      );
+    }
+    if (cat === "security") {
+      return (
+        <SecuritySection
+          localValues={localValues} dirtyKeys={dirtyKeys}
+          handleChange={handleChange} handleToggle={handleToggle}
+        />
+      );
+    }
+    if (cat === "system") return <SystemSection />;
+    if (cat === "weather") return <WeatherSection />;
+    const childSettings = grouped[cat] ?? [];
+    if (childSettings.length === 0) {
+      return (
+        <p className="text-xs text-muted-foreground italic px-1 py-2">
+          No settings configured for this sub-section yet.
+        </p>
+      );
+    }
+    return renderSection(
+      cat, childSettings, settings, localValues, dirtyKeys,
+      handleChange, handleToggle, getInputType, getInputSuffix, getPlaceholder,
+    );
+  };
+
+  /* The 5 sections that always render even with zero DB settings. */
+  const ALWAYS_VISIBLE = new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]);
+  const childHasContent = (cat: CatKey) =>
+    ALWAYS_VISIBLE.has(cat) || (grouped[cat]?.length ?? 0) > 0;
 
   return (
     <div className="space-y-4 max-w-5xl">
@@ -345,8 +509,8 @@ export default function SettingsPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">{activeCfg.label}</p>
-            {dirtyCounts[activeTab] > 0 && (
-              <p className="text-[11px] text-amber-600 font-medium leading-tight">{dirtyCounts[activeTab]} unsaved</p>
+            {dirtyCounts[activeTop10] > 0 && (
+              <p className="text-[11px] text-amber-600 font-medium leading-tight">{dirtyCounts[activeTop10]} unsaved</p>
             )}
           </div>
           {/* Reset shortcut on mobile */}
@@ -400,58 +564,40 @@ export default function SettingsPage() {
               )}
             </SheetTitle>
           </div>
-          {/* Grouped category list */}
-          <div className="overflow-y-auto flex-1 px-3 py-3 space-y-3 pb-8">
-            {NAV_GROUPS.map((group) => {
-              const visibleItems = group.items.filter(isCatVisible);
-              if (visibleItems.length === 0) return null;
-              const groupDirty = visibleItems.reduce((sum, cat) => sum + (dirtyCounts[cat] || 0), 0);
+          {/* Flat Top-10 list */}
+          <div className="overflow-y-auto flex-1 px-3 py-3 space-y-1 pb-8">
+            {TOP10_ORDER.map((key, idx) => {
+              const cfg = TOP10_CONFIG[key];
+              const Icon = cfg.icon;
+              const isActive = activeTop10 === key;
+              const dirty = dirtyCounts[key] || 0;
               return (
-                <div key={group.label}>
-                  {/* Group header */}
-                  <div className="flex items-center gap-2 px-2 pb-1.5">
-                    <span className="text-base leading-none">{group.emoji}</span>
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex-1">{group.label}</p>
-                    {groupDirty > 0 && (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{groupDirty}</span>
-                    )}
+                <button
+                  key={key}
+                  onClick={() => { setActiveTop10(key); setMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all relative ${
+                    isActive ? "bg-slate-900 text-white shadow-sm" : "hover:bg-muted/50 text-foreground bg-transparent"
+                  }`}
+                  data-tab={key}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: "var(--color-accent, #6366F1)" }} />
+                  )}
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base ${isActive ? "bg-white/15" : cfg.bg}`}>
+                    <Icon className={`w-4 h-4 ${isActive ? "text-white" : cfg.color}`} />
                   </div>
-                  {/* Items */}
-                  <div className="space-y-0.5">
-                    {visibleItems.map(cat => {
-                      const cfg = CATEGORY_CONFIG[cat];
-                      const Icon = cfg.icon;
-                      const isActive = activeTab === cat;
-                      const dirty = dirtyCounts[cat] || 0;
-                      return (
-                        <button
-                          key={cat}
-                          onClick={() => { setActiveTab(cat); setMobileDrawerOpen(false); }}
-                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all relative ${
-                            isActive ? "bg-slate-900 text-white shadow-sm" : "hover:bg-muted/50 text-foreground bg-transparent"
-                          }`}
-                        >
-                          {/* Left accent stripe */}
-                          {isActive && (
-                            <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: "var(--color-accent, #6366F1)" }} />
-                          )}
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${isActive ? "bg-white/15" : cfg.bg}`}>
-                            <Icon className={`w-4 h-4 ${isActive ? "text-white" : cfg.color}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-foreground"}`}>{cfg.label}</p>
-                            <p className={`text-[11px] truncate mt-0.5 ${isActive ? "text-white/60" : "text-muted-foreground"}`}>{cfg.description.split("—")[0].trim()}</p>
-                          </div>
-                          {dirty > 0 ? (
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isActive ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>{dirty}</span>
-                          ) : (
-                            <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-white/40" : "text-muted-foreground/30"}`} />
-                          )}
-                        </button>
-                      );
-                    })}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-foreground"}`}>
+                      <span className="text-muted-foreground/70 font-normal mr-1">{idx + 1}.</span> {cfg.label}
+                    </p>
+                    <p className={`text-[11px] truncate mt-0.5 ${isActive ? "text-white/60" : "text-muted-foreground"}`}>{cfg.description}</p>
                   </div>
-                </div>
+                  {dirty > 0 ? (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isActive ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>{dirty}</span>
+                  ) : (
+                    <ChevronRight className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-white/40" : "text-muted-foreground/30"}`} />
+                  )}
+                </button>
               );
             })}
           </div>
@@ -473,55 +619,34 @@ export default function SettingsPage() {
           </div>
 
           <nav className="p-2.5 pb-3 max-h-[calc(100vh-200px)] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
-            {NAV_GROUPS.map((group, gi) => {
-              const visibleItems = group.items.filter(isCatVisible);
-              if (visibleItems.length === 0) return null;
-
-              const groupDirty = visibleItems.reduce((sum, cat) => sum + (dirtyCounts[cat] || 0), 0);
-
+            {TOP10_ORDER.map((key, idx) => {
+              const cfg = TOP10_CONFIG[key];
+              const Icon = cfg.icon;
+              const isActive = activeTop10 === key;
+              const dirty = dirtyCounts[key] || 0;
               return (
-                <div key={group.label} className={gi > 0 ? "mt-3" : ""}>
-                  {/* Group header — subtle left-border accent */}
-                  <div className="flex items-center gap-2 px-2 py-1.5 mb-1 rounded-lg bg-slate-50/70 border-l-[3px] border-slate-200">
-                    <span className="text-[12px] leading-none">{group.emoji}</span>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex-1">{group.label}</p>
-                    {groupDirty > 0 && (
-                      <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{groupDirty}</span>
-                    )}
+                <button
+                  key={key}
+                  onClick={() => setActiveTop10(key)}
+                  data-tab={key}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-left transition-all group relative overflow-hidden mb-0.5 ${
+                    isActive ? "bg-slate-900 text-white shadow-md" : "hover:bg-slate-50 text-foreground"
+                  }`}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-indigo-400" />
+                  )}
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${isActive ? "bg-white/15" : cfg.bg}`}>
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : cfg.color}`} />
                   </div>
-
-                  {/* Group items */}
-                  <div className="space-y-0.5 ml-1">
-                    {visibleItems.map(cat => {
-                      const cfg = CATEGORY_CONFIG[cat];
-                      const Icon = cfg.icon;
-                      const isActive = activeTab === cat;
-                      const dirty = dirtyCounts[cat] || 0;
-                      return (
-                        <button key={cat} onClick={() => setActiveTab(cat)}
-                          className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all group relative overflow-hidden ${
-                            isActive
-                              ? "bg-slate-900 text-white shadow-md"
-                              : "hover:bg-slate-50 text-foreground"
-                          }`}
-                        >
-                          {/* Active left accent stripe */}
-                          {isActive && (
-                            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-indigo-400" />
-                          )}
-                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${isActive ? "bg-white/15" : cfg.bg}`}>
-                            <Icon className={`w-3 h-3 ${isActive ? "text-white" : cfg.color}`} />
-                          </div>
-                          <span className={`text-xs font-semibold flex-1 truncate ${isActive ? "text-white" : "text-slate-700"}`}>{cfg.label}</span>
-                          {dirty > 0
-                            ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isActive ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>{dirty}</span>
-                            : <ChevronRight className={`w-3 h-3 flex-shrink-0 transition-colors ${isActive ? "text-white/40" : "text-slate-300 group-hover:text-slate-400"}`} />
-                          }
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                  <span className={`text-xs font-semibold flex-1 truncate ${isActive ? "text-white" : "text-slate-700"}`}>
+                    <span className={`mr-1 font-normal ${isActive ? "text-white/60" : "text-slate-400"}`}>{idx + 1}.</span>{cfg.label}
+                  </span>
+                  {dirty > 0
+                    ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${isActive ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>{dirty}</span>
+                    : <ChevronRight className={`w-3 h-3 flex-shrink-0 transition-colors ${isActive ? "text-white/40" : "text-slate-300 group-hover:text-slate-400"}`} />
+                  }
+                </button>
               );
             })}
           </nav>
@@ -542,51 +667,66 @@ export default function SettingsPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-bold text-foreground">{activeCfg.label}</h2>
-                  {activeSettings.length > 0 && (
+                  {activeChildSettingsCount > 0 && (
                     <Badge variant="outline" className="text-[10px] bg-muted/50 text-muted-foreground border-border">
-                      {activeSettings.length} settings
+                      {activeChildSettingsCount} settings
                     </Badge>
                   )}
-                  {dirtyCounts[activeTab] > 0 && (
+                  {dirtyCounts[activeTop10] > 0 && (
                     <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">
-                      {dirtyCounts[activeTab]} changed
+                      {dirtyCounts[activeTop10]} changed
                     </Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">{activeCfg.description}</p>
               </div>
             </div>
-            {/* Section body */}
-            <div className="p-4 sm:p-6">
-              {activeTab === "payment" ? (
-                <PaymentSection
-                  localValues={localValues} dirtyKeys={dirtyKeys}
-                  handleChange={handleChange} handleToggle={handleToggle}
-                  onNavigateFeatures={() => setActiveTab("features")}
-                />
-              ) : activeTab === "integrations" ? (
-                <IntegrationsSection
-                  localValues={localValues} dirtyKeys={dirtyKeys}
-                  handleChange={handleChange} handleToggle={handleToggle}
-                />
-              ) : activeTab === "security" ? (
-                <SecuritySection
-                  localValues={localValues} dirtyKeys={dirtyKeys}
-                  handleChange={handleChange} handleToggle={handleToggle}
-                />
-              ) : activeTab === "system" ? (
-                <SystemSection />
-              ) : activeTab === "weather" ? (
-                <WeatherSection />
-              ) : activeSettings.length === 0 ? (
+            {/* Section body — renders every legacy child sub-section in order */}
+            <div className="p-4 sm:p-6 space-y-8">
+              {activeChildren.filter(childHasContent).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Settings2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No settings in this section</p>
                 </div>
-              ) : renderSection(
-                activeTab, activeSettings, settings, localValues, dirtyKeys,
-                handleChange, handleToggle, getInputType, getInputSuffix, getPlaceholder
-              )}
+              ) : activeChildren.filter(childHasContent).map((child, idx) => {
+                const subCfg = CATEGORY_CONFIG[child];
+                const SubIcon = subCfg.icon;
+                const childSettings = grouped[child] ?? [];
+                const childDirty = Array.from(dirtyKeys).filter(k => {
+                  const s = settings.find(x => x.key === k);
+                  if (!s) return false;
+                  const dispCat = DISPLAY_CAT_OVERRIDE[k] ?? s.category;
+                  return dispCat === child;
+                }).length;
+                return (
+                  <section key={child} id={`sub-${child}`} data-cat={child} className={idx > 0 ? "pt-6 border-t border-border/50" : ""}>
+                    {/* Sub-section header */}
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${subCfg.bg}`}>
+                        <SubIcon className={`w-4 h-4 ${subCfg.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-bold text-foreground">{subCfg.label}</h3>
+                          {childSettings.length > 0 && (
+                            <Badge variant="outline" className="text-[10px] bg-muted/40 text-muted-foreground border-border/60">
+                              {childSettings.length}
+                            </Badge>
+                          )}
+                          {childDirty > 0 && (
+                            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">
+                              {childDirty} changed
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{subCfg.description}</p>
+                      </div>
+                    </div>
+                    {/* Sub-section body */}
+                    {renderLegacyChild(child)}
+                  </section>
+                );
+              })}
             </div>
           </div>
           <div className="bg-blue-50/60 border border-blue-200/60 rounded-xl p-4 flex gap-3">

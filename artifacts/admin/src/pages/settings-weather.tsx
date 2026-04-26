@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { CloudSun, Plus, X, Loader2, Save, MapPin } from "lucide-react";
+import { CloudSun, Plus, X, Loader2, Save, MapPin, Wifi, CheckCircle2, XCircle } from "lucide-react";
 
 function useWeatherConfig() {
   return useQuery({
@@ -55,6 +55,29 @@ export function WeatherSection() {
 
   const handleSave = () => {
     saveMutation.mutate({ widgetEnabled: enabled, cities: cities.join(",") });
+  };
+
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const handleTest = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const city = cities[0];
+      const result: any = await fetcher("/weather-config/test", {
+        method: "POST",
+        body: JSON.stringify({ city }),
+      });
+      const ok = result?.ok === true || result?.data?.ok === true;
+      const message = result?.message || result?.data?.message || (ok ? "Open-Meteo reachable" : "Test failed");
+      setTestResult({ ok, message });
+      toast({ title: ok ? "Weather Test ✅" : "Weather Test Failed", description: message, variant: ok ? "default" : "destructive" });
+    } catch (e: any) {
+      const msg = e?.message || "Failed to reach Open-Meteo";
+      setTestResult({ ok: false, message: msg });
+      toast({ title: "Weather Test Failed", description: msg, variant: "destructive" });
+    } finally {
+      setTesting(false);
+    }
   };
 
   if (isLoading) {
@@ -106,10 +129,31 @@ export function WeatherSection() {
         </div>
       </div>
 
-      <Button onClick={handleSave} disabled={saveMutation.isPending} className="w-full rounded-xl gap-2">
-        {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        {saveMutation.isPending ? "Saving..." : "Save Weather Config"}
-      </Button>
+      {testResult && (
+        <div className={`rounded-xl px-3 py-2 text-sm flex items-start gap-2 border ${
+          testResult.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"
+        }`}>
+          {testResult.ok ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+          <span>{testResult.message}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant="outline"
+          onClick={handleTest}
+          disabled={testing || cities.length === 0}
+          className="rounded-xl gap-2"
+          title={cities.length === 0 ? "Add at least one city first" : "Test Open-Meteo for the first city"}
+        >
+          {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wifi className="w-4 h-4" />}
+          {testing ? "Testing..." : "Test Connection"}
+        </Button>
+        <Button onClick={handleSave} disabled={saveMutation.isPending} className="rounded-xl gap-2">
+          {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          {saveMutation.isPending ? "Saving..." : "Save Weather Config"}
+        </Button>
+      </div>
     </div>
   );
 }

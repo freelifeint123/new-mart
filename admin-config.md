@@ -1,7 +1,7 @@
 # AJKMart Platform — Admin Config & Live Status Tracker
 # AJKMart پلیٹ فارم — ایڈمن کنفگ اور لائیو اسٹیٹس ٹریکر
 
-> **Last updated:** 2026-04-26 (Vendor App analytics charts upgrade)  
+> **Last updated:** 2026-04-26 (Settings reorganized into Top-10 categories)  
 > **Status legend:** ✅ Complete | 🔄 In Progress | ⚠️ Partial | ❌ Missing | ⏳ Pending (not started)  
 > **Scope:** Monorepo at `/home/runner/workspace` — pnpm workspaces
 
@@ -349,19 +349,37 @@ Port: **23744** | Path prefix: `/admin/`
 
 ### 4.9 Settings / ترتیبات
 
-| Page | Route | Status | Notes |
-|------|-------|--------|-------|
-| Settings (main) | `/admin/settings` | ✅ Complete | Full settings panel |
-| Integrations | `/admin/settings?tab=integrations` | ✅ Complete | Health panel + full config |
-| Payment Settings | `/admin/settings?tab=payment` | ✅ Complete | JazzCash, EasyPaisa, COD |
-| Security Settings | `/admin/settings?tab=security` | ✅ Complete | IP whitelist, OTP, TOTP |
-| Weather Widget | `/admin/settings?tab=weather` | ✅ Complete | Cities config |
-| App Management | `/admin/app-management` | ✅ Complete | |
-| Launch Control | `/admin/launch-control` | ✅ Complete | Feature flags, vendor plans, mode switch |
-| Experiments | `/admin/experiments` | ✅ Complete | A/B testing |
-| Loyalty Program | `/admin/loyalty` | ✅ Complete | |
-| Delivery Access | `/admin/delivery-access` | ✅ Complete | |
-| Webhook Manager | `/admin/webhook-manager` | ✅ Complete | |
+The settings panel groups every key into **10 top-level tabs**. Sub-sections
+inside each tab map back to the original DB `category` column via
+`LEGACY_TO_TOP10` (see `artifacts/admin/src/pages/settings.tsx`). Both `?tab=`
+(canonical) and `?cat=` (legacy) deep links resolve correctly. See
+`admin-settings.md` for the per-key tracker.
+
+| # | Route | Tab | Sub-sections | Status |
+|---|-------|-----|--------------|--------|
+| 1 | `/admin/settings?tab=general`           | General                | general · regional · localization · branding                                        | ✅ |
+| 2 | `/admin/settings?tab=services`          | Services & Features    | features                                                                            | ✅ |
+| 3 | `/admin/settings?tab=operations`        | Operations & Dispatch  | dispatch · orders · delivery · rides · van · onboarding                             | ✅ |
+| 4 | `/admin/settings?tab=roles`             | Roles                  | customer · rider · vendor                                                           | ✅ |
+| 5 | `/admin/settings?tab=finance_payments`  | Finance & Payments     | finance · payment (JazzCash, EasyPaisa, COD, Bank — all with Test Connection)       | ✅ |
+| 6 | `/admin/settings?tab=communication`     | Communication          | notifications · content                                                             | ✅ |
+| 7 | `/admin/settings?tab=integrations`      | Integrations           | Push (FCM), SMS, Email, WhatsApp, Maps, Analytics, Sentry — all with Test buttons   | ✅ |
+| 8 | `/admin/settings?tab=security_access`   | Security & Access      | security (IP whitelist, OTP, TOTP, GPS) · jwt · moderation · ratelimit              | ✅ |
+| 9 | `/admin/settings?tab=system_perf`       | System & Performance   | system · system_limits · cache · network · geo · uploads · pagination               | ✅ |
+| 10| `/admin/settings?tab=widgets`           | Widgets & Add-ons      | weather (Open-Meteo, with new Test Connection)                                      | ✅ |
+
+Legacy deep links still work — e.g. `?tab=payment`, `?cat=integrations`,
+`?tab=weather` all resolve to their Top-10 parent and the URL is normalized
+to the canonical `?tab=<top10>` after navigation.
+
+| Companion Page | Route | Status | Notes |
+|----------------|-------|--------|-------|
+| App Management   | `/admin/app-management` | ✅ Complete | |
+| Launch Control   | `/admin/launch-control` | ✅ Complete | Feature flags, vendor plans, mode switch |
+| Experiments      | `/admin/experiments` | ✅ Complete | A/B testing |
+| Loyalty Program  | `/admin/loyalty` | ✅ Complete | |
+| Delivery Access  | `/admin/delivery-access` | ✅ Complete | |
+| Webhook Manager  | `/admin/webhook-manager` | ✅ Complete | |
 
 ### 4.10 Security & Monitoring / سیکیورٹی
 

@@ -423,6 +423,10 @@ router.post("/test-integration/fcm", async (req, res) => {
     if (!serverKey) { await fail("FCM Server Key is not configured. Set fcm_server_key in Integrations → Firebase.", 400); return; }
     if (!projectId) { await fail("Firebase Project ID is not configured. Set fcm_project_id in Integrations → Firebase.", 400); return; }
 
+    // Firebase deprecated the legacy HTTP API on June 20, 2024 — projects created
+    // after that date only accept the HTTP v1 API (which uses a service-account
+    // OAuth2 token, NOT a server key). Detect both endpoints and report a clear
+    // result either way so the admin knows what's wrong.
     const resp = await fetch("https://fcm.googleapis.com/fcm/send", {
       method: "POST",
       headers: {
@@ -439,9 +443,23 @@ router.post("/test-integration/fcm", async (req, res) => {
       }),
     });
 
-    const body = await resp.json() as any;
+    let body: any = null;
+    try { body = await resp.json(); } catch { body = { raw: await resp.text().catch(() => "") }; }
 
-    if (!resp.ok) { await fail(body?.error ?? `FCM HTTP ${resp.status}`, 400); return; }
+    if (resp.status === 401 || resp.status === 404) {
+      const detail = body?.error?.message || body?.error || body?.raw || `HTTP ${resp.status}`;
+      await fail(
+        `FCM legacy endpoint rejected the request (${resp.status}). Your Firebase project most likely requires the new HTTP v1 API — switch to a service-account JSON in Integrations → Firebase. Original error: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`,
+        400,
+        JSON.stringify(body),
+      );
+      return;
+    }
+    if (!resp.ok) {
+      const detail = body?.error?.message || body?.error || `FCM HTTP ${resp.status}`;
+      await fail(typeof detail === "string" ? detail : JSON.stringify(detail), 400, JSON.stringify(body));
+      return;
+    }
     if (body?.failure > 0) {
       const errDetail = body?.results?.[0]?.error ?? "Unknown FCM error";
       await fail(`FCM rejected the message: ${errDetail}`, 400, JSON.stringify(body));
@@ -449,7 +467,7 @@ router.post("/test-integration/fcm", async (req, res) => {
     }
 
     const latencyMs = Date.now() - start;
-    const msg = `Test push notification sent to device token successfully`;
+    const msg = `Test push notification sent to device token successfully (legacy HTTP API)`;
     await recordIntegrationTest({ req: req as AdminRequest, type: "fcm", ok: true, latencyMs, message: msg });
     sendSuccess(res, { sent: true, message: msg, fcmMessageId: body?.results?.[0]?.message_id, latencyMs });
   } catch (err: any) {
