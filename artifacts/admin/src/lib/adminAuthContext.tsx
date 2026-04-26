@@ -117,10 +117,25 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   /**
    * On mount, attempt to restore session by refreshing access token
-   * This allows users to stay logged in across page reloads
+   * This allows users to stay logged in across page reloads.
+   *
+   * Optimization: skip the refresh call entirely when the host-readable
+   * `csrf_token` cookie is absent. The only paths that issue a refresh
+   * cookie (login, MFA, refresh) also set `csrf_token`, and logout clears
+   * both — so an absent CSRF cookie reliably means "no session". Skipping
+   * the call avoids a noisy 401 in browser DevTools on first-time visits.
    */
   useEffect(() => {
     const restoreSession = async () => {
+      if (!readCsrfFromCookie()) {
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: null,
+        }));
+        return;
+      }
+
       try {
         await refreshAccessToken();
         setState((prev) => ({
