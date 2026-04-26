@@ -418,6 +418,32 @@ export const useBroadcast = () => {
   });
 };
 
+/**
+ * Estimated recipient count for a broadcast.
+ * Pass `targetRole = "all"` (or empty string) to count every active user.
+ * Pass an array of roles to count the union of users who hold any of them.
+ */
+export const useBroadcastRecipientCount = (
+  targetRole: string | string[] | undefined,
+) => {
+  const roles = Array.isArray(targetRole)
+    ? targetRole.filter(Boolean)
+    : targetRole && targetRole !== "all"
+      ? [targetRole]
+      : [];
+  const queryParam = roles.length > 0 ? `?targetRole=${encodeURIComponent(roles.join(","))}` : "";
+  return useQuery({
+    queryKey: ["admin-broadcast-recipient-count", roles.join(",") || "all"],
+    queryFn: () =>
+      fetcher(`/broadcast/recipients/count${queryParam}`) as Promise<{
+        count: number;
+        targetRoles: string[];
+      }>,
+    refetchInterval: REFETCH_INTERVAL,
+    staleTime: 10_000,
+  });
+};
+
 // Transactions (enriched with user names)
 export const useTransactions = () => {
   return useQuery({

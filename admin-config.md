@@ -1,7 +1,7 @@
 # AJKMart Platform — Admin Config & Live Status Tracker
 # AJKMart پلیٹ فارم — ایڈمن کنفگ اور لائیو اسٹیٹس ٹریکر
 
-> **Last updated:** 2026-04-26 (KYC review flow improvements)  
+> **Last updated:** 2026-04-26 (KYC review flow improvements + broadcast role-filter fix)  
 > **Status legend:** ✅ Complete | 🔄 In Progress | ⚠️ Partial | ❌ Missing | ⏳ Pending (not started)  
 > **Scope:** Monorepo at `/home/runner/workspace` — pnpm workspaces
 
@@ -340,7 +340,7 @@ Port: **23744** | Path prefix: `/admin/`
 | Page | Route | Status | Notes |
 |------|-------|--------|-------|
 | Notifications | `/admin/notifications` | ✅ Complete | Broadcast, FCM |
-| Broadcast | `/admin/broadcast` | ⚠️ Partial | Role-filter bug (Task open) |
+| Broadcast | `/admin/broadcast` | ✅ Complete | CSV-aware role filter, multi-role select, live recipient preview |
 | SMS Gateways | `/admin/sms-gateways` | ✅ Complete | Gateway test |
 | OTP Control | `/admin/otp-control` | ✅ Complete | OTP provider switcher |
 | Communication | `/admin/communication` | ✅ Complete | AI-assisted messaging |
@@ -678,8 +678,13 @@ Default values are set by AI-recommended configuration.
 
 | # | Issue | Component | Severity |
 |---|-------|-----------|----------|
+<<<<<<< HEAD
 | 1 | Admin broadcast role filtering not working correctly | Admin → Broadcast page | 🔴 High |
 | 2 | Van Driver metrics & condition rules have display/logic bugs | Rider App → VanDriver, Admin → Condition Rules | 🔴 High |
+=======
+| 1 | Van Driver metrics & condition rules have display/logic bugs | Rider App → VanDriver, Admin → Condition Rules | 🔴 High |
+| 2 | KYC review improvements needed (better UX, verification flow) | Admin → KYC | 🟡 Medium |
+>>>>>>> f0acb48 (Fix admin broadcast role filtering + add live recipient preview)
 | 3 | Analytics charts in Vendor App need upgrade | Vendor App → Analytics | 🟡 Medium |
 | 4 | Integration test results not persisted (lost on page reload) | Admin → Settings → Integrations | 🟢 Low |
 | 5 | No live API latency shown in Integration Health panel | Admin → Settings → Integrations | 🟢 Low |
@@ -695,7 +700,7 @@ Default values are set by AI-recommended configuration.
 | T1 | Admin Panel Complete Testing & Bug Fix | 🔄 In Progress | 🔴 High |
 | T2 | Integration Health-Check Dashboard | ✅ Complete | — |
 | T3 | Create admin-config.md Live Status Tracker | ✅ Complete | — |
-| T4 | Fix Admin Broadcast Role Filtering | ⏳ Pending | 🔴 High |
+| T4 | Fix Admin Broadcast Role Filtering | ✅ Complete | 🔴 High |
 | T5 | Analytics Charts & Visualizations Upgrade | ⏳ Pending | 🟡 Medium |
 | T6 | Fix Van Driver Metrics & Condition Rules | ⏳ Pending | 🔴 High |
 | T7 | KYC Review & Verification Improvements | ✅ Complete | — |

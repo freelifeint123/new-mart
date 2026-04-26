@@ -244,24 +244,77 @@ router.delete("/products/:id", async (req, res) => {
   sendSuccess(res, { success: true });
 });
 
-/* ── Broadcast Notification ── */
+/* ── Broadcast Notification ──
+ * Audience filtering uses CSV-aware role matching against `users.roles`
+ * (a comma-separated list, e.g. "customer,rider,van_driver").
+ * Previous LIKE '%role%' could falsely match substrings (e.g. "rider" inside
+ * a future role name) and was the root cause of cross-audience leaks.
+ * We now match an exact CSV element via Postgres regex with word-boundary
+ * anchors and tolerate optional surrounding whitespace.
+ */
+const VALID_BROADCAST_ROLES = ["customer", "rider", "vendor", "admin"] as const;
+type BroadcastRole = typeof VALID_BROADCAST_ROLES[number];
+
+function parseTargetRoles(input: unknown): { roles: BroadcastRole[]; error: string | null } {
+  if (input === undefined || input === null || input === "all") return { roles: [], error: null };
+  const list = Array.isArray(input) ? input : [input];
+  const cleaned: BroadcastRole[] = [];
+  for (const r of list) {
+    if (typeof r !== "string") return { roles: [], error: "targetRole entries must be strings" };
+    const norm = r.trim().toLowerCase();
+    if (!norm) continue;
+    if (!VALID_BROADCAST_ROLES.includes(norm as BroadcastRole)) {
+      return { roles: [], error: `Invalid targetRole "${r}". Must be one of: ${VALID_BROADCAST_ROLES.join(", ")}` };
+    }
+    if (!cleaned.includes(norm as BroadcastRole)) cleaned.push(norm as BroadcastRole);
+  }
+  return { roles: cleaned, error: null };
+}
+
+function buildRoleConditions(roles: BroadcastRole[]) {
+  const conditions = [eq(usersTable.isActive, true)];
+  if (roles.length > 0) {
+    /* Matches an exact CSV element with optional whitespace around it.
+       e.g. "rider" matches "rider", "customer,rider", "rider , vendor"
+       but NOT a hypothetical "super_rider" or "ridernew". */
+    const roleClauses = roles.map(r =>
+      sql`${usersTable.roles} ~ ${`(^|,)\\s*${r}\\s*(,|$)`}`
+    );
+    conditions.push(roleClauses.length === 1 ? roleClauses[0]! : or(...roleClauses)!);
+  }
+  return conditions;
+}
+
+/* GET /broadcast/recipients/count?targetRole=rider
+ * Also accepts repeated targetRole params or a comma list, e.g. ?targetRole=rider,vendor
+ * Returns { count, targetRoles } so the admin UI can preview the audience size
+ * BEFORE sending the broadcast. */
+router.get("/broadcast/recipients/count", async (req, res) => {
+  const raw = req.query["targetRole"];
+  let parsed: unknown = raw;
+  if (typeof raw === "string" && raw.includes(",")) {
+    parsed = raw.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  const { roles, error } = parseTargetRoles(parsed);
+  if (error) { sendValidationError(res, error); return; }
+
+  const conditions = buildRoleConditions(roles);
+  const [row] = await db.select({ c: count() }).from(usersTable).where(and(...conditions));
+  sendSuccess(res, {
+    count: row?.c ?? 0,
+    targetRoles: roles.length > 0 ? roles : ["all"],
+  });
+});
+
 router.post("/broadcast", async (req, res) => {
   const { title, body, titleKey, bodyKey, type = "system", icon = "notifications-outline", targetRole } = req.body;
   if (!title && !titleKey) { sendValidationError(res, "title or titleKey required"); return; }
   if (!body && !bodyKey) { sendValidationError(res, "body or bodyKey required"); return; }
 
-  const validRoles = ["customer", "rider", "vendor", "admin"];
-  if (targetRole !== undefined && !validRoles.includes(targetRole)) {
-    sendValidationError(res, `Invalid targetRole. Must be one of: ${validRoles.join(", ")}`);
-    return;
-  }
-  const roleFilter: string | null = targetRole ?? null;
+  const { roles, error } = parseTargetRoles(targetRole);
+  if (error) { sendValidationError(res, error); return; }
 
-  const conditions = [eq(usersTable.isActive, true)];
-  if (roleFilter) {
-    conditions.push(sql`${usersTable.roles} LIKE ${"%" + roleFilter + "%"}`);
-  }
-
+  const conditions = buildRoleConditions(roles);
   const users = await db.select({ id: usersTable.id }).from(usersTable).where(and(...conditions));
   let sent = 0;
   for (const user of users) {
@@ -282,7 +335,7 @@ router.post("/broadcast", async (req, res) => {
     }).catch(() => {});
     sent++;
   }
-  sendSuccess(res, { success: true, sent, targetRole: roleFilter ?? "all" });
+  sendSuccess(res, { success: true, sent, targetRoles: roles.length > 0 ? roles : ["all"] });
 });
 
 /* ── Wallet Transactions ── */
