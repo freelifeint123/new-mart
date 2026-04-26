@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development dotenv -e .env -- tsx --enable-source-maps ./src/index.ts",
+    "dev": "NODE_ENV=development tsx --enable-source-maps ./src/index.ts",
     "build": "node ./build.mjs",
-    "start": "dotenv -e .env -- tsx --enable-source-maps ./src/index.ts",
+    "start": "tsx --enable-source-maps ./src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

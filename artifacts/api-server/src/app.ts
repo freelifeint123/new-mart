@@ -151,7 +151,20 @@ export function createServer() {
   
   // CORS with credentials support
   app.use(cors({
-    origin: process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // In development or on Replit, allow all origins
+      if (process.env.NODE_ENV !== 'production' || process.env.REPLIT_DEV_DOMAIN) {
+        return callback(null, true);
+      }
+      // In production, restrict to configured origins
+      const allowed = (process.env.FRONTEND_URL || process.env.CLIENT_URL || '').split(',').filter(Boolean);
+      if (allowed.length === 0 || allowed.some(o => origin.startsWith(o))) {
+        return callback(null, true);
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],

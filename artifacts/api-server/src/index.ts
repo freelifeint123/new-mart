@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createServer, runStartupTasks } from "./app.js";
 
 process.on("unhandledRejection", (reason, promise) => {
