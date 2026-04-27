@@ -29,7 +29,7 @@ export const productsTable = pgTable("products", {
      NULL means "use the platform default from `inventory_*` settings". */
   lowStockThreshold:    integer("low_stock_threshold"),
   maxQuantityPerOrder:  integer("max_quantity_per_order"),
-  backInStockNotify:    boolean("back_in_stock_notify").notNull().default(true),
+  backInStockNotify:    boolean("back_in_stock_notify"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (t) => [

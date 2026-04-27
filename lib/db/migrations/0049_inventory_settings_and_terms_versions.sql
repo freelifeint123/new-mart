@@ -31,4 +31,13 @@ CREATE INDEX IF NOT EXISTS "terms_versions_policy_effective_idx"
 ALTER TABLE "products"
   ADD COLUMN IF NOT EXISTS "low_stock_threshold"     INTEGER,
   ADD COLUMN IF NOT EXISTS "max_quantity_per_order"  INTEGER,
-  ADD COLUMN IF NOT EXISTS "back_in_stock_notify"    BOOLEAN NOT NULL DEFAULT TRUE;
+  ADD COLUMN IF NOT EXISTS "back_in_stock_notify"    BOOLEAN;
+
+-- All three product overrides follow the same convention: NULL means
+-- "fall back to the platform-wide setting". Earlier drafts of this
+-- migration created `back_in_stock_notify` as NOT NULL DEFAULT TRUE,
+-- which broke that convention. The two ALTERs below are idempotent
+-- and bring already-migrated environments back in line with the
+-- nullable semantics.
+ALTER TABLE "products" ALTER COLUMN "back_in_stock_notify" DROP NOT NULL;
+ALTER TABLE "products" ALTER COLUMN "back_in_stock_notify" DROP DEFAULT;
