@@ -25,6 +25,9 @@ export interface AdminTimingConfig {
   refetchIntervalAppManagementMs: number;
   loginRedirectDelayMs: number;
   layoutErrorPollIntervalMs: number;
+  commandPaletteLiveStaleMs: number;
+  commandPaletteAiStaleMs: number;
+  pullToRefreshThresholdPx: number;
 }
 
 const DEFAULTS: AdminTimingConfig = {
@@ -43,6 +46,9 @@ const DEFAULTS: AdminTimingConfig = {
   refetchIntervalAppManagementMs: 30_000,
   loginRedirectDelayMs: 1_500,
   layoutErrorPollIntervalMs: 60_000,
+  commandPaletteLiveStaleMs: 5_000,
+  commandPaletteAiStaleMs: 30_000,
+  pullToRefreshThresholdPx: 80,
 };
 
 let _current: AdminTimingConfig = { ...DEFAULTS };

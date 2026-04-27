@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -48,7 +48,12 @@ import Notifications from "@/pages/notifications";
 import Withdrawals from "@/pages/Withdrawals";
 import DepositRequests from "@/pages/DepositRequests";
 import Security from "@/pages/security";
-import LiveRidersMap from "@/pages/live-riders-map";
+// Heavy map/dashboard routes are code-split — react-leaflet, mapbox-gl,
+// recharts, and the long error-monitor / communication panels add ~1MB
+// of JS that should not block the initial admin shell. React.lazy +
+// Suspense delivers the chunk only when the admin actually navigates to
+// the route.
+const LiveRidersMap = lazy(() => import("@/pages/live-riders-map"));
 import SosAlerts from "@/pages/sos-alerts";
 import ReviewsPage from "@/pages/reviews";
 import KycPage from "@/pages/kyc";
@@ -61,8 +66,8 @@ import PromotionsHub from "@/pages/promotions-hub";
 import SupportChat from "@/pages/support-chat";
 import FaqManagement from "@/pages/faq-management";
 import SearchAnalytics from "@/pages/search-analytics";
-import ErrorMonitor from "@/pages/error-monitor";
-import Communication from "@/pages/communication";
+const ErrorMonitor = lazy(() => import("@/pages/error-monitor"));
+const Communication = lazy(() => import("@/pages/communication"));
 import Loyalty from "@/pages/loyalty";
 import WalletTransfers from "@/pages/wallet-transfers";
 import ChatMonitor from "@/pages/chat-monitor";
@@ -176,7 +181,16 @@ function ProtectedRoute({
           <button onClick={() => window.location.reload()} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700">Reload Page</button>
         </div>
       }>
-        <Component />
+        {/* Suspense fallback only matters for the lazy-loaded heavy
+            routes (live-riders-map, error-monitor, communication).
+            Eager-imported pages render synchronously and skip it. */}
+        <Suspense fallback={
+          <div className="flex items-center justify-center p-12">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <Component />
+        </Suspense>
       </ErrorBoundary>
       {/* Surfaces the OPTIONAL credentials popup whenever the admin is
           still on the seeded defaults and has not dismissed it for the

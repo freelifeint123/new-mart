@@ -216,7 +216,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     queryKey: ["cmd-search", debouncedQ, activeFilter, activeStatus],
     queryFn:  () => fetcher(`/admin/search?${backendParams.toString()}`),
     enabled:  debouncedQ.length >= 2,
-    staleTime: 5_000,
+    staleTime: getAdminTiming().commandPaletteLiveStaleMs,
   });
 
   /* ── AI search (authenticated via adminFetcher) ── */
@@ -229,7 +229,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       });
     },
     enabled: aiEnabled && debouncedQ.length >= 5,
-    staleTime: getAdminTiming().errorReporterDedupWindowMs,
+    staleTime: getAdminTiming().commandPaletteAiStaleMs,
     retry: false,
   });
 
@@ -364,13 +364,13 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   if (!open) return null;
 
   /* ── Group headers ── */
-  const getGroup = (item: any, idx: number) => {
-    const groupOf = (it: any) => {
-      if (it._aiResult) return "AI Suggestions";
-      if (it._type === "user")  return "Users";
-      if (it._type === "ride")  return "Rides";
-      if (it._type === "order") return "Orders";
-      return it.group ?? null;
+  const getGroup = (item: CmdItem, idx: number): string | null => {
+    const groupOf = (it: CmdItem): string | null => {
+      if ("_aiResult" in it && it._aiResult) return "AI Suggestions";
+      if ("_type" in it && it._type === "user")  return "Users";
+      if ("_type" in it && it._type === "ride")  return "Rides";
+      if ("_type" in it && it._type === "order") return "Orders";
+      return "group" in it && typeof it.group === "string" ? it.group : null;
     };
     const cur  = groupOf(item);
     const prev = idx > 0 ? groupOf(allItems[idx - 1]) : null;

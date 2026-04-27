@@ -24,10 +24,18 @@ export const getCurrencySymbol = () => _currencySymbol;
  */
 const TIMING_SETTING_KEYS: Record<string, keyof AdminTimingConfig> = {
   admin_timing_command_palette_debounce_ms: "commandPaletteDebounceMs",
+  admin_timing_command_palette_live_stale_ms: "commandPaletteLiveStaleMs",
+  admin_timing_command_palette_ai_stale_ms: "commandPaletteAiStaleMs",
   admin_timing_pull_to_refresh_interval_ms: "pullToRefreshIntervalMs",
+  admin_timing_pull_to_refresh_threshold_px: "pullToRefreshThresholdPx",
   admin_timing_error_reporter_flush_ms: "errorReporterFlushDelayMs",
   admin_timing_error_reporter_enqueue_ms: "errorReporterEnqueueDelayMs",
   admin_timing_error_reporter_dedup_ms: "errorReporterDedupWindowMs",
+  admin_timing_error_reporter_message_max: "errorReporterMessageMax",
+  admin_timing_error_reporter_stack_max: "errorReporterStackMax",
+  admin_timing_error_reporter_message_key_max: "errorReporterMessageKeyMax",
+  admin_timing_error_reporter_recent_max: "errorReporterRecentMax",
+  admin_timing_error_reporter_queue_max: "errorReporterQueueMax",
   admin_timing_refetch_categories_ms: "refetchIntervalCategoriesMs",
   admin_timing_refetch_launch_control_ms: "refetchIntervalLaunchControlMs",
   admin_timing_refetch_app_management_ms: "refetchIntervalAppManagementMs",
