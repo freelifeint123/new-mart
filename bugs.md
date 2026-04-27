@@ -140,6 +140,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 
 ## Broad Unsafe Typing Across Admin Pages
 - **Files**: many (`artifacts/admin/src/pages/categories.tsx`, `app-management.tsx`, `products.tsx`, `settings-payment.tsx`, `wallet-transfers.tsx`, `webhook-manager.tsx`, etc.)
+- **Status (app-management.tsx slice)**: [COMPLETED] — Added a typed `getSettingValue(settings, key, fallback)` helper at the top of `app-management.tsx` and replaced all five `settings.find((s: any) => s.key === …)?.value || …` sites with it. The helper guards against `settings` being undefined or non-array, type-checks the row, and only returns `string` values. Audit-log JSON export also routed through `safeJsonStringifyPretty` from the shared `lib/safeJson.ts` (with a destructive toast if serialization fails) instead of a raw `JSON.stringify(logs, null, 2)`.
 - **Issue**: Excessive `any` / `as any` usage
 - **Severity**: Medium
 - **Description**: Large parts of the admin panels bypass TypeScript safety by using `any` for API payloads, query data, and component props.
@@ -683,7 +684,14 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: When components unmount during active fetch operations, the responses may still try to update state causing warnings or memory leaks
 - **Impact**: React warnings about state updates on unmounted components, potential memory leaks
 - **Recommendation**: Use AbortController to cancel ongoing requests on component unmount
-- **Status**: [COMPLETED] — Added shared `lib/useAbortableEffect.ts` (`useAbortableEffect(effect, deps)` + `isAbortError(err)`) that hands the effect callback an `AbortSignal` and aborts on cleanup. `roles-permissions.tsx#reload` now accepts an optional signal, forwards it to both `fetchAdmin` calls, and is invoked from `useAbortableEffect`; aborted errors are dropped via `isAbortError`. `rides.tsx` map-tile-config fetch now uses an inline `AbortController` with cleanup. `settings-security.tsx` already had AbortController wiring from the prior session.
+- **Status**: [COMPLETED] — Added shared `lib/useAbortableEffect.ts` (`useAbortableEffect(effect, deps)` + `isAbortError(err)`) that hands the effect callback an `AbortSignal` and aborts on cleanup. Wired into:
+  - `roles-permissions.tsx#reload` — signal forwarded to both `fetchAdmin` calls.
+  - `rides.tsx` map-tile-config fetch — signal forwarded to `fetch`.
+  - `MapsMgmtSection.tsx` — `loadUsage` and `loadMapConfig` accept a signal forwarded to `mapsApiFetch`.
+  - `settings-system.tsx` — `apiFetch("/snapshots", { signal })` initial load.
+  - `settings-security.tsx` — already had AbortController wiring from the prior session.
+  - `ServiceZonesManager.tsx` — uses `@tanstack/react-query` (`useServiceZones`), which auto-cancels on unmount via the query client; no manual abort needed.
+  All aborted errors are dropped via `isAbortError(err)` so AbortError noise no longer pollutes the console.
 
 ## Missing Boundary Event Listeners Cleanup Verification
 - **File**: `artifacts/admin/src/components/layout/AdminLayout.tsx`

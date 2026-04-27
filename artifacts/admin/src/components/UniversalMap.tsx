@@ -32,21 +32,7 @@ export interface MapMarkerData {
   id: string;
   lat: number;
   lng: number;
-  /**
-   * Pre-built SVG/HTML string for the icon body.
-   *
-   * SECURITY: This is rendered into the DOM via Leaflet `divIcon` /
-   * React `dangerouslySetInnerHTML`. Before rendering, the value is run
-   * through `sanitizeMarkerHtml` (defense-in-depth) which:
-   *   - drops every tag outside an allowlist of safe SVG/HTML tags,
-   *   - strips `on*` event-handler attributes,
-   *   - rejects `javascript:`, `vbscript:`, `data:text/html`, and
-   *     CSS `expression(...)` payloads.
-   *
-   * Callers should still treat this as a trusted snippet (constructed
-   * from internal config), but raw user input can no longer execute
-   * scripts even if it accidentally reaches this prop.
-   */
+  /** SVG/HTML icon body. Sanitized via `sanitizeMarkerHtml` before rendering. */
   iconHtml: string;
   /** Square pixel size of the icon container */
   iconSize: number;
@@ -95,9 +81,6 @@ function makeDivIcon(m: MapMarkerData): L.DivIcon {
   const labelHtml = m.label
     ? `<div style="position:absolute;top:${-(m.iconSize / 2 + 18)}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;pointer-events:none">${escapeHtml(m.label)}</div>`
     : "";
-  // Defense-in-depth: even though iconHtml is intended to be a trusted
-  // internal snippet, run it through the allowlist sanitizer so any
-  // accidental future user input cannot execute scripts.
   const safeIcon = sanitizeMarkerHtml(m.iconHtml);
   return L.divIcon({
     html: `<div style="position:relative;opacity:${opacity}">

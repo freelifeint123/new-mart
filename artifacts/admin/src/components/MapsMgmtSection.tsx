@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
 import {
   MapPin, CheckCircle2, XCircle, Loader2, RefreshCw, ChevronDown, ChevronRight,
   Zap, Globe, BarChart3, Settings, Trash2, Info, ExternalLink, AlertTriangle,
@@ -222,25 +223,34 @@ export function MapsMgmtSection({ localValues, dirtyKeys, handleChange, handleTo
   const dirty = (k: string) => dirtyKeys.has(k);
   const tog   = (k: string, def = "off") => (localValues[k] ?? def) === "on";
 
-  const loadUsage = useCallback(async () => {
+  const loadUsage = useCallback(async (signal?: AbortSignal) => {
     setUsageLoading(true);
     try {
-      const data = await mapsApiFetch("/maps/admin/usage");
+      const data = await mapsApiFetch("/maps/admin/usage", { signal });
+      if (signal?.aborted) return;
       setUsageData(data);
-    } catch (err) { console.error("[Maps] Usage data load failed:", err); }
-    setUsageLoading(false);
+    } catch (err) {
+      if (isAbortError(err)) return;
+      console.error("[Maps] Usage data load failed:", err);
+    } finally {
+      if (!signal?.aborted) setUsageLoading(false);
+    }
   }, []);
 
-  const loadMapConfig = useCallback(async () => {
+  const loadMapConfig = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await mapsApiFetch(`/maps/config`);
+      const data = await mapsApiFetch(`/maps/config`, { signal });
+      if (signal?.aborted) return;
       setMapConfig(data?.data ?? data);
-    } catch (err) { console.error("[Maps] Config load failed:", err); }
+    } catch (err) {
+      if (isAbortError(err)) return;
+      console.error("[Maps] Config load failed:", err);
+    }
   }, []);
 
-  useEffect(() => {
-    loadUsage();
-    loadMapConfig();
+  useAbortableEffect((signal) => {
+    void loadUsage(signal);
+    void loadMapConfig(signal);
   }, [loadUsage, loadMapConfig]);
 
   const clearCache = async () => {
@@ -581,7 +591,7 @@ export function MapsMgmtSection({ localValues, dirtyKeys, handleChange, handleTo
       <div>
         <div className="flex items-center justify-between mb-3">
           <SLabel icon={BarChart3}>API Usage Dashboard</SLabel>
-          <Button variant="outline" size="sm" onClick={loadUsage} disabled={usageLoading} className="h-7 px-2 rounded-lg gap-1 text-xs">
+          <Button variant="outline" size="sm" onClick={() => { void loadUsage(); }} disabled={usageLoading} className="h-7 px-2 rounded-lg gap-1 text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${usageLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>

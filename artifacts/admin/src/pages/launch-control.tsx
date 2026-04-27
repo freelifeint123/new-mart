@@ -277,7 +277,6 @@ export default function LaunchControl() {
       const data = await apiAbsoluteFetchRaw(url, options);
       return { ok: true, data: (data ?? {}) as Record<string, unknown> };
     } catch (err) {
-      // Narrow without `any` so the type of the message is provably string.
       const message = err instanceof Error ? err.message : "Request failed";
       console.error(`[LaunchControl] apiCall ${options.method ?? "GET"} ${url} failed:`, err);
       return { ok: false, data: { message } };

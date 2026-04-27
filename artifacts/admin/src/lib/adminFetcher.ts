@@ -42,10 +42,6 @@ export async function fetchAdmin(
       // Refresh failed - need to redirect to login
       console.error('Token refresh failed (no token):', err);
       const loginUrl = `${import.meta.env.BASE_URL || '/'}login`;
-      // Persist the reason via safeSessionSet so the login page can show
-      // a clear "Your session has expired" toast instead of the user
-      // wondering why they were bounced back. Failures are logged in the
-      // shared [safeStorage] channel.
       safeSessionSet('admin_session_expired', 'Your session has expired. Please log in again.');
       window.location.href = loginUrl;
       throw err;

@@ -21,6 +21,16 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ADMIN_SERVICE_LIST } from "@workspace/service-constants";
 import { safeCopyToClipboard } from "@/lib/safeClipboard";
+import { safeJsonStringifyPretty } from "@/lib/safeJson";
+
+type PlatformSetting = { key: string; value: string };
+
+function getSettingValue(settings: PlatformSetting[] | undefined, key: string, fallback = ""): string {
+  if (!Array.isArray(settings)) return fallback;
+  const row = settings.find(s => s && typeof s === "object" && s.key === key);
+  const v = row?.value;
+  return typeof v === "string" ? v : fallback;
+}
 
 /* ── Types ── */
 interface AdminAccount {
@@ -229,6 +239,7 @@ function SessionsTab() {
 
 /* ── Audit Log Tab Component ── */
 function AuditLogTab() {
+  const { toast } = useToast();
   const [page, setPage]     = useState(1);
   const [action, setAction] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -254,7 +265,12 @@ function AuditLogTab() {
         </div>
         <div className="flex gap-2 ml-auto">
           <Button variant="outline" size="sm" onClick={() => {
-            const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+            const json = safeJsonStringifyPretty(logs);
+            if (!json) {
+              toast({ title: "Export failed", description: "Could not serialize audit log entries.", variant: "destructive" });
+              return;
+            }
+            const blob = new Blob([json], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url; a.download = `audit-log-${new Date().toISOString().slice(0,10)}.json`; a.click();
@@ -366,8 +382,8 @@ export default function AppManagement() {
 
   const admins: AdminAccount[] = adminsData?.accounts || [];
   const settings: any[] = settingsData?.settings || [];
-  const appStatus = settings.find((s: any) => s.key === "app_status")?.value || "active";
-  const maintenanceMsgSaved = settings.find((s: any) => s.key === "content_maintenance_msg")?.value || "";
+  const appStatus = getSettingValue(settings, "app_status", "active");
+  const maintenanceMsgSaved = getSettingValue(settings, "content_maintenance_msg", "");
   const releaseNotes: any[] = rnData?.releaseNotes || [];
 
   /* ── Sync compliance state from platform settings (in useEffect to avoid setState-in-render) ── */
@@ -671,7 +687,7 @@ export default function AppManagement() {
                 <CardContent className="p-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {SERVICE_MAP.map(svc => {
-                      const featureVal = settings.find((s: any) => s.key === svc.setting)?.value || "on";
+                      const featureVal = getSettingValue(settings, svc.setting, "on");
                       const isOn = featureVal === "on";
                       return (
                         <div key={svc.key} className={`relative overflow-hidden rounded-xl border p-4 transition-all ${isOn ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200" : "bg-gradient-to-br from-red-50 to-rose-50 border-red-200"}`}>
@@ -840,13 +856,13 @@ export default function AppManagement() {
                 </div>
               </div>
               <Badge variant="outline" className="text-xs">
-                {SERVICE_MAP.filter(svc => (settings.find((s: any) => s.key === svc.setting)?.value || "on") === "on").length}/{SERVICE_MAP.length} Active
+                {SERVICE_MAP.filter(svc => getSettingValue(settings, svc.setting, "on") === "on").length}/{SERVICE_MAP.length} Active
               </Badge>
             </div>
             <CardContent className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {SERVICE_MAP.map(svc => {
-                  const featureVal = settings.find((s: any) => s.key === svc.setting)?.value || "on";
+                  const featureVal = getSettingValue(settings, svc.setting, "on");
                   const isOn = featureVal === "on";
                   return (
                     <div

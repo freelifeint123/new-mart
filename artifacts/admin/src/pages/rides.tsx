@@ -15,6 +15,7 @@ import {
 } from "@/hooks/use-admin";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getAdminAccessToken } from "@/lib/api";
+import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -569,14 +570,11 @@ function useDispatchTileConfig() {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     provider: "osm",
   });
-  useEffect(() => {
-    // AbortController prevents the .then callback from updating state
-    // after this map widget unmounts (e.g. during fast tab switching).
-    const controller = new AbortController();
-    fetch(`${window.location.origin}/api/maps/config?app=admin`, { signal: controller.signal })
+  useAbortableEffect((signal) => {
+    fetch(`${window.location.origin}/api/maps/config?app=admin`, { signal })
       .then(r => r.json())
       .then((d: any) => {
-        if (controller.signal.aborted) return;
+        if (signal.aborted) return;
         const cfg = d?.data ?? d;
         const prov = cfg?.provider ?? "osm";
         const tok  = cfg?.token ?? "";
@@ -595,10 +593,9 @@ function useDispatchTileConfig() {
         }
       })
       .catch((err) => {
-        if (err?.name === "AbortError") return;
+        if (isAbortError(err)) return;
         console.error("[Rides] Map tile config fetch failed:", err);
       });
-    return () => controller.abort();
   }, []);
   return tile;
 }

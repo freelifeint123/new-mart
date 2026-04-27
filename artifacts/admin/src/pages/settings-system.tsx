@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, type ReactElement } from "react";
+import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
 import {
   Database, Download, Upload, Trash2, HardDrive, RefreshCcw,
   FlaskConical, RotateCcw, Clock, AlertTriangle, Settings,
@@ -74,16 +75,18 @@ export function SystemSection() {
     setStatsLoading(false);
   };
 
-  useEffect(() => {
+  useAbortableEffect((signal) => {
     loadStats();
     loadDemoBackups();
-    apiFetch("/snapshots").then(data => {
+    apiFetch("/snapshots", { signal }).then(data => {
+      if (signal.aborted) return;
       if (data?.snapshots?.length) {
         setPendingUndos(data.snapshots.map((s: any) => ({
           id: s.id, label: s.label, expiresAt: s.expiresAt, actionId: s.actionId,
         })));
       }
     }).catch((err) => {
+      if (isAbortError(err)) return;
       console.error("[SystemSettings] Snapshots load failed:", err);
     });
   }, []);

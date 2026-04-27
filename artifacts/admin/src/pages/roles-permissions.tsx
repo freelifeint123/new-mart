@@ -102,9 +102,6 @@ export default function RolesPermissionsPage() {
     }
   };
 
-  // Initial load is wrapped in useAbortableEffect so a fast unmount (e.g.
-  // user navigates away while the two fetches are in flight) cancels the
-  // requests instead of triggering "setState on unmounted component".
   useAbortableEffect((signal) => { void reload(signal); }, []);
 
   /* ── Admin assignments ──────────────────────────────────────── */
