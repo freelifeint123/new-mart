@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useQuery } from "@tanstack/react-query";
+import { ADMIN_I18N_KEYS, t } from "@/lib/i18nKeys";
 
 /**
  * Vendor Inventory Settings — admin surface for vendor-side inventory
@@ -99,7 +100,7 @@ export default function VendorInventorySettingsPage() {
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-gray-900">
-          Vendor Inventory Settings
+          {t(ADMIN_I18N_KEYS.vendor.inventoryTitle, "Vendor Inventory Settings")}
         </h1>
         <p className="text-sm text-gray-500 mt-1">
           Global defaults for stock thresholds and back-in-stock

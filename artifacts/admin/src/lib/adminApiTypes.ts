@@ -68,6 +68,25 @@ export interface ProductRow {
   lowStockThreshold?: number | null;
   maxQuantityPerOrder?: number | null;
   backInStockNotify?: boolean;
+  /* ── Admin list-view fields (legacy backend names) ───────────────── */
+  /** Original (pre-discount) price for display. */
+  originalPrice?: number;
+  /** Human-readable category label as returned by the admin list endpoint. */
+  category?: string;
+  /** Product type bucket: "mart" | "food" | "pharmacy" | etc. */
+  type?: string;
+  /** Display unit ("1 kg", "500ml"). */
+  unit?: string;
+  /** Vendor display name (denormalised for the admin list). */
+  vendorName?: string;
+  /** Stock toggle as exposed to the admin list. */
+  inStock?: boolean;
+  /** Estimated delivery window string. */
+  deliveryTime?: string;
+  /** Image URL alias used by the admin list endpoint. */
+  image?: string;
+  /** Approval status: "pending" | "approved" | "rejected". */
+  status?: string;
 }
 
 export interface PaymentSettingRow {

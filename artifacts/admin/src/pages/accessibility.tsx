@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { ADMIN_I18N_KEYS, t } from "@/lib/i18nKeys";
 
 /**
  * Admin Accessibility Settings — front-end-only knobs that adjust font
@@ -33,7 +34,9 @@ export default function AccessibilityPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-gray-900">Accessibility</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {t(ADMIN_I18N_KEYS.settings.accessibility, "Accessibility")}
+        </h1>
         <p className="text-sm text-gray-500 mt-1">
           Personalise how the admin renders for low-vision and
           motion-sensitive users. Settings are saved to this browser only.

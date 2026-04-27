@@ -13,22 +13,7 @@ import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { uploadAdminImageWithProgress } from "@/lib/api";
 import { UploadProgress } from "@/components/ui/UploadProgress";
-
-interface ProductRowLite {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  originalPrice?: number;
-  category?: string;
-  type?: string;
-  unit?: string;
-  vendorName?: string;
-  inStock?: boolean;
-  deliveryTime?: string;
-  image?: string;
-  status?: string;
-}
+import type { ProductRow } from "@/lib/adminApiTypes";
 
 const errMsg = (e: unknown): string =>
   e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
@@ -39,7 +24,7 @@ const EMPTY_FORM = {
   inStock: true, deliveryTime: "30-45 min", image: ""
 };
 
-function RejectModal({ product, onClose }: { product: ProductRowLite; onClose: () => void }) {
+function RejectModal({ product, onClose }: { product: ProductRow; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const { toast } = useToast();
   const reject = useRejectProduct();
@@ -101,8 +86,8 @@ export default function Products() {
   const [isFormOpen, setIsFormOpen]   = useState(false);
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [formData, setFormData]       = useState({ ...EMPTY_FORM });
-  const [deleteTarget, setDeleteTarget] = useState<ProductRowLite | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<ProductRowLite | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProductRow | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ProductRow | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [imageUploading, setImageUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
@@ -160,7 +145,7 @@ export default function Products() {
     setIsFormOpen(true);
   };
 
-  const openEdit = (prod: ProductRowLite) => {
+  const openEdit = (prod: ProductRow) => {
     setEditingId(prod.id);
     setFormData({
       name: prod.name || "", description: prod.description || "",
@@ -209,14 +194,14 @@ export default function Products() {
     });
   };
 
-  const handleApprove = (prod: ProductRowLite) => {
+  const handleApprove = (prod: ProductRow) => {
     approveMutation.mutate({ id: prod.id }, {
       onSuccess: () => toast({ title: "Product approved ✅", description: `${prod.name} is now live in the store` }),
       onError: (err: unknown) => toast({ title: "Error", description: errMsg(err), variant: "destructive" }),
     });
   };
 
-  const toggleStock = (prod: ProductRowLite) => {
+  const toggleStock = (prod: ProductRow) => {
     updateMutation.mutate({ id: prod.id, inStock: !prod.inStock }, {
       onSuccess: () => toast({ title: prod.inStock ? "Marked out of stock" : "Marked in stock ✅" }),
       onError: err => toast({ title: "Failed", description: err.message, variant: "destructive" }),
@@ -225,7 +210,7 @@ export default function Products() {
 
   const exportCSV = () => {
     const header = "ID,Name,Category,Type,Price,Vendor,InStock";
-    const rows = filtered.map((p: ProductRowLite) =>
+    const rows = filtered.map((p: ProductRow) =>
       [p.id, p.name, p.category, p.type, p.price, p.vendorName || "", p.inStock ? "yes" : "no"].join(",")
     );
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
@@ -239,17 +224,17 @@ export default function Products() {
 
   const products = data?.products || [];
   const pendingProducts = pendingData?.products || [];
-  const vendors = [...new Set(products.filter((p: ProductRowLite) => p.vendorName).map((p: ProductRowLite) => p.vendorName as string))];
+  const vendors = [...new Set(products.filter((p: ProductRow) => p.vendorName).map((p: ProductRow) => p.vendorName as string))];
   const q = search.toLowerCase();
-  const filtered = products.filter((p: ProductRowLite) =>
+  const filtered = products.filter((p: ProductRow) =>
     (typeFilter === "all" || p.type === typeFilter) &&
     (stockFilter === "all" || (stockFilter === "in" ? p.inStock : !p.inStock)) &&
     (!vendorFilter || (p.vendorName || "").toLowerCase().includes(vendorFilter.toLowerCase())) &&
     (p.name.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q))
   );
 
-  const martCount = products.filter((p: ProductRowLite) => p.type === "mart").length;
-  const foodCount = products.filter((p: ProductRowLite) => p.type === "food").length;
+  const martCount = products.filter((p: ProductRow) => p.type === "mart").length;
+  const foodCount = products.filter((p: ProductRow) => p.type === "food").length;
   const pendingCount = pendingProducts.length;
 
   return (
@@ -521,7 +506,7 @@ export default function Products() {
                   <p className="text-sm">No products waiting for approval.</p>
                 </CardContent>
               </Card>
-            ) : pendingProducts.map((p: ProductRowLite) => (
+            ) : pendingProducts.map((p: ProductRow) => (
               <Card key={p.id} className="rounded-2xl border-border/50 shadow-sm">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
@@ -596,7 +581,7 @@ export default function Products() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    pendingProducts.map((p: ProductRowLite) => (
+                    pendingProducts.map((p: ProductRow) => (
                       <TableRow key={p.id} className="hover:bg-amber-50/40">
                         <TableCell>
                           <p className="font-semibold text-foreground">{p.name}</p>
@@ -711,7 +696,7 @@ export default function Products() {
               <Card className="rounded-2xl p-12 text-center border-border/50">
                 <p className="text-muted-foreground text-sm">No products found.</p>
               </Card>
-            ) : filtered.map((p: ProductRowLite) => (
+            ) : filtered.map((p: ProductRow) => (
               <Card key={p.id} className="rounded-2xl border-border/50 shadow-sm p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
@@ -766,7 +751,7 @@ export default function Products() {
                   ) : filtered.length === 0 ? (
                     <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">No products found.</TableCell></TableRow>
                   ) : (
-                    filtered.map((p: ProductRowLite) => (
+                    filtered.map((p: ProductRow) => (
                       <TableRow key={p.id} className="hover:bg-muted/30">
                         <TableCell>
                           <p className="font-semibold text-foreground">{p.name}</p>

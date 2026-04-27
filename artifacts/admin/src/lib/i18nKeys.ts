@@ -65,6 +65,7 @@ export const ADMIN_I18N_KEYS = {
   },
   /* ── Vendor / inventory ────────────────────────────────────────── */
   vendor: {
+    inventoryTitle: "admin.vendor.inventory-title",
     lowStockThreshold: "admin.vendor.low-stock-threshold",
     maxQtyPerOrder: "admin.vendor.max-qty-per-order",
     backInStockNotify: "admin.vendor.back-in-stock-notify",
