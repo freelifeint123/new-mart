@@ -8,16 +8,18 @@ export const formatCurrency = (amount: number) => {
 export const formatDate = (dateString: string) => {
   try {
     return format(new Date(dateString), "MMM d, yyyy h:mm a");
-  } catch (e) {
+  } catch (err) {
+    console.warn("[format] formatDate failed for input:", dateString, err);
     return dateString;
   }
 };
 
 /**
- * Locale-aware date formatter. Uses Intl.DateTimeFormat (timezone-aware)
- * and silently falls back to the raw string on parse failure. Defaults to
- * the user agent's locale so admins in different regions see dates in
- * their own format.
+ * Locale-aware date formatter. Uses Intl.DateTimeFormat (timezone-aware).
+ * On parse failure, returns the raw string AND logs the input + error so
+ * malformed timestamps are observable in the console (no silent catch).
+ * Defaults to the user agent's locale so admins in different regions see
+ * dates in their own format.
  */
 export const formatDateLocale = (
   dateString: string,
@@ -30,11 +32,19 @@ export const formatDateLocale = (
     minute: "2-digit",
   },
 ) => {
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) {
+    console.warn("[format] formatDateLocale received non-parseable input:", dateString);
+    return dateString;
+  }
   try {
-    const d = new Date(dateString);
-    if (Number.isNaN(d.getTime())) return dateString;
     return new Intl.DateTimeFormat(locale, options).format(d);
-  } catch {
+  } catch (err) {
+    console.warn(
+      "[format] formatDateLocale Intl.DateTimeFormat failed",
+      { locale, options, dateString },
+      err,
+    );
     return dateString;
   }
 };

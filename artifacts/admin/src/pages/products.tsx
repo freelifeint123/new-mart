@@ -328,7 +328,7 @@ export default function Products() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Name *</label>
-                <Input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Fresh Milk" />
+                <Input required maxLength={120} value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. Fresh Milk" />
               </div>
               <div className="space-y-2 relative">
                 <label className="text-sm font-semibold">Category *</label>
@@ -389,27 +389,29 @@ export default function Products() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Unit</label>
-                <Input value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 1 kg, 500ml" />
+                <Input maxLength={32} value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 1 kg, 500ml" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Price (Rs.) *</label>
-                <Input type="number" required min="1" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 250" />
+                {/* Cap retail price at 1,000,000 to catch typos before
+                    they reach the order/inventory pipeline. */}
+                <Input type="number" required min="1" max="1000000" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 250" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Original Price (Rs.)</label>
-                <Input type="number" min="1" value={formData.originalPrice} onChange={e => setFormData({...formData, originalPrice: e.target.value})} className="h-11 rounded-xl" placeholder="optional (for sale)" />
+                <Input type="number" min="1" max="1000000" step="0.01" value={formData.originalPrice} onChange={e => setFormData({...formData, originalPrice: e.target.value})} className="h-11 rounded-xl" placeholder="optional (for sale)" />
               </div>
               <div className="space-y-2 col-span-2">
                 <label className="text-sm font-semibold">Description</label>
-                <Input value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="h-11 rounded-xl" placeholder="Short description..." />
+                <Input maxLength={500} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="h-11 rounded-xl" placeholder="Short description..." />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Vendor / Restaurant</label>
-                <Input value={formData.vendorName} onChange={e => setFormData({...formData, vendorName: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. AJK Fresh Foods" />
+                <Input maxLength={120} value={formData.vendorName} onChange={e => setFormData({...formData, vendorName: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. AJK Fresh Foods" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Delivery Time</label>
-                <Input value={formData.deliveryTime} onChange={e => setFormData({...formData, deliveryTime: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 30-45 min" />
+                <Input maxLength={48} value={formData.deliveryTime} onChange={e => setFormData({...formData, deliveryTime: e.target.value})} className="h-11 rounded-xl" placeholder="e.g. 30-45 min" />
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl border border-border/50">

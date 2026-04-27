@@ -427,6 +427,9 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. Summer Sale - Up to 50% OFF"
                 value={form.title}
+                /* Title is shown in the customer banner carousel; cap at
+                   120 chars to keep it on one line on small screens. */
+                maxLength={120}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 className="h-11 rounded-xl"
               />
@@ -437,6 +440,7 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. Shop groceries at unbeatable prices"
                 value={form.subtitle}
+                maxLength={200}
                 onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))}
                 className="h-11 rounded-xl"
               />
@@ -448,6 +452,9 @@ export default function BannersPage() {
                 <Input
                   placeholder="https://example.com/banner.jpg"
                   value={form.imageUrl}
+                  /* URLs hold object-storage paths; 2000 is the SQL Server
+                     URL limit and a safe ceiling for browsers too. */
+                  maxLength={2000}
                   onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))}
                   className="h-11 rounded-xl flex-1"
                 />
@@ -578,7 +585,11 @@ export default function BannersPage() {
               <Input
                 placeholder="e.g. pricetag, cart, gift"
                 value={form.icon}
-                onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}
+                /* Ionicons names are kebab-case identifiers — restrict to
+                   the printable subset to avoid round-tripping unicode
+                   that the mobile app cannot render. */
+                maxLength={64}
+                onChange={e => setForm(f => ({ ...f, icon: e.target.value.replace(/[^a-zA-Z0-9-]/g, "") }))}
                 className="h-11 rounded-xl"
               />
             </div>
@@ -609,8 +620,13 @@ export default function BannersPage() {
               <Input
                 type="number"
                 min={0}
+                max={9999}
                 value={form.sortOrder}
-                onChange={e => setForm(f => ({ ...f, sortOrder: parseInt(e.target.value) || 0 }))}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  const clamped = Number.isFinite(v) ? Math.max(0, Math.min(9999, v)) : 0;
+                  setForm(f => ({ ...f, sortOrder: clamped }));
+                }}
                 className="h-11 rounded-xl"
               />
             </div>

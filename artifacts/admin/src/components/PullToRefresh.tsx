@@ -33,7 +33,10 @@ export function PullToRefresh({ onRefresh, children, accentColor = "#1A56DB", cl
   const pulling = useRef(false);
   const intentLocked = useRef(false);
   const isVertical = useRef(false);
-  const threshold = 80;
+  // Read the pull threshold from the centralised admin timing config so
+  // it stays in sync with `pullToRefreshIntervalMs` and any backend
+  // override published via `admin_timing_pull_to_refresh_threshold_px`.
+  const threshold = getAdminTiming().pullToRefreshThresholdPx;
 
   useEffect(() => {
     const id = setInterval(

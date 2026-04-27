@@ -501,6 +501,10 @@ export default function CategoriesPage() {
               <Input
                 placeholder="e.g. Dairy & Eggs"
                 value={form.name}
+                /* maxLength matches the backend categories.name VARCHAR(80)
+                   limit so the user sees the cutoff in the input rather
+                   than a 400 from the API on submit. */
+                maxLength={80}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 className="h-11 rounded-xl"
               />
@@ -564,8 +568,16 @@ export default function CategoriesPage() {
               <Input
                 type="number"
                 min={0}
+                /* Cap sortOrder at a sensible 9999; categories with a
+                   higher order make no UX sense and keep the value
+                   inside a smallint on the backend. */
+                max={9999}
                 value={form.sortOrder}
-                onChange={e => { const v = parseInt(e.target.value); setForm(f => ({ ...f, sortOrder: Number.isFinite(v) ? v : 0 })); }}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  const clamped = Number.isFinite(v) ? Math.max(0, Math.min(9999, v)) : 0;
+                  setForm(f => ({ ...f, sortOrder: clamped }));
+                }}
                 className="h-11 rounded-xl"
               />
             </div>
