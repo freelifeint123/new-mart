@@ -124,24 +124,15 @@ export async function verifyTotpToken(secret: string, token: string): Promise<bo
 }
 
 /**
- * Routes that remain accessible while the admin's JWT carries `mpc=true`
- * (must change password). Anything else is blocked with FORCE_PASSWORD_CHANGE.
- * Mirrors the allow-list in middlewares/admin-auth.ts.
+ * The forced "must change password" gate has been removed. Tokens are
+ * no longer minted with the `mpc` claim and admins are never blocked
+ * because of it. The SPA now drives an OPTIONAL credentials popup off
+ * the `defaultCredentials` flag returned with every auth response.
+ *
+ * The allow-list / `isForcedPasswordChangeAllowed` helper that used to
+ * live here have been deleted along with the gate. Any legacy `mpc`
+ * claim on previously-issued tokens is silently ignored below.
  */
-const FORCE_PASSWORD_CHANGE_ALLOWLIST = [
-  "/api/admin/auth/change-password",
-  "/api/admin/auth/logout",
-  "/api/admin/auth/me",
-  "/api/admin/auth/sessions",
-  "/api/admin/auth/refresh",
-];
-
-function isForcedPasswordChangeAllowed(originalUrl: string): boolean {
-  const path = (originalUrl || "").split("?")[0]!;
-  return FORCE_PASSWORD_CHANGE_ALLOWLIST.some(
-    (allowed) => path === allowed || path.startsWith(`${allowed}/`),
-  );
-}
 
 /* ── adminAuth middleware (Bearer JWT) ──
    Verifies `Authorization: Bearer <jwt>` and attaches `req.admin`.
@@ -168,14 +159,10 @@ export const adminAuth = (req: AdminRequest, res: Response, next: NextFunction) 
       req.adminName = name;
       req.adminPermissions = perms;
       req.adminIp = (req.ip || (req.headers["x-forwarded-for"] as string) || "").split(",")[0]?.trim();
-      // Legacy tokens may also carry mpc when signed by admin-auth-v2 helpers.
-      if (decoded.mpc === true && !isForcedPasswordChangeAllowed(req.originalUrl)) {
-        return res.status(403).json({
-          success: false,
-          error: "You must change your password before using the admin panel.",
-          code: "FORCE_PASSWORD_CHANGE",
-        });
-      }
+      // The legacy `mpc` (must-change-password) gate has been removed.
+      // Any pre-existing claim on already-issued tokens is ignored — the
+      // SPA decides whether to surface the optional credentials popup
+      // based on the `defaultCredentials` flag in auth responses.
       return next();
     }
 
@@ -194,13 +181,8 @@ export const adminAuth = (req: AdminRequest, res: Response, next: NextFunction) 
       req.adminName = payload.name;
       req.adminPermissions = perms;
       req.adminIp = (req.ip || (req.headers["x-forwarded-for"] as string) || "").split(",")[0]?.trim();
-      if (payload.mpc === true && !isForcedPasswordChangeAllowed(req.originalUrl)) {
-        return res.status(403).json({
-          success: false,
-          error: "You must change your password before using the admin panel.",
-          code: "FORCE_PASSWORD_CHANGE",
-        });
-      }
+      // See note above: the forced password-change gate has been
+      // removed. Legacy `mpc` claims are silently ignored.
       return next();
     } catch {
       return res.status(401).json({ success: false, error: "Invalid or expired admin token" });

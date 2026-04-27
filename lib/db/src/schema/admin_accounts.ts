@@ -19,6 +19,13 @@ export const adminAccountsTable = pgTable("admin_accounts", {
   mustChangePassword: boolean("must_change_password").notNull().default(false),
   /** Last successful password change (null until first change). */
   passwordChangedAt:  timestamp("password_changed_at"),
+  /**
+   * True while the admin is still using the seeded default credentials. Flips
+   * to false the moment they update their username and/or password through
+   * the post-login popup (or any other change flow). Used by the SPA to know
+   * whether to surface the optional "customise your credentials" dialog.
+   */
+  defaultCredentials: boolean("default_credentials").notNull().default(false),
   lastLoginAt: timestamp("last_login_at"),
   createdAt:   timestamp("created_at").notNull().defaultNow(),
 });

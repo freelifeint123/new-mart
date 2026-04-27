@@ -223,11 +223,14 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
       user: {
         id: admin.id,
         name: admin.name,
+        username: admin.username,
         email: admin.email || admin.username || admin.name,
         role: admin.role,
         mustChangePassword: !!admin.mustChangePassword,
+        usingDefaultCredentials: !!admin.defaultCredentials,
       },
       mustChangePassword: !!admin.mustChangePassword,
+      usingDefaultCredentials: !!admin.defaultCredentials,
       expiresAt: session.expiresAt,
     });
   } catch (err) {
@@ -317,11 +320,14 @@ router.post('/auth/2fa', verifyTotpLimiter, async (req: Request, res: Response) 
       user: {
         id: admin.id,
         name: admin.name,
+        username: admin.username,
         email: admin.email || admin.username || admin.name,
         role: admin.role,
         mustChangePassword: !!admin.mustChangePassword,
+        usingDefaultCredentials: !!admin.defaultCredentials,
       },
       mustChangePassword: !!admin.mustChangePassword,
+      usingDefaultCredentials: !!admin.defaultCredentials,
       expiresAt: session.expiresAt,
     });
   } catch (err) {
@@ -404,13 +410,16 @@ router.post('/auth/refresh', async (req: Request, res: Response) => {
     accessToken: result.accessToken,
     expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     mustChangePassword: !!result.admin?.mustChangePassword,
+    usingDefaultCredentials: !!result.admin?.defaultCredentials,
     user: result.admin
       ? {
           id: result.admin.id,
           name: result.admin.name,
+          username: result.admin.username,
           email: result.admin.email || result.admin.username || result.admin.name,
           role: result.admin.role,
           mustChangePassword: !!result.admin.mustChangePassword,
+          usingDefaultCredentials: !!result.admin.defaultCredentials,
         }
       : undefined,
   });
@@ -441,9 +450,11 @@ router.get('/auth/me', authenticateAdmin, async (req: Request, res: Response) =>
       username: admin.username,
       role: admin.role,
       mustChangePassword: !!admin.mustChangePassword,
+      usingDefaultCredentials: !!admin.defaultCredentials,
       passwordChangedAt: admin.passwordChangedAt?.toISOString() ?? null,
     },
     mustChangePassword: !!admin.mustChangePassword,
+    usingDefaultCredentials: !!admin.defaultCredentials,
   });
 });
 
@@ -712,7 +723,7 @@ router.post(
  * Authenticated endpoint. Used both by the must-change-password flow and
  * by self-service rotations. Verifies the current password and replaces it.
  *
- * This route is on the FORCE_PASSWORD_CHANGE allow-list — it is reachable
+ * Reachable on every authenticated session; the legacy FORCE_PASSWORD_CHANGE allow-list is gone —
  * even when the access token carries the `mpc` claim.
  */
 router.post(
@@ -795,12 +806,15 @@ router.post(
       message: 'Password updated.',
       accessToken,
       mustChangePassword: false,
+      usingDefaultCredentials: false,
       user: {
         id: result.admin.id,
         name: result.admin.name,
+        username: result.admin.username,
         email: result.admin.email || result.admin.username || result.admin.name,
         role: result.admin.role,
         mustChangePassword: false,
+        usingDefaultCredentials: false,
       },
       expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });

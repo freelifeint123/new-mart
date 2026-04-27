@@ -1,9 +1,10 @@
 /**
- * Forced "set a new password" screen, shown to authenticated admins whose
- * access token carries the `mpc=true` claim. Calls
- * /api/admin/auth/change-password with the current + new password and, on
- * success, the auth context lifts the gate and the user is sent to the
- * dashboard.
+ * Optional "set a new password" screen. The forced password-change gate
+ * has been removed; this page is now a voluntary, full-screen
+ * alternative to the post-login credentials popup. Admins reach it via
+ * the popup's "Open the full password screen" link or by typing the URL
+ * directly. Calls /api/admin/auth/change-password and, on success,
+ * routes back to the dashboard with the rotated token in memory.
  */
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
@@ -32,13 +33,13 @@ export default function SetNewPassword() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // If the gate is already lifted (refresh fired in the background, or this
-  // page is hit directly from a healthy session), bounce to the dashboard.
+  // If the user is not authenticated at all, bounce to login. The page is
+  // optional now — there is no forced gate to satisfy.
   useEffect(() => {
-    if (!state.isLoading && state.accessToken && !state.mustChangePassword) {
-      setLocation("/dashboard");
+    if (!state.isLoading && !state.accessToken) {
+      setLocation("/login");
     }
-  }, [state.isLoading, state.accessToken, state.mustChangePassword, setLocation]);
+  }, [state.isLoading, state.accessToken, setLocation]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,8 +93,8 @@ export default function SetNewPassword() {
             <div>
               <h1 className="text-xl font-bold leading-tight">Set a new password</h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Your account is using a temporary password. Choose a new one
-                before continuing.
+                Update your admin password. This step is optional — your
+                current password keeps working until you change it.
               </p>
             </div>
           </div>

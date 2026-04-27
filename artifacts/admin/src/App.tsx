@@ -16,6 +16,7 @@ import { setTokenHandlers } from "@/lib/api";
 
 // Layout & Pages
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import { FirstLoginCredentialsDialog } from "@/components/FirstLoginCredentialsDialog";
 import Login from "@/pages/login";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
@@ -101,8 +102,15 @@ queryClient.getQueryCache().subscribe(event => {
 
 function ProtectedRoute({
   component: Component,
-  /** When true, the must-change-password gate does NOT redirect away from
-   *  this route — used for the `/set-new-password` screen itself. */
+  /**
+   * When true, the route renders WITHOUT the standard AdminLayout chrome.
+   * Used by the optional `/set-new-password` voluntary password-change
+   * screen so it presents as a focused full-screen flow.
+   *
+   * Note: there is no longer a forced password-change gate. Admins who
+   * land here just see the page; the optional first-login popup is
+   * surfaced separately via <FirstLoginCredentialsDialog />.
+   */
   bypassPasswordGate = false,
 }: {
   component: React.ComponentType;
@@ -114,23 +122,8 @@ function ProtectedRoute({
   useEffect(() => {
     if (!state.isLoading && !state.accessToken) {
       setLocation("/login");
-      return;
     }
-    if (
-      !state.isLoading &&
-      state.accessToken &&
-      state.mustChangePassword &&
-      !bypassPasswordGate
-    ) {
-      setLocation("/set-new-password");
-    }
-  }, [
-    state.accessToken,
-    state.isLoading,
-    state.mustChangePassword,
-    bypassPasswordGate,
-    setLocation,
-  ]);
+  }, [state.accessToken, state.isLoading, setLocation]);
 
   if (state.isLoading) {
     return (
@@ -144,10 +137,6 @@ function ProtectedRoute({
     return null;
   }
 
-  if (state.mustChangePassword && !bypassPasswordGate) {
-    return null;
-  }
-
   // The set-new-password screen renders without the full admin chrome so the
   // user is not tempted to navigate elsewhere via the sidebar.
   if (bypassPasswordGate) {
@@ -157,15 +146,19 @@ function ProtectedRoute({
   return (
     <AdminLayout>
       <Component />
+      {/* Surfaces the OPTIONAL credentials popup whenever the admin is
+          still on the seeded defaults and has not dismissed it for the
+          session. Skipping is safe — defaults keep working. */}
+      <FirstLoginCredentialsDialog />
     </AdminLayout>
   );
 }
 
-/* Root "/" gate: bounce authenticated users to dashboard (or the
- * forced-password screen) and otherwise render the login page.
- * The redirect must run from a useEffect so wouter's navigate isn't called
- * during render — calling setLocation in a render body produces the
- * "Cannot update a component while rendering a different component" warning.
+/* Root "/" gate: bounce authenticated users to the dashboard and
+ * otherwise render the login page. The redirect must run from a
+ * useEffect so wouter's navigate isn't called during render — calling
+ * setLocation in a render body produces the "Cannot update a component
+ * while rendering a different component" warning.
  */
 function RootRedirect() {
   const { state } = useAdminAuth();
@@ -174,9 +167,9 @@ function RootRedirect() {
   useEffect(() => {
     if (state.isLoading) return;
     if (state.accessToken) {
-      setLocation(state.mustChangePassword ? "/set-new-password" : "/dashboard");
+      setLocation("/dashboard");
     }
-  }, [state.isLoading, state.accessToken, state.mustChangePassword, setLocation]);
+  }, [state.isLoading, state.accessToken, setLocation]);
 
   if (state.isLoading) {
     return (
@@ -199,7 +192,9 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
-      {/* Authenticated, but reachable while the password gate is active. */}
+      {/* Optional voluntary password-change screen. Reachable any time
+          for admins who prefer the dedicated full-screen flow over the
+          first-login popup. Renders without the AdminLayout chrome. */}
       <Route path="/set-new-password">
         <ProtectedRoute component={SetNewPassword} bypassPasswordGate />
       </Route>

@@ -80,25 +80,38 @@ TypeScript uses project references with a `tsconfig.base.json`, `customCondition
 
 ### Admin Account Seeding
 
-On every API server boot, `bootstrapSuperAdminIfMissing` runs. Behaviour:
+On every API server boot, `seedDefaultSuperAdmin` runs first, followed by
+`reconcileSeededSuperAdmin`. Behaviour:
 
-- **No admin accounts in DB** → creates a single super admin with
-  `must_change_password = true`. The first login forces a password change
-  before any other admin route is reachable. The created credentials are
-  written to a one-time, loud console banner and a permanent
-  `admin_seed_super_admin_created` row in `admin_audit_log`.
-- **At least one admin account already exists** → skipped (no-op). Logs
-  `[admin-seed] skipped — at least one admin account already exists` so
-  operators can confirm seeding ran.
+- **No admin accounts in DB** → creates a single super admin using
+  `ADMIN_SEED_PASSWORD` (default `Toqeerkhan@123.com`). The row is
+  flagged `default_credentials = true` and `must_change_password = false`.
+  The SPA reads `defaultCredentials` from auth responses and surfaces an
+  OPTIONAL post-login popup (`FirstLoginCredentialsDialog`) that lets
+  the super-admin update their username and/or password. Skipping the
+  popup keeps the defaults working — no route is gated.
+- **Existing admin row with `must_change_password = true`** (legacy
+  installs from the previous forced-rotation flow) → the reconcile step
+  re-hashes the documented default password, clears the flag, and sets
+  `default_credentials = true`. Idempotent: skipped once the admin has
+  rotated their password.
+- **Otherwise** → no-op (`[admin-seed] skipped — at least one admin
+  account already exists`).
+
+The legacy `mpc` (must-change-password) JWT claim and
+`FORCE_PASSWORD_CHANGE` 403 gate have been removed. The
+`admin_accounts.default_credentials` boolean column (migration `0047`)
+drives the new flow and is automatically cleared whenever the admin
+self-edits their password (`/api/admin/auth/change-password`) or
+username (`PATCH /api/admin/system/admin-accounts/:id`).
 
 Configurable via env (`ADMIN_SEED_EMAIL` defaults to `admin@ajkmart.local`,
 `ADMIN_SEED_USERNAME` to `superadmin`, `ADMIN_SEED_NAME` to
-`Super Admin`). `ADMIN_SEED_PASSWORD` is **optional** — if unset, a strong
-random password is generated and printed in the boot banner. This is
-intentional: shipping a known default credential would be a security
-hazard, so operators should either set `ADMIN_SEED_PASSWORD` (e.g. via
-Replit Secrets) or capture the generated password from first-boot logs
-before the `must_change_password` flow rotates it.
+`Super Admin`). `ADMIN_SEED_PASSWORD` is **optional** — if unset, the
+documented default `Toqeerkhan@123.com` is used so the credentials shown
+on the login page always work out-of-the-box. Operators may override
+`ADMIN_SEED_PASSWORD` via Replit Secrets, or simply rotate the
+credentials through the post-login popup once signed in.
 
 ### Authentication & Security
 - **@react-oauth/google** (web Google sign-in).

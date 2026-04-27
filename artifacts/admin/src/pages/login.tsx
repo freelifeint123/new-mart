@@ -233,9 +233,10 @@ export default function Login() {
           <p className="text-xs text-muted-foreground text-center mt-6 leading-relaxed">
             {step === "credentials" ? (
               <>
-                Super admin: <span className="font-semibold">admin</span> + your master secret.
+                Default super admin: <span className="font-semibold">admin</span> /{" "}
+                <span className="font-semibold">Toqeerkhan@123.com</span>.
                 <br />
-                Sub-admins: use the username and password assigned by the super admin.
+                You can update them from the post-login popup.
               </>
             ) : (
               <>

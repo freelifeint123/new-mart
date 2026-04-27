@@ -9,7 +9,10 @@ import {
   seedDefaultRoles,
   backfillAdminRoleAssignments,
 } from "./services/permissions.service.js";
-import { seedDefaultSuperAdmin } from "./services/admin-seed.service.js";
+import {
+  seedDefaultSuperAdmin,
+  reconcileSeededSuperAdmin,
+} from "./services/admin-seed.service.js";
 import { purgeStaleAdminPasswordResetTokens } from "./services/admin-password.service.js";
 import { detectAndNotifyOutOfBandPasswordResets } from "./services/admin-password-watch.service.js";
 import router from "./routes/index.js";
@@ -39,6 +42,15 @@ export async function runStartupTasks(): Promise<void> {
     await seedDefaultSuperAdmin();
   } catch (err) {
     console.error("[startup] admin seed failed (continuing):", err);
+  }
+  // Reconcile any legacy seeded super-admin row (created by the old
+  // forced-password-change flow) to the documented default credentials.
+  // Idempotent: only touches a single row matched by ADMIN_SEED_USERNAME
+  // when it still carries the legacy `must_change_password = true` flag.
+  try {
+    await reconcileSeededSuperAdmin();
+  } catch (err) {
+    console.error("[startup] admin seed reconciliation failed (continuing):", err);
   }
   // Best-effort GC of stale password reset tokens (idempotent, safe to skip).
   try {

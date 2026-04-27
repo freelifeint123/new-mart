@@ -303,6 +303,9 @@ router.post("/admin-accounts", async (req, res) => {
 router.patch("/admin-accounts/:id", async (req, res) => {
   const body = req.body as Record<string, unknown>;
   const updates: Record<string, any> = {};
+  const targetId = req.params["id"]!;
+  const adminReq = req as AdminRequest;
+  const isSelfEdit = adminReq.adminId === targetId;
   if (body.name !== undefined) updates.name = body.name;
   if (body.username !== undefined) updates.username = body.username;
   if (body.email !== undefined) {
@@ -329,10 +332,18 @@ router.patch("/admin-accounts/:id", async (req, res) => {
     }
     updates.secret = hashAdminSecret(newPassword as string);
   }
+  // The optional "still using default credentials" marker is cleared as
+  // soon as the admin self-edits their username or password (the two
+  // surfaces the first-login popup exposes). Edits performed by another
+  // super-admin do not touch the flag — that is genuinely a different
+  // operator's account.
+  if (isSelfEdit && (updates.username !== undefined || updates.secret !== undefined)) {
+    updates.defaultCredentials = false;
+  }
   const [account] = await db
     .update(adminAccountsTable)
     .set(updates)
-    .where(eq(adminAccountsTable.id, req.params["id"]!))
+    .where(eq(adminAccountsTable.id, targetId))
     .returning();
   if (!account) {
     res.status(404).json({ error: "Admin account not found" });

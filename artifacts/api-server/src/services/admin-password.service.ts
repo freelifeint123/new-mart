@@ -164,13 +164,16 @@ export async function completeAdminPasswordReset(
         ),
       );
 
-    // Update password and clear the must-change flag.
+    // Update password and clear the must-change flag. Also flip the
+    // `defaultCredentials` flag so the optional first-login popup never
+    // reopens once a real password has been set.
     await tx
       .update(adminAccountsTable)
       .set({
         secret: newHash,
         mustChangePassword: false,
         passwordChangedAt: now,
+        defaultCredentials: false,
       })
       .where(eq(adminAccountsTable.id, verified.admin.id));
 
@@ -249,6 +252,9 @@ export async function changeAdminPassword(input: {
         secret: newHash,
         mustChangePassword: false,
         passwordChangedAt: now,
+        // Clear the bootstrap-default marker so the optional popup never
+        // reopens after the admin has rotated their password.
+        defaultCredentials: false,
       })
       .where(eq(adminAccountsTable.id, admin.id));
 

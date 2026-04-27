@@ -17,10 +17,11 @@ export interface AccessTokenPayload {
   /** Bumped on role/permission change so old tokens are invalidated. */
   pv?: number;
   /**
-   * "Must change password" claim. When true, the access token is only
-   * accepted by an allow-list of password-change/logout endpoints —
-   * every other admin route is blocked with FORCE_PASSWORD_CHANGE until
-   * the admin rotates their password and is issued a fresh token.
+   * Legacy "must change password" claim. Tokens are no longer minted
+   * with this claim — the optional credentials popup is now SPA-driven
+   * via the `defaultCredentials` flag returned alongside auth responses.
+   * The field is kept so previously-issued tokens keep verifying without
+   * surfacing a parse error.
    */
   mpc?: boolean;
   iat?: number;
@@ -44,10 +45,15 @@ export function signAccessToken(
   name: string,
   perms: string[] = [],
   pv: number = 0,
-  mustChangePassword: boolean = false,
+  /**
+   * Legacy parameter. Tokens are no longer minted with the `mpc` claim;
+   * the value is ignored. Kept on the signature so existing call sites
+   * keep compiling while we phase the parameter out.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _mustChangePassword: boolean = false,
 ): string {
   const payload: Record<string, unknown> = { sub: adminId, role, name, perms, pv };
-  if (mustChangePassword) payload.mpc = true;
   return jwt.sign(
     payload,
     ACCESS_TOKEN_SECRET,

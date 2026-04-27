@@ -123,9 +123,11 @@ export async function createAdminSession(
 }> {
   const sessionId = generateId();
 
-  // Generate tokens with effective permissions baked in. The mpc claim
-  // surfaces "must change password" so middleware can block every
-  // non-password-change route until the admin rotates their password.
+  // Generate tokens with effective permissions baked in. The legacy
+  // `mpc` (must-change-password) claim is no longer issued — the SPA now
+  // handles the optional credentials popup based on
+  // `admin.defaultCredentials`, and no route is gated on a forced
+  // rotation.
   const perms = await resolveAdminPermissions(admin.id, admin.role);
   const accessToken = signAccessToken(
     admin.id,
@@ -133,7 +135,7 @@ export async function createAdminSession(
     admin.name,
     perms,
     0,
-    !!admin.mustChangePassword,
+    false,
   );
   const refreshToken = signRefreshToken(admin.id, sessionId);
   const csrfToken = createCsrfCookie(sessionId);
@@ -229,9 +231,10 @@ export async function refreshAdminSession(
     }
 
     // Generate new tokens with rotation; recompute permissions so role/perm
-    // changes propagate within one access-token lifetime. The mpc claim is
-    // re-read from the DB so a freshly cleared "must change password" flag
-    // takes effect on the next refresh.
+    // changes propagate within one access-token lifetime. The legacy `mpc`
+    // claim is no longer issued — the optional credentials popup is now
+    // SPA-driven via the `defaultCredentials` flag returned alongside the
+    // refreshed token, so no route is locked behind a forced rotation.
     const perms = await resolveAdminPermissions(admin.id, admin.role);
     const newAccessToken = signAccessToken(
       admin.id,
@@ -239,7 +242,7 @@ export async function refreshAdminSession(
       admin.name,
       perms,
       0,
-      !!admin.mustChangePassword,
+      false,
     );
     const newRefreshToken = signRefreshToken(admin.id, session.id);
     const newRefreshTokenHash = hashToken(newRefreshToken);

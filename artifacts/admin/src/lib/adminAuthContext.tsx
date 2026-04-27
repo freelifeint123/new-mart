@@ -4,9 +4,21 @@ export interface AdminUser {
   id: string;
   name: string;
   email: string;
+  /** Login handle. Returned by every auth response so the popup can prefill it. */
+  username?: string;
   role: string;
-  /** True when the admin must rotate their password before doing anything else. */
+  /**
+   * Legacy "must change password" flag. The forced rotation gate has been
+   * removed; the field is still surfaced so legacy callers keep compiling.
+   */
   mustChangePassword?: boolean;
+  /**
+   * True while the admin is still using the seeded default credentials.
+   * Drives the OPTIONAL post-login popup that lets the super-admin update
+   * their username and/or password. Skipping the popup keeps the defaults
+   * working — nothing is gated on this flag.
+   */
+  usingDefaultCredentials?: boolean;
 }
 
 interface AuthState {
@@ -15,10 +27,22 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   /**
-   * Lifted from the access token's `mpc` claim and the `/auth/me` payload —
-   * the SPA reads this to gate every route except `/set-new-password`.
+   * Legacy field. Always false now that the forced password-change flow
+   * has been removed; kept on the type so existing readers do not break.
    */
   mustChangePassword: boolean;
+  /**
+   * Mirrors `user.usingDefaultCredentials` from the most recent auth
+   * response. The SPA renders the optional credentials popup when this
+   * is true and the admin has not yet dismissed it for the session.
+   */
+  usingDefaultCredentials: boolean;
+  /**
+   * Set when the user clicks "Skip for now" so the popup does not
+   * re-open during the same browser session. Cleared on logout / next
+   * login (state is component-local, not persisted).
+   */
+  defaultCredentialsDismissed: boolean;
 }
 
 interface AuthContextType {
@@ -27,14 +51,37 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<string>;
   /**
-   * Submits the must-change-password rotation. On success the SPA receives a
-   * fresh access token without the `mpc` claim and the gate is lifted.
+   * Submits a password change against POST /api/admin/auth/change-password.
+   * Returns the fresh access token; the credential popup uses it directly
+   * so any subsequent username PATCH carries the rotated session.
    */
-  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<string>;
+  /**
+   * Marks the credentials popup as dismissed for the rest of the session.
+   * "Skip for now" — the default credentials keep working and the dialog
+   * stops re-opening until the next login.
+   */
+  dismissDefaultCredentialsPrompt: () => void;
+  /**
+   * Patches the current admin's profile (used by the credentials popup
+   * to apply a new username and/or display name without going through
+   * the password endpoint). Mirrors the response into auth state.
+   */
+  updateOwnProfile: (input: { username?: string; name?: string }) => Promise<void>;
   clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const INITIAL_STATE: AuthState = {
+  accessToken: null,
+  user: null,
+  isLoading: true,
+  error: null,
+  mustChangePassword: false,
+  usingDefaultCredentials: false,
+  defaultCredentialsDismissed: false,
+};
 
 /**
  * Admin Auth Provider
@@ -42,13 +89,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * Refresh tokens are stored in HttpOnly cookies (handled by browser automatically)
  */
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    accessToken: null,
-    user: null,
-    isLoading: true,
-    error: null,
-    mustChangePassword: false,
-  });
+  const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
   // Use a ref to prevent concurrent refresh requests
   // This persists across renders so concurrent calls share one in-flight promise
@@ -77,13 +118,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         if (!response.ok) {
           if (response.status === 401) {
             // Refresh token expired or invalid - clear auth
-            setState({
-              accessToken: null,
-              user: null,
-              isLoading: false,
-              mustChangePassword: false,
-              error: 'Session expired. Please log in again.',
-            });
+            setState({ ...INITIAL_STATE, isLoading: false, error: 'Session expired. Please log in again.' });
             throw new Error('Session expired');
           }
           throw new Error('Failed to refresh token');
@@ -100,6 +135,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
               }
             : prev.user,
           mustChangePassword: !!data.mustChangePassword,
+          usingDefaultCredentials: !!data.usingDefaultCredentials,
+          // Preserve session-scoped dismissal so refresh does not re-open the popup.
           error: null,
         }));
 
@@ -193,6 +230,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
             isLoading: false,
             error: null,
             mustChangePassword: !!data.mustChangePassword,
+            usingDefaultCredentials: !!data.usingDefaultCredentials,
+            // Each fresh login resets the dismissal so the popup gets a chance again.
+            defaultCredentialsDismissed: false,
           });
           return;
         }
@@ -232,6 +272,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           isLoading: false,
           error: null,
           mustChangePassword: !!data.mustChangePassword,
+          usingDefaultCredentials: !!data.usingDefaultCredentials,
+          defaultCredentialsDismissed: false,
         });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Login failed';
@@ -271,34 +313,21 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      setState({
-        accessToken: null,
-        user: null,
-        isLoading: false,
-        error: null,
-        mustChangePassword: false,
-      });
+      setState({ ...INITIAL_STATE, isLoading: false });
     } catch (err) {
       console.error('Logout error:', err);
       // Clear state anyway
-      setState({
-        accessToken: null,
-        user: null,
-        isLoading: false,
-        error: null,
-        mustChangePassword: false,
-      });
+      setState({ ...INITIAL_STATE, isLoading: false });
     }
   }, [state.accessToken]);
 
   /**
-   * Submit the must-change-password rotation. Used by the
-   * `/set-new-password` screen during the forced flow and any voluntary
-   * change-password UI later. On success the SPA receives a fresh access
-   * token without the `mpc` claim and the gate is lifted automatically.
+   * Submit a password change against POST /api/admin/auth/change-password.
+   * Returns the rotated access token so the credentials popup can chain
+   * a username PATCH against the fresh session.
    */
   const changePassword = useCallback(
-    async (currentPassword: string, newPassword: string) => {
+    async (currentPassword: string, newPassword: string): Promise<string> => {
       if (!state.accessToken) throw new Error('Not authenticated');
       const response = await fetch('/api/admin/auth/change-password', {
         method: 'POST',
@@ -317,17 +346,69 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
+      const nextToken = data.accessToken ?? state.accessToken;
       setState((prev) => ({
         ...prev,
-        accessToken: data.accessToken ?? prev.accessToken,
+        accessToken: nextToken,
         user: data.user
           ? { ...(prev.user ?? { id: '', name: '', email: '', role: '' }), ...data.user }
           : prev.user,
         mustChangePassword: false,
+        usingDefaultCredentials: false,
         error: null,
       }));
+      return nextToken;
     },
     [state.accessToken],
+  );
+
+  const dismissDefaultCredentialsPrompt = useCallback(() => {
+    setState((prev) => ({ ...prev, defaultCredentialsDismissed: true }));
+  }, []);
+
+  /**
+   * PATCH /api/admin/system/admin-accounts/:id for the currently
+   * authenticated admin. The backend clears `defaultCredentials` on
+   * self-edit so the popup never reopens after the user picks a custom
+   * username.
+   */
+  const updateOwnProfile = useCallback(
+    async (input: { username?: string; name?: string }) => {
+      const adminId = state.user?.id;
+      if (!adminId) throw new Error('Not authenticated');
+      if (!state.accessToken) throw new Error('Not authenticated');
+
+      const response = await fetch(`/api/admin/system/admin-accounts/${adminId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${state.accessToken}`,
+          'X-CSRF-Token': readCsrfFromCookie(),
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update profile');
+      }
+
+      const data = await response.json();
+      const updated = data?.account ?? data;
+      setState((prev) => ({
+        ...prev,
+        user: prev.user
+          ? {
+              ...prev.user,
+              ...(updated?.username !== undefined ? { username: updated.username } : {}),
+              ...(updated?.name !== undefined ? { name: updated.name } : {}),
+            }
+          : prev.user,
+        usingDefaultCredentials: false,
+      }));
+    },
+    [state.user?.id, state.accessToken],
   );
 
   const clearError = useCallback(() => {
@@ -345,6 +426,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         refreshAccessToken,
         changePassword,
+        dismissDefaultCredentialsPrompt,
+        updateOwnProfile,
         clearError,
       }}
     >
