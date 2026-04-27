@@ -1652,7 +1652,10 @@ export default function ErrorMonitor() {
               </h3>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(taskPlanContent).catch(() => {});
+                  navigator.clipboard.writeText(taskPlanContent).catch((err) => {
+                    console.error("[ErrorMonitor] Clipboard copy failed:", err);
+                    window.prompt("Copy failed — select and copy manually:", taskPlanContent);
+                  });
                 }}
                 style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, backgroundColor: "#EEF2FF", color: "#4F46E5", border: "1px solid #C7D2FE", cursor: "pointer" }}
               >

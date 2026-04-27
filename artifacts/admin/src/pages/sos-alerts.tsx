@@ -308,7 +308,9 @@ export default function SosAlerts() {
       setHasMore(data.hasMore || false);
       setActiveCount(typeof data.activeCount === "number" ? data.activeCount : 0);
       setPage(p);
-    } catch {}
+    } catch (err) {
+      console.error("[SOS Alerts] Load failed:", err);
+    }
     setLoading(false);
   }, [tab]);
 

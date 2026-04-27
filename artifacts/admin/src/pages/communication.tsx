@@ -146,7 +146,9 @@ function DashboardTab() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    fetcher("/communication/dashboard").then(setStats).catch(() => {});
+    fetcher("/communication/dashboard").then(setStats).catch((err) => {
+      console.error("[Communication] Dashboard stats load failed:", err);
+    });
 
     const token = getAdminAccessToken() ?? "";
     const socket = io(window.location.origin, {
@@ -442,7 +444,7 @@ function ConversationsTab() {
   useEffect(() => {
     fetcherWithMeta(`/communication/conversations?search=${encodeURIComponent(debouncedSearch)}&page=${page}&limit=${LIMIT}`)
       .then((d) => { setConversations((d.data as ConversationItem[]) || []); setTotal((d.total as number) || 0); })
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] Conversations load failed:", err); });
   }, [debouncedSearch, page]);
 
   const viewMessages = async (conv: ConversationItem) => {
@@ -549,7 +551,7 @@ function CallHistoryTab() {
   useEffect(() => {
     fetcherWithMeta(`/communication/calls?page=${page}&limit=${LIMIT}`)
       .then((d) => { setCalls((d.data as CallItem[]) || []); setTotal((d.total as number) || 0); })
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] Call history load failed:", err); });
   }, [page]);
 
   const statusColor: Record<string, string> = { completed: "default", missed: "destructive", rejected: "secondary", answered: "default", initiated: "outline" };
@@ -596,7 +598,7 @@ function AILogsTab() {
   useEffect(() => {
     fetcherWithMeta(`/communication/ai-logs?page=${page}&limit=${LIMIT}`)
       .then((d) => { setLogs((d.data as AILogItem[]) || []); setTotal((d.total as number) || 0); })
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] AI logs load failed:", err); });
   }, [page]);
 
   return (
@@ -642,7 +644,7 @@ function FlaggedTab() {
   const load = () => {
     fetcher(`/communication/flags?status=${status}`)
       .then((d: FlagItem[] | { data: FlagItem[] }) => setFlags(Array.isArray(d) ? d : d.data))
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] Flagged messages load failed:", err); });
   };
 
   useEffect(() => { load(); }, [status]);
@@ -936,7 +938,7 @@ function RoleTemplatesTab() {
   const loadRoles = () => {
     fetcher("/communication/roles")
       .then((d: RoleItem[] | { data: RoleItem[] }) => setRoles(Array.isArray(d) ? d : d.data))
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] Roles load failed:", err); });
   };
 
   useEffect(() => { loadRoles(); }, []);
@@ -1079,7 +1081,7 @@ function AjkIdsTab() {
     params.set("limit", String(LIMIT));
     fetcherWithMeta(`/communication/ajk-ids?${params.toString()}`)
       .then((d) => { setUsers((d.data as UserItem[]) || []); setTotal((d.total as number) || 0); })
-      .catch(() => {});
+      .catch((err) => { console.error("[Communication] AJK IDs load failed:", err); });
   };
 
   useEffect(() => { loadUsers(); }, [debouncedSearch, roleFilter, page]);

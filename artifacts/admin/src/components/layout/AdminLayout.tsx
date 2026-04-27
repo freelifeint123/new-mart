@@ -226,16 +226,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     fetcher("/sos/alerts?limit=1")
       .then((data: { activeCount?: number }) => { if (typeof data.activeCount === "number") setSosCount(data.activeCount); })
-      .catch(() => {});
+      .catch((err) => { console.error("[AdminLayout] SOS badge fetch failed:", err); });
 
     fetcher("/error-reports/new-count")
       .then((data: { count?: number }) => { if (typeof data.count === "number") setErrorCount(data.count); })
-      .catch(() => {});
+      .catch((err) => { console.error("[AdminLayout] Error count fetch failed:", err); });
 
     const errorInterval = setInterval(() => {
       fetcher("/error-reports/new-count")
         .then((data: { count?: number }) => { if (typeof data.count === "number") setErrorCount(data.count); })
-        .catch(() => {});
+        .catch((err) => { console.error("[AdminLayout] Error count interval fetch failed:", err); });
     }, 60000);
     const cleanupErrorInterval = () => clearInterval(errorInterval);
 

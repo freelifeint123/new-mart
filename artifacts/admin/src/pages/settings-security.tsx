@@ -77,7 +77,9 @@ export function SecuritySection({ localValues, dirtyKeys, handleChange, handleTo
       setBlockedIPsList(ipsData.blocked ?? []);
       setAuditEntries(auditData.entries ?? []);
       setSecEvents(eventsData.events ?? []);
-    } catch {}
+    } catch (err) {
+      console.error("[Security] Live dashboard data fetch failed:", err);
+    }
     setLiveLoading(false);
   }, []);
 
@@ -114,7 +116,9 @@ export function SecuritySection({ localValues, dirtyKeys, handleChange, handleTo
     try {
       const data = await apiAbsoluteFetchRaw(`/api/admin/mfa/status`);
       setMfaStatus(data);
-    } catch {}
+    } catch (err) {
+      console.error("[Security] MFA status fetch failed:", err);
+    }
   }, []);
 
   useEffect(() => {
@@ -144,7 +148,10 @@ export function SecuritySection({ localValues, dirtyKeys, handleChange, handleTo
       } else {
         toast({ title: "Invalid Code", description: data.error ?? "Wrong TOTP code. Please try again.", variant: "destructive" });
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Security] MFA verify failed:", err);
+      toast({ title: "Error", description: "Network error while verifying MFA code", variant: "destructive" });
+    }
     setMfaLoading(false);
   };
 
@@ -160,7 +167,10 @@ export function SecuritySection({ localValues, dirtyKeys, handleChange, handleTo
       } else {
         toast({ title: "Error", description: data.error ?? "Failed to disable MFA", variant: "destructive" });
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Security] MFA disable failed:", err);
+      toast({ title: "Error", description: "Network error while disabling MFA", variant: "destructive" });
+    }
     setMfaLoading(false);
   };
 

@@ -114,7 +114,8 @@ export function ServiceZonesManager() {
         toast({ title: "Zone updated" });
       }
       setMode("list");
-    } catch {
+    } catch (err) {
+      console.error("[ServiceZonesManager] Zone save failed:", err);
       toast({ title: "Save failed", variant: "destructive" });
     }
   }
@@ -124,7 +125,8 @@ export function ServiceZonesManager() {
     try {
       await del.mutateAsync(id);
       toast({ title: "Zone deleted" });
-    } catch {
+    } catch (err) {
+      console.error("[ServiceZonesManager] Zone delete failed:", err);
       toast({ title: "Delete failed", variant: "destructive" });
     } finally {
       setDeleting(null);

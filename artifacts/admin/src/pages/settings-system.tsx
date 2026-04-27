@@ -83,7 +83,9 @@ export function SystemSection() {
           id: s.id, label: s.label, expiresAt: s.expiresAt, actionId: s.actionId,
         })));
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error("[SystemSettings] Snapshots load failed:", err);
+    });
   }, []);
 
   const addUndoFromResponse = (data: any, label: string) => {
@@ -140,7 +142,9 @@ export function SystemSection() {
   };
 
   const handleDismissUndo = async (id: string) => {
-    try { await apiFetch(`/snapshots/${id}`, { method: "DELETE" }); } catch {}
+    try { await apiFetch(`/snapshots/${id}`, { method: "DELETE" }); } catch (err) {
+      console.error("[SystemSettings] Snapshot dismiss failed:", err);
+    }
     setPendingUndos(prev => prev.filter(u => u.id !== id));
     toast({ title: "Action confirmed permanent", description: "Undo snapshot discarded." });
   };
@@ -186,7 +190,9 @@ export function SystemSection() {
     try {
       const data = await apiFetch("/demo-backups");
       setDemoBackups(data.data ?? data);
-    } catch {}
+    } catch (err) {
+      console.error("[SystemSettings] Demo backups load failed:", err);
+    }
     setDemoBackupsLoading(false);
   }, []);
 
@@ -918,7 +924,9 @@ function MaintenanceScheduleSection({ apiFetch, toast }: { apiFetch: (path: stri
       setStart(data.scheduledStart || "");
       setEnd(data.scheduledEnd || "");
       setMsg(data.scheduledMsg || "");
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((err) => {
+      console.error("[SystemSettings] Maintenance schedule load failed:", err);
+    }).finally(() => setLoading(false));
   }, []);
 
   const save = async () => {
@@ -1003,7 +1011,9 @@ function DataRetentionSection({ apiFetch, toast }: { apiFetch: (path: string, op
     apiFetch("/retention-policies").then(d => {
       const data = d.data ?? d;
       setPolicies({ locationDays: data.locationDays, chatDays: data.chatDays, auditDays: data.auditDays, notificationsDays: data.notificationsDays, lastCleanup: data.lastCleanup });
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((err) => {
+      console.error("[SystemSettings] Retention policies load failed:", err);
+    }).finally(() => setLoading(false));
   }, []);
 
   const save = async () => {

@@ -331,16 +331,19 @@ export default function AppManagement() {
   const maintenanceMsgSaved = settings.find((s: any) => s.key === "content_maintenance_msg")?.value || "";
   const releaseNotes: any[] = rnData?.releaseNotes || [];
 
-  /* ── Sync compliance state from platform settings ── */
-  const savedMinAppVersion = settings.find((s: any) => s.key === "min_app_version")?.value || "";
-  const savedTermsVersion  = settings.find((s: any) => s.key === "terms_version")?.value  || "";
-  const savedAppStoreUrl   = settings.find((s: any) => s.key === "app_store_url")?.value   || "";
-  const savedPlayStoreUrl  = settings.find((s: any) => s.key === "play_store_url")?.value  || "";
-
-  if (savedMinAppVersion && minAppVersion === "") setMinAppVersion(savedMinAppVersion);
-  if (savedTermsVersion  && termsVersion  === "") setTermsVersion(savedTermsVersion);
-  if (savedAppStoreUrl   && appStoreUrl   === "") setAppStoreUrl(savedAppStoreUrl);
-  if (savedPlayStoreUrl  && playStoreUrl  === "") setPlayStoreUrl(savedPlayStoreUrl);
+  /* ── Sync compliance state from platform settings (in useEffect to avoid setState-in-render) ── */
+  useEffect(() => {
+    if (!settingsData?.settings) return;
+    const s = settingsData.settings as any[];
+    const savedMinAppVersion = s.find((x: any) => x.key === "min_app_version")?.value || "";
+    const savedTermsVersion  = s.find((x: any) => x.key === "terms_version")?.value  || "";
+    const savedAppStoreUrl   = s.find((x: any) => x.key === "app_store_url")?.value   || "";
+    const savedPlayStoreUrl  = s.find((x: any) => x.key === "play_store_url")?.value  || "";
+    if (savedMinAppVersion) setMinAppVersion(prev => prev || savedMinAppVersion);
+    if (savedTermsVersion)  setTermsVersion(prev  => prev || savedTermsVersion);
+    if (savedAppStoreUrl)   setAppStoreUrl(prev   => prev || savedAppStoreUrl);
+    if (savedPlayStoreUrl)  setPlayStoreUrl(prev  => prev || savedPlayStoreUrl);
+  }, [settingsData]);
 
   /* ── Release Notes Mutations ── */
   const saveRn = useMutation({

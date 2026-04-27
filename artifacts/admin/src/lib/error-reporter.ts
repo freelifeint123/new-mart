@@ -44,7 +44,9 @@ async function sendReport(report: Record<string, unknown>): Promise<void> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(report),
     });
-  } catch {}
+  } catch (err) {
+    console.error("[ErrorReporter] Failed to send error report:", err);
+  }
 }
 
 async function flushQueue(): Promise<void> {

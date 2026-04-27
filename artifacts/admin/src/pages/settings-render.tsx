@@ -82,6 +82,15 @@ export const TOGGLE_KEYS = new Set([
   "sentry_capture_unhandled","sentry_capture_perf",
   /* maps usage */
   "maps_use_customer_app","maps_use_rider_app","maps_use_vendor_app","maps_live_tracking",
+  /* maps provider toggles */
+  "google_maps_enabled","mapbox_enabled","osm_enabled","locationiq_enabled","map_failover_enabled",
+  /* communication feature toggles */
+  "comm_enabled","comm_chat_enabled","comm_voice_calls_enabled","comm_voice_notes_enabled",
+  "comm_translation_enabled","comm_chat_assist_enabled",
+  /* auth method toggles */
+  "auth_phone_otp_enabled","auth_email_otp_enabled","auth_username_password_enabled",
+  "auth_email_register_enabled","auth_magic_link_enabled","auth_2fa_enabled",
+  "auth_biometric_enabled","auth_captcha_enabled",
 ]);
 
 export const TEXT_KEYS = new Set([

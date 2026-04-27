@@ -590,7 +590,9 @@ function useDispatchTileConfig() {
           });
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("[Rides] Map tile config fetch failed:", err);
+      });
   }, []);
   return tile;
 }

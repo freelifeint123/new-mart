@@ -1104,7 +1104,9 @@ function parseUserDocuments(user: any): { files: { type: string; url: string; la
           }
         }
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Users] Failed to parse user documents JSON:", err);
+    }
   }
   return result;
 }
