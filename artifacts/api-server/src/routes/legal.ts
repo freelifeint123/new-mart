@@ -102,38 +102,50 @@ const termsVersionSchema = z.object({
   changelog:    z.string().max(10_000).optional(),
 });
 
+/**
+ * `accepted_terms_version` is added to `users` by an out-of-band auth
+ * migration that not every environment has run. We swallow the
+ * "column does not exist" error specifically (Postgres SQLSTATE 42703)
+ * so a missing column never breaks a publish, and re-throw everything
+ * else so genuine failures surface in the response and the audit log.
+ */
+async function resetAcceptedTermsVersion(): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    await db.execute(
+      sql`UPDATE users SET accepted_terms_version = NULL WHERE accepted_terms_version IS NOT NULL`,
+    );
+    return { ok: true };
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === "42703") {
+      /* Column not present in this environment — expected, treat as no-op. */
+      return { ok: true, reason: "column_missing" };
+    }
+    throw err;
+  }
+}
+
+async function isLatestForPolicy(policy: string, version: string): Promise<boolean> {
+  const [latest] = await db
+    .select({ version: termsVersionsTable.version })
+    .from(termsVersionsTable)
+    .where(eq(termsVersionsTable.policy, policy))
+    .orderBy(desc(termsVersionsTable.effectiveAt))
+    .limit(1);
+  return !!latest && latest.version === version;
+}
+
 router.post("/terms-versions", validateBody(termsVersionSchema), async (req, res) => {
   const body = req.body as z.infer<typeof termsVersionSchema>;
   const effectiveAt = body.effectiveAt ? new Date(body.effectiveAt) : new Date();
 
   try {
-    /* Idempotent on (policy, version): if the row already exists, return
-       it untouched so re-publishing the same version is safe. */
-    const [existing] = await db
-      .select()
-      .from(termsVersionsTable)
-      .where(
-        and(
-          eq(termsVersionsTable.policy, body.policy),
-          eq(termsVersionsTable.version, body.version),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      sendSuccess(res, {
-        policy:       existing.policy,
-        version:      existing.version,
-        effectiveAt:  existing.effectiveAt.toISOString(),
-        bodyMarkdown: existing.bodyMarkdown ?? undefined,
-        changelog:    existing.changelog ?? undefined,
-        isCurrent:    true,
-        idempotent:   true,
-      });
-      return;
-    }
-
-    const [inserted] = await db
+    /* Race-safe idempotency: try to insert; on PK conflict (`policy`,
+       `version` already exists) `onConflictDoNothing` returns no rows
+       and we re-fetch the existing row. This avoids the read-then-write
+       race that lets two concurrent publishes both pass the existence
+       check and then fight over the unique constraint. */
+    const insertedRows = await db
       .insert(termsVersionsTable)
       .values({
         policy:       body.policy,
@@ -142,61 +154,83 @@ router.post("/terms-versions", validateBody(termsVersionSchema), async (req, res
         bodyMarkdown: body.bodyMarkdown ?? null,
         changelog:    body.changelog ?? null,
       })
+      .onConflictDoNothing({
+        target: [termsVersionsTable.policy, termsVersionsTable.version],
+      })
       .returning();
 
-    /* Bumping the version of the customer-facing "terms" policy must
-       force a re-acceptance flow on next launch. We do that by NULLing
-       every user's accepted_terms_version so the mobile compliance gate
-       trips on next call to /platform-config/compliance-status. We only
-       do this when the new version is the most recent for that policy. */
-    if (inserted) {
-      const [latest] = await db
-        .select({ version: termsVersionsTable.version })
+    const wasInserted = insertedRows.length > 0;
+    const inserted = insertedRows[0];
+
+    let row;
+    if (wasInserted && inserted) {
+      row = inserted;
+    } else {
+      const [existing] = await db
+        .select()
         .from(termsVersionsTable)
-        .where(eq(termsVersionsTable.policy, body.policy))
-        .orderBy(desc(termsVersionsTable.effectiveAt))
+        .where(
+          and(
+            eq(termsVersionsTable.policy, body.policy),
+            eq(termsVersionsTable.version, body.version),
+          ),
+        )
         .limit(1);
+      if (!existing) {
+        sendError(res, "Insert reported no row but existing lookup also empty");
+        return;
+      }
+      row = existing;
+    }
 
-      if (latest && latest.version === inserted.version) {
-        if (body.policy === "terms") {
-          /* `accepted_terms_version` is a free-form string column on
-             users (see auth.ts). Reset it so the next compliance check
-             surfaces the new version. */
-          try {
-            await db.execute(
-              sql`UPDATE users SET accepted_terms_version = NULL WHERE accepted_terms_version IS NOT NULL`,
-            );
-          } catch {
-            /* The column is added lazily in some environments — log and
-               continue rather than failing the publish. */
-          }
-        }
+    /* `isCurrent` is computed against the live state of the table, so
+       publishing an older `effectiveAt` returns `isCurrent: false` and
+       a re-POST of an older version still reports its true status. */
+    const isCurrent = await isLatestForPolicy(body.policy, body.version);
 
+    /* Bumping the latest "terms" version forces a re-acceptance flow on
+       next launch by NULLing every user's accepted_terms_version. We
+       only do this on a fresh insert that is now the latest — re-POST
+       of an existing row is a no-op. */
+    if (wasInserted && isCurrent && body.policy === "terms") {
+      const result = await resetAcceptedTermsVersion();
+      if (result.ok) {
         addAuditEntry({
           action:  "terms_version_published",
           ip:      getClientIp(req),
           adminId: (req as AdminRequest).adminId,
-          details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})`,
+          details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})${result.reason ? ` [reset_skipped:${result.reason}]` : ""}`,
           result:  "success",
         });
       }
+    } else if (wasInserted && isCurrent) {
+      addAuditEntry({
+        action:  "terms_version_published",
+        ip:      getClientIp(req),
+        adminId: (req as AdminRequest).adminId,
+        details: `Published ${body.policy} v${body.version} (effectiveAt=${effectiveAt.toISOString()})`,
+        result:  "success",
+      });
     }
 
     invalidateSettingsCache();
     invalidatePlatformSettingsCache();
 
-    if (!inserted) {
-      sendError(res, "Insert returned no row");
-      return;
+    const payload = {
+      policy:       row.policy,
+      version:      row.version,
+      effectiveAt:  row.effectiveAt.toISOString(),
+      bodyMarkdown: row.bodyMarkdown ?? undefined,
+      changelog:    row.changelog ?? undefined,
+      isCurrent,
+      ...(wasInserted ? {} : { idempotent: true }),
+    };
+
+    if (wasInserted) {
+      sendCreated(res, payload);
+    } else {
+      sendSuccess(res, payload);
     }
-    sendCreated(res, {
-      policy:       inserted.policy,
-      version:      inserted.version,
-      effectiveAt:  inserted.effectiveAt.toISOString(),
-      bodyMarkdown: inserted.bodyMarkdown ?? undefined,
-      changelog:    inserted.changelog ?? undefined,
-      isCurrent:    true,
-    });
   } catch (err) {
     sendError(res, (err as Error).message ?? "Failed to create terms version");
   }
