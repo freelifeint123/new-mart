@@ -360,6 +360,198 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Impact**: Potential XSS attacks if user input contains malicious HTML/JavaScript.
 - **Recommendation**: Sanitize all user input before rendering, especially in search results and formatted content.
 
+## Potential XSS Vulnerabilities from Unsanitized Input
+- **Files**: `artifacts/admin/src/components/CommandPalette.tsx`, `artifacts/admin/src/lib/format.ts`
+- **Issue**: User input may not be properly sanitized before display
+- **Severity**: Medium
+- **Description**: Search queries and formatted data may contain HTML/script content that gets rendered unsafely.
+- **Impact**: Potential XSS attacks if user input contains malicious HTML/JavaScript.
+- **Recommendation**: Sanitize all user input before rendering, especially in search results and formatted content.
+
+## Poor UX with Browser Confirm Dialogs
+- **Files**: `artifacts/admin/src/pages/categories.tsx`, `artifacts/admin/src/pages/launch-control.tsx`, `artifacts/admin/src/pages/app-management.tsx`, `artifacts/admin/src/pages/van.tsx`
+- **Issue**: Using browser's built-in `confirm()` and `window.confirm()` dialogs
+- **Severity**: Medium
+- **Description**: Multiple critical actions use browser's ugly confirm dialogs instead of proper UI modals.
+- **Impact**: Poor user experience, inconsistent design, and dialogs can be blocked by browser extensions.
+- **Recommendation**: Replace all `confirm()` calls with proper modal dialogs using the existing UI components.
+
+## Missing Testing Infrastructure
+- **Files**: Admin panel project
+- **Issue**: No testing setup or test files found
+- **Severity**: High
+- **Description**: The admin panel has no unit tests, integration tests, or E2E tests despite having some test IDs in components.
+- **Impact**: Bugs can be introduced without detection, refactoring becomes risky, and code quality cannot be maintained.
+- **Recommendation**: Set up Vitest for unit tests, add integration tests for critical flows, and consider E2E tests for key user journeys.
+
+## Hardcoded User-Facing Strings
+- **Files**: Various components throughout the admin panel
+- **Issue**: User-facing text is hardcoded in English instead of using the i18n system
+- **Severity**: Medium
+- **Description**: While there's an i18n system in place, many strings are still hardcoded instead of using translation keys.
+- **Impact**: Cannot easily add new languages or modify text for different regions.
+- **Recommendation**: Audit all user-facing text and replace hardcoded strings with translation keys from the i18n system.
+
+## Missing Bundle Optimization
+- **Files**: `artifacts/admin/vite.config.ts`, `artifacts/admin/package.json`
+- **Issue**: No bundle splitting, tree shaking, or code splitting configuration
+- **Severity**: Medium
+- **Description**: The entire admin panel is likely bundled into a single large file, including all dependencies.
+- **Impact**: Slow initial load times, large bundle sizes, and poor performance on slower connections.
+- **Recommendation**: Implement code splitting by routes, lazy load heavy components, and optimize bundle size.
+
+## Browser Compatibility Issues
+- **Files**: Various components using modern APIs
+- **Issue**: Using modern browser APIs without fallbacks
+- **Severity**: Low to Medium
+- **Description**: Components use `requestAnimationFrame`, `cancelAnimationFrame`, and other modern APIs without checking for support.
+- **Impact**: May not work properly in older browsers or restricted environments.
+- **Recommendation**: Add feature detection and fallbacks for critical functionality.
+
+## Missing Environment Variable Validation
+- **Files**: Various files using `import.meta.env`
+- **Issue**: Environment variables are used without validation or defaults
+- **Severity**: Medium
+- **Description**: Code assumes environment variables exist and are properly formatted without validation.
+- **Impact**: Runtime errors if environment variables are missing or malformed.
+- **Recommendation**: Add environment variable validation at startup and provide sensible defaults.
+
+## Performance Issues with Unnecessary Re-renders
+- **Files**: Various components without proper memoization
+- **Issue**: Components may re-render unnecessarily due to missing React.memo or useMemo
+- **Severity**: Low to Medium
+- **Description**: Some components don't use React.memo, useMemo, or useCallback where appropriate.
+- **Impact**: Poor performance, especially with large lists or frequent updates.
+- **Recommendation**: Add React.memo to components, useMemo for expensive calculations, and useCallback for event handlers.
+
+## Missing Error Recovery Mechanisms
+- **Files**: Various async operations throughout the app
+- **Issue**: Failed operations don't provide recovery options
+- **Severity**: Medium
+- **Description**: When API calls fail, users often can't retry or recover from the error state.
+- **Impact**: Users get stuck in error states with no way to proceed.
+- **Recommendation**: Add retry buttons, refresh options, and clear error recovery paths.
+
+## Missing Responsive Design Considerations
+- **Files**: Various components with fixed layouts
+- **Issue**: Some components may not work well on mobile or tablet devices
+- **Severity**: Low to Medium
+- **Description**: While some responsive classes are used, not all components are fully responsive.
+- **Impact**: Poor experience on mobile devices and tablets.
+- **Recommendation**: Audit all components for mobile responsiveness and add appropriate breakpoints.
+
+## Missing Responsive Design Considerations
+- **Files**: Various components with fixed layouts
+- **Issue**: Some components may not work well on mobile or tablet devices
+- **Severity**: Low to Medium
+- **Description**: While some responsive classes are used, not all components are fully responsive.
+- **Impact**: Poor experience on mobile devices and tablets.
+- **Recommendation**: Audit all components for mobile responsiveness and add appropriate breakpoints.
+
+## State Persistence Issues
+- **Files**: Various components using localStorage/sessionStorage
+- **Issue**: Data persistence may fail silently or inconsistently
+- **Severity**: Medium
+- **Description**: Components save state to localStorage but don't handle quota exceeded, private browsing, or storage failures.
+- **Impact**: User preferences and settings may not persist, leading to poor UX.
+- **Recommendation**: Add proper error handling for storage operations and provide fallbacks.
+
+## CSS/Styling Issues
+- **Files**: Various components with complex z-index and positioning
+- **Issue**: Potential z-index conflicts and layout issues
+- **Severity**: Low to Medium
+- **Description**: Multiple fixed/absolute positioned elements with z-index values that may conflict, and some overflow issues.
+- **Impact**: UI elements may appear behind others or cause layout breaks.
+- **Recommendation**: Establish a consistent z-index scale and audit positioning conflicts.
+
+## Animation/Transition Issues
+- **Files**: Various components with transition classes
+- **Issue**: Inconsistent or missing transitions, potential performance issues
+- **Severity**: Low
+- **Description**: Some interactive elements lack smooth transitions, and animations may cause performance issues.
+- **Impact**: Janky user interactions and poor perceived performance.
+- **Recommendation**: Add consistent transitions and consider using CSS transforms for better performance.
+
+## Form Handling Issues
+- **Files**: Various form components
+- **Issue**: Missing form reset, inconsistent validation, submission handling
+- **Severity**: Medium
+- **Description**: Some forms don't properly reset after submission, validation may be inconsistent, and submission states aren't always clear.
+- **Impact**: Users may submit invalid data or get confused about form state.
+- **Recommendation**: Implement consistent form handling patterns with proper reset and validation.
+
+## Data Fetching Issues
+- **Files**: Various components using React Query
+- **Issue**: Potential stale data, over-fetching, or cache invalidation problems
+- **Severity**: Medium
+- **Description**: Some queries may have incorrect staleTime/cacheTime settings, or cache invalidation may be missing.
+- **Impact**: Users may see stale data or experience unnecessary loading.
+- **Recommendation**: Review and optimize query configurations and cache strategies.
+
+## Component Communication Issues
+- **Files**: Various components with complex prop passing
+- **Issue**: Props drilling and context usage problems
+- **Severity**: Low to Medium
+- **Description**: Some components receive many props that could be better handled with context, and context usage may not be optimal.
+- **Impact**: Code complexity and potential performance issues.
+- **Recommendation**: Consider using context providers for commonly used data and reduce props drilling.
+
+## Build/Deployment Issues
+- **Files**: `artifacts/admin/vite.config.ts`, build configuration
+- **Issue**: Missing build optimizations and environment handling
+- **Severity**: Medium
+- **Description**: No explicit bundle analysis, tree shaking verification, or production optimizations configured.
+- **Impact**: Larger bundle sizes and potential performance issues in production.
+- **Recommendation**: Add bundle analyzer, optimize chunk splitting, and verify tree shaking.
+
+## Monitoring/Logging Gaps
+- **Files**: Various components with error handling
+- **Issue**: Inconsistent error reporting and missing analytics events
+- **Severity**: Medium
+- **Description**: Some errors are logged to console but not sent to monitoring services, and user interactions may not be tracked.
+- **Impact**: Missing visibility into user behavior and system issues.
+- **Recommendation**: Implement consistent error reporting and add analytics tracking for key user actions.
+
+## Offline/PWA Issues
+- **Files**: PWA-related components and service worker
+- **Issue**: PWA functionality may not work properly in all scenarios
+- **Severity**: Low to Medium
+- **Description**: PWA install prompts and offline functionality may have edge cases or browser compatibility issues.
+- **Impact**: Users may not be able to install the PWA or use it offline effectively.
+- **Recommendation**: Test PWA functionality across different browsers and scenarios.
+
+## Time/Date Issues
+- **Files**: Various components displaying dates and times
+- **Issue**: Potential timezone and locale formatting issues
+- **Severity**: Low to Medium
+- **Description**: Date formatting may not handle timezones properly or may not be localized for different regions.
+- **Impact**: Users may see incorrect or confusing date/time information.
+- **Recommendation**: Use consistent date formatting with proper timezone handling.
+
+## Print/Media Issues
+- **Files**: Various components that may be printed
+- **Issue**: Missing print styles and media queries
+- **Severity**: Low
+- **Description**: Components may not print properly or may show unnecessary elements when printed.
+- **Impact**: Poor printing experience for reports and documentation.
+- **Recommendation**: Add print-specific CSS rules and test printing functionality.
+
+## File Upload/Download Issues
+- **Files**: Components handling file operations
+- **Issue**: Missing validation, progress indicators, and error handling
+- **Severity**: Medium
+- **Description**: File uploads/downloads may lack proper validation, progress feedback, or error recovery.
+- **Impact**: Users may have poor experience with file operations and potential security issues.
+- **Recommendation**: Add comprehensive file validation, progress indicators, and error handling.
+
+## Third-party Integration Issues
+- **Files**: Components integrating with external services
+- **Issue**: Missing error handling for third-party service failures
+- **Severity**: Medium
+- **Description**: External API failures may not be handled gracefully, and service outages may break functionality.
+- **Impact**: Admin panel may become unusable when third-party services are down.
+- **Recommendation**: Add proper fallbacks and error handling for external service dependencies.
+
 ## Recommendations
 1. Implement proper error logging in all catch blocks.
 2. Add input sanitization for any HTML content rendering.
@@ -375,3 +567,344 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 12. Add comprehensive form validation.
 13. Ensure all interactive elements have proper accessibility labels.
 14. Implement consistent loading and error states.
+15. Replace browser confirm dialogs with proper UI modals.
+16. Set up comprehensive testing infrastructure.
+17. Implement internationalization for all user-facing text.
+18. Optimize bundle size and loading performance.
+19. Add browser compatibility checks and fallbacks.
+20. Validate environment variables at startup.
+21. Add proper state persistence with error handling.
+22. Establish consistent z-index and positioning standards.
+23. Implement smooth transitions and animations.
+24. Standardize form handling patterns.
+25. Optimize data fetching and caching strategies.
+26. Reduce props drilling with context providers.
+27. Add bundle analysis and optimization.
+28. Implement comprehensive error monitoring.
+29. Test and improve PWA functionality.
+30. Add proper timezone and locale handling.
+31. Implement print-friendly styles.
+32. Add robust file upload/download handling.
+33. Implement third-party service fallbacks.
+
+## ADDITIONAL ISSUES DISCOVERED (Not Previously Documented)
+
+## Silent Failed Error Reports in Error Reporter
+- **File**: `artifacts/admin/src/lib/error-reporter.ts`
+- **Issue**: `sendReport()` function has a silent catch block that swallows network errors
+- **Severity**: Medium
+- **Description**: Line 43 - `fetch()` errors are caught and ignored, so failed error reports are never retried or logged
+- **Impact**: Error reports may be lost if the backend is unreachable, undermining observability
+- **Recommendation**: Log failed reports, implement retry logic with exponential backoff, or persist failed reports to localStorage for later delivery
+
+## Missing DOM Access Guard in Multiple Files
+- **Files**: `artifacts/admin/src/lib/adminAuthContext.tsx` (line 457), `artifacts/admin/src/components/ui/sidebar.tsx` (line 86)
+- **Issue**: Cookie operations lack proper error handling and SSR detection
+- **Severity**: Low to Medium
+- **Description**: While `adminAuthContext.tsx` checks `typeof document === "undefined"`, it doesn't handle the case where cookies are disabled or quota exceeded. `sidebar.tsx` writes to `document.cookie` without error handling.
+- **Impact**: Cookie operations can fail silently, and state may not persist
+- **Recommendation**: Wrap cookie operations in try-catch blocks and provide fallback persistence methods
+
+## Unguarded Redirect in App Management
+- **File**: `artifacts/admin/src/pages/app-management.tsx`
+- **Issue**: Line 96 - `window.location.href` assignment is not wrapped in error handling
+- **Severity**: Low
+- **Description**: The redirect to login is set with a hardcoded 1500ms setTimeout without any error handling or cleanup verification
+- **Impact**: If the redirect fails or is blocked, the admin may be stuck in an unusable state
+- **Recommendation**: Use React Router's `navigate()` instead, or wrap in proper error handling
+
+## Unsafe Tab State Casting in App Management
+- **File**: `artifacts/admin/src/pages/app-management.tsx`
+- **Issue**: Line 580 - `setTab(t.id as any)` bypasses TypeScript safety
+- **Severity**: Low
+- **Description**: Tab ID is cast to `any` instead of being properly typed
+- **Impact**: Type safety is lost, making it easier to introduce bugs
+- **Recommendation**: Define proper type for tab IDs and remove the `as any` cast
+
+## Missing Document Element Cleanup in App Management
+- **File**: `artifacts/admin/src/pages/app-management.tsx`
+- **Issue**: Line 220 - Document element creation is not cleaned up
+- **Severity**: Low
+- **Description**: `document.createElement("a")` is created for file download but may not be properly garbage collected in all cases
+- **Impact**: Minor memory impact from uncleaned DOM elements
+- **Recommendation**: Add cleanup code or use a ref to manage the element lifecycle
+
+## Multiple Response Type Casts to `any` in Integrations
+- **File**: `artifacts/admin/src/pages/settings-integrations.tsx`
+- **Issue**: Lines 282, 283, 533 - API responses are cast to `any` for .ok and .message property access
+- **Severity**: Medium
+- **Description**: Integration test responses assume arbitrary payload shapes instead of defining proper response types
+- **Impact**: Backend contract changes will cause runtime errors instead of compile-time detection
+- **Recommendation**: Define strict TypeScript interfaces for integration test responses
+
+## Unsafe Cache Size Property Access in Maps Management
+- **File**: `artifacts/admin/src/components/MapsMgmtSection.tsx`
+- **Issue**: Line 641 - `(mapConfig as any).geocodeCacheCurrentSize` uses unsafe casting
+- **Severity**: Low
+- **Description**: Map config object property is accessed via `as any` instead of proper typing
+- **Impact**: Type safety lost, potential runtime errors if property doesn't exist
+- **Recommendation**: Define proper MapConfig interface with all properties
+
+## Missing Race Condition Protection in Fetches
+- **Files**: `artifacts/admin/src/pages/settings-security.tsx`, `artifacts/admin/src/pages/roles-permissions.tsx`, `artifacts/admin/src/pages/rides.tsx`
+- **Issue**: Multiple `fetch()` calls without AbortController cancellation
+- **Severity**: Medium
+- **Description**: When components unmount during active fetch operations, the responses may still try to update state causing warnings or memory leaks
+- **Impact**: React warnings about state updates on unmounted components, potential memory leaks
+- **Recommendation**: Use AbortController to cancel ongoing requests on component unmount
+
+## Missing Boundary Event Listeners Cleanup Verification
+- **File**: `artifacts/admin/src/components/layout/AdminLayout.tsx`
+- **Issue**: Lines 285-286 - Event listener cleanup relies on manual return in useEffect
+- **Severity**: Low
+- **Description**: While event listeners have cleanup functions, the patterns across the file may not consistently ensure all listeners are cleaned up
+- **Impact**: Potential memory leaks if other listeners in the component are not properly cleaned up
+- **Recommendation**: Add a comprehensive audit of all event listeners and ensure consistent cleanup patterns
+
+## Silent Data Fetching in Communication Page
+- **File**: `artifacts/admin/src/pages/communication.tsx`
+- **Issue**: Multiple `fetch()` calls with `.catch(() => {})` swallow errors
+- **Severity**: Medium
+- **Description**: Communication dashboard, settings loading, and socket connection errors are silently ignored
+- **Impact**: Communication features can fail without any admin notification
+- **Recommendation**: Replace silent catches with proper error logging and user feedback
+
+## Loose Type Checking for Error Events
+- **File**: `artifacts/admin/src/App.tsx`
+- **Issue**: Line 88 - `event.action.error as any` bypasses error type safety
+- **Severity**: Low
+- **Description**: Error event handling casts to `any` instead of defining proper error event types
+- **Impact**: Errors in error event data structure won't be caught at compile time
+- **Recommendation**: Define proper error event types instead of using `any`
+
+## Missing Null Check for Import.meta.env Values
+- **Files**: `artifacts/admin/src/pages/app-management.tsx` and other files using `import.meta.env`
+- **Issue**: Environment variables are accessed without null/undefined checks
+- **Severity**: Low to Medium
+- **Description**: `import.meta.env.BASE_URL` and other env vars are assumed to exist without validation
+- **Impact**: Runtime errors if environment variables are not properly configured
+- **Recommendation**: Validate all environment variables at startup and provide sensible defaults
+
+## Missing Debounce Cleanup in Command Palette
+- **File**: `artifacts/admin/src/components/CommandPalette.tsx`
+- **Issue**: Lines 149-152 - Multiple timeouts created without ensuring previous ones are cleaned up properly in all cases
+- **Severity**: Low
+- **Description**: Debounce timeout is cleared in cleanup, but if rapid searches happen, multiple timeouts may accumulate
+- **Impact**: Memory waste and potential performance issues with rapid searches
+- **Recommendation**: Use a dedicated debounce helper library or ensure single timeout at any time
+
+## Missing Floating UI Cleanup in Layout
+- **File**: `artifacts/admin/src/components/layout/AdminLayout.tsx`
+- **Issue**: Keyboard event listeners and click handlers created without comprehensive cleanup verification
+- **Severity**: Low
+- **Description**: While individual useEffect cleanup functions exist, coordinating cleanup across multiple side effects may miss cases
+- **Impact**: Potential memory leaks if event listeners persist after unmounting
+- **Recommendation**: Consider using a cleanup manager or add detailed cleanup verification
+
+## State Update Before Unmount Risk in Maps Component
+- **File**: `artifacts/admin/src/components/MapsMgmtSection.tsx`
+- **Issue**: Line 241+ - Multiple state updates in async operations without unmount check
+- **Severity**: Medium
+- **Description**: Async operations update state without checking if component is still mounted
+- **Impact**: React warnings about state updates on unmounted components
+- **Recommendation**: Use AbortController or a mounted flag ref to prevent state updates after unmount
+
+## Silent Notification Permission Request in App.tsx
+- **File**: `artifacts/admin/src/App.tsx`
+- **Issue**: `Notification.requestPermission()` is called without handling the result or errors
+- **Severity**: Low
+- **Description**: Permission request is not awaited or checked, and failures are silently ignored
+- **Impact**: Push notifications may not work without any indication to the admin
+- **Recommendation**: Handle permission result and provide feedback if notifications are denied
+
+## Hardcoded API Base URL without Overrides
+- **File**: `artifacts/admin/src/lib/error-reporter.ts`
+- **Issue**: Line 12 - `getApiBase()` always uses `window.location.origin/api`
+- **Severity**: Low
+- **Description**: No way to override API base for different environments or proxy setups
+- **Impact**: May not work correctly in proxied or non-standard deployment scenarios
+- **Recommendation**: Allow API base to be configurable via environment variables or config
+
+## Potential Token Refresh Race Condition
+- **File**: `artifacts/admin/src/lib/adminAuthContext.tsx`
+- **Issue**: `refreshAccessToken()` function can be called simultaneously from multiple requests
+- **Severity**: Medium
+- **Description**: If multiple API calls fail auth simultaneously, multiple token refresh requests may be triggered in parallel
+- **Impact**: Race condition could cause inconsistent auth state or wasted API calls
+- **Recommendation**: Implement a token refresh mutex or debounce to ensure only one refresh happens at a time
+
+## Missing Suspense Fallback in UniversalMap
+- **File**: `artifacts/admin/src/components/UniversalMap.tsx`
+- **Issue**: Lazy loaded map components wrapped in Suspense but fallback may not be properly sized
+- **Severity**: Low
+- **Description**: While Suspense is used, the fallback UI (spinning loader) may not match the expected map dimensions
+- **Impact**: Layout shift when map loads
+- **Recommendation**: Provide properly sized loading placeholder that matches map container dimensions
+
+## Missing URL.revokeObjectURL Cleanup in Image Previews
+- **File**: `artifacts/admin/src/pages/products.tsx`
+- **Issue**: Line 108 - `URL.createObjectURL()` is called without corresponding `revokeObjectURL()`
+- **Severity**: Low to Medium
+- **Description**: When image previews are created from file uploads, the blob URLs are created but never revoked, causing memory leaks
+- **Impact**: Each preview creates a persistent blob URL that remains in memory until page reload
+- **Recommendation**: Call `URL.revokeObjectURL()` when component unmounts or when preview is cleared
+
+## Missing URL.revokeObjectURL in Multiple Export Functions
+- **Files**: `artifacts/admin/src/pages/transactions.tsx` (line 20), `artifacts/admin/src/pages/users.tsx` (line 1073), `artifacts/admin/src/pages/riders.tsx` (line 274), `artifacts/admin/src/pages/vendors.tsx` (line 214), `artifacts/admin/src/pages/reviews.tsx` (line 506)
+- **Issue**: Multiple `URL.createObjectURL()` calls for CSV/JSON exports without cleanup
+- **Severity**: Low
+- **Description**: Export functionality creates blob URLs but doesn't revoke them after download completes
+- **Impact**: Memory leaks from accumulated unrevoked blob URLs
+- **Recommendation**: Add `URL.revokeObjectURL()` calls after the download link is clicked or use a try-finally pattern
+
+## Missing Validation in parseInt/parseFloat Usage
+- **Files**: `artifacts/admin/src/pages/app-management.tsx` (line 385), `artifacts/admin/src/pages/categories.tsx` (line 566), `artifacts/admin/src/pages/condition-rules.tsx` (line 124), `artifacts/admin/src/pages/settings-security.tsx` (line 311)
+- **Issue**: Parsed numbers used without checking for NaN or infinite values
+- **Severity**: Low to Medium
+- **Description**: `parseInt()` and `parseFloat()` can return NaN if the input is not a valid number. While some cases check with `Number.isFinite()`, others don't validates the result
+- **Impact**: Invalid numeric values can propagate to the backend, causing errors
+- **Recommendation**: Always validate parsed numbers with `Number.isFinite()` before using them
+
+## Multiple Silent Catch Blocks in Rides Page
+- **File**: `artifacts/admin/src/pages/rides.tsx`
+- **Issue**: Line 593 - Empty catch block swallows errors
+- **Severity**: Medium
+- **Description**: Ride data fetching errors are silently caught without logging
+- **Impact**: Ride management features can fail without any indication
+- **Recommendation**: Add error logging and user feedback
+
+## Multiple Silent Catch Blocks in Error Monitor
+- **File**: `artifacts/admin/src/pages/error-monitor.tsx`
+- **Issue**: Line 1655 - Clipboard copy failures silently swallowed
+- **Severity**: Low
+- **Description**: Task plan content copy fails silently when clipboard API is denied
+- **Impact**: Admin may think content was copied when it wasn't
+- **Recommendation**: Show toast notification on clipboard copy failure
+
+## Unhandled API Response in Settings System
+- **File**: `artifacts/admin/src/pages/settings-system.tsx`
+- **Issue**: Lines 86, 921, 1006 - Multiple `.catch(() => {})` blocks hide operation failures
+- **Severity**: Medium
+- **Description**: System settings operations (snapshot loads, rollbacks) silently fail without user feedback
+- **Impact**: Admins may not know when critical system operations fail
+- **Recommendation**: Add error toasts and logging for all operation failures
+
+## Missing Guard for registerPush in App.tsx
+- **File**: `artifacts/admin/src/App.tsx`
+- **Issue**: Lines 314-315 - Permission requests and push registration are chained with silent catches
+- **Severity**: Low to Medium
+- **Description**: While permission check has a handler, the nested `.catch(() => {})` still swallows errors
+- **Impact**: Push notification failures are hidden from admins
+- **Recommendation**: Add explicit error logging for push registration failures
+
+## Missing Secure Handling of Platform Config Fetches
+- **File**: `artifacts/admin/src/App.tsx`
+- **Issue**: Line 308 - Platform config fetch error caught silently
+- **Severity**: Medium
+- **Description**: Initial platform config fetch failure is swallowed without logging
+- **Impact**: App may not have critical configuration and no error is visible
+- **Recommendation**: Log config fetch failures and show warning banner if config is unavailable
+
+## Multiple Unhandled Communication Page Fetches
+- **File**: `artifacts/admin/src/pages/communication.tsx`
+- **Issue**: Lines 149, 445, 552, 599, 645, 939, 1082 - Multiple dashboard, settings, and operation fetches with silent catches
+- **Severity**: Medium to High
+- **Description**: Communication dashboard is heavily reliant on multiple API calls, all of which swallow errors
+- **Impact**: Communication features can fail completely without any error visibility
+- **Recommendation**: Implement comprehensive error handling for all communication operations
+
+## Missing Layout Maintenance Guard in AdminLayout
+- **File**: `artifacts/admin/src/components/layout/AdminLayout.tsx`
+- **Issue**: Lines 229, 233, 238 - Multiple error interval and data fetch operations with silent catches
+- **Severity**: Medium
+- **Description**: Layout's error monitoring, language fetches, and user data loads all silently fail
+- **Impact**: Layout features like language switching and error notifications may not work
+- **Recommendation**: Add error logging and fallback UI states
+
+## Non-atomic State Updates in Service Zones
+- **File**: `artifacts/admin/src/components/ServiceZonesManager.tsx`
+- **Issue**: Lines 110-125 - Async mutations called without proper error recovery UI
+- **Severity**: Low to Medium
+- **Description**: While mutations are awaited, failed operations may leave UI in inconsistent state
+- **Impact**: After mutation failure, form remains open but operation failed
+- **Recommendation**: Add explicit error handling that closes the form only on success, or shows error state
+
+## Missing Cache Size Type Safety in Maps Component
+- **File**: `artifacts/admin/src/components/MapsMgmtSection.tsx`
+- **Issue**: Line 641 - Geocode cache size property not properly typed
+- **Severity**: Low
+- **Description**: `(mapConfig as any).geocodeCacheCurrentSize` property is accessed without validation
+- **Impact**: If property doesn't exist or has unexpected type, display breaks
+- **Recommendation**: Define proper MapConfig type or add property existence check
+
+## Unsafe Search String Splitting in Settings Security
+- **File**: `artifacts/admin/src/pages/settings-security.tsx`
+- **Issue**: Line 447 - `split(",")` assumes comma-separated format exists
+- **Severity**: Low
+- **Description**: `security_allowed_types` setting is split without null/empty check
+- **Impact**: Could fail if setting isn't configured or is empty
+- **Recommendation**: Add null coalescing and empty string handling
+
+## Missing Phone Input Validation in Integrations
+- **File**: `artifacts/admin/src/pages/settings-integrations.tsx`
+- **Issue**: Line 327 - Phone numbers from inputs not validated before sending
+- **Severity**: Medium
+- **Description**: Phone number fields lack format validation or length checks
+- **Impact**: Invalid phone numbers can be saved to backend
+- **Recommendation**: Add phone number format validation
+
+## Unsafe Conditional Property Access in Integrations
+- **File**: `artifacts/admin/src/pages/settings-integrations.tsx`
+- **Issue**: Lines 780, 781, 800 - `testResults["fcm"]!` uses non-null assertion
+- **Severity**: Low
+- **Description**: Using `!` (non-null assertion) assumes testResults["fcm"] always exists
+- **Impact**: Could cause runtime error if test results are not populated
+- **Recommendation**: Add explicit null check or optional chaining before accessing
+
+## Unguarded Form State Synchronization in App Management
+- **File**: `artifacts/admin/src/pages/app-management.tsx`
+- **Issue**: Lines 617-618, 792-793 - Settings data is searched without null coalescing
+- **Severity**: Low
+- **Description**: `settings.find()` may return undefined, and optional chaining not always used
+- **Impact**: Could cause undefined reference errors
+- **Recommendation**: Always use optional chaining `.find()?. value` pattern
+
+## Missing Feature Flag Validation Type Safety
+- **File**: `artifacts/admin/src/pages/app-management.tsx`  
+- **Issue**: Lines 617, 792 - Feature values cast implicitly without type validation
+- **Severity**: Low
+- **Description**: Feature toggle values are checked for "on" string without ensuring value is a string
+- **Impact**: Type confusions could lead to incorrect feature state display
+- **Recommendation**: Add explicit type guards for feature value strings
+
+## Missing Cooldown Hours Validation in Condition Rules
+- **File**: `artifacts/admin/src/pages/condition-rules.tsx`
+- **Issue**: Line 124 - `cooldownHours` parsed to int without validation
+- **Severity**: Low
+- **Description**: `parseInt(cooldownHours)` may return NaN if input is not valid
+- **Impact**: Invalid cooldown values could be saved
+- **Recommendation**: Validate parsed number with `Number.isFinite()` and positive check
+
+## Missing Abort on Component Unmount in ServiceZones
+- **File**: `artifacts/admin/src/components/ServiceZonesManager.tsx`
+- **Issue**: Mutations use `.mutateAsync()` without abort handling
+- **Severity**: Medium
+- **Description**: If component unmounts during mutation, response will try to update unmounted component
+- **Impact**: React warning about state updates on unmounted components
+- **Recommendation**: Use AbortController to cancel pending mutations on unmount
+
+## Unprotected JSON Download in App Management
+- **File**: `artifacts/admin/src/pages/app-management.tsx`
+- **Issue**: Line 218 - `JSON.stringify()` wrapped in blob without try-catch
+- **Severity**: Low
+- **Description**: If logs object is circular or too large, JSON.stringify could throw
+- **Impact**: Download feature would crash without error message
+- **Recommendation**: Wrap JSON.stringify in try-catch and show error toast
+
+## Missing Abort on Settings System Operations
+- **File**: `artifacts/admin/src/pages/settings-system.tsx`
+- **Issue**: Multiple async operations without abort handling
+- **Severity**: Medium
+- **Description**: Snapshot load, rollback, and backup operations can outlive component
+- **Impact**: State update warnings and potential memory leaks
+- **Recommendation**: Implement AbortController cleanup in useEffect
