@@ -26,7 +26,10 @@ export const loadPlatformConfig = async () => {
     const settings: { key: string; value: string }[] = data.settings || [];
     const sym = settings.find(s => s.key === "currency_symbol")?.value;
     if (sym) setCurrencySymbol(sym);
-  } catch {
-    // silently fall back to default
+  } catch (err) {
+    // Falling back to defaults is intentional, but the failure should be
+    // observable. Without this log, broken /platform-settings responses
+    // (auth errors, network failures, schema drift) are invisible.
+    console.error("[platformConfig] loadPlatformConfig failed; using defaults:", err);
   }
 };

@@ -686,21 +686,29 @@ export default function LiveRidersMap() {
   const [quickProvider, setQuickProvider] = useState<string | null>(null);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
-  const { data: mapConfigData } = useQuery<MapConfig | undefined>({
+  const { data: mapConfigData, error: mapConfigError } = useQuery<MapConfig | undefined>({
     queryKey: ["map-config"],
+    // Failures are surfaced via React Query's `error` channel and a console
+    // log — previously a bare `catch {}` made every map-config failure
+    // (auth, network, malformed JSON) invisible, leaving the live tracker
+    // silently stuck on the OSM fallback.
     queryFn: async (): Promise<MapConfig | undefined> => {
-      try {
-        const res = await fetch(`${window.location.origin}/api/maps/config?app=admin`);
-        if (!res.ok) return undefined;
-        const json = await res.json();
-        return (json.data ?? json) as MapConfig;
-      } catch {
-        return undefined;
+      const res = await fetch(`${window.location.origin}/api/maps/config?app=admin`);
+      if (!res.ok) {
+        throw new Error(`maps/config returned HTTP ${res.status}`);
       }
+      const json = await res.json();
+      return (json.data ?? json) as MapConfig;
     },
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    retry: 1,
   });
+  useEffect(() => {
+    if (mapConfigError) {
+      console.error("[LiveRidersMap] map config fetch failed:", mapConfigError);
+    }
+  }, [mapConfigError]);
 
   const selectedId = selectedEntity?.type === "rider" ? selectedEntity.id : null;
   const { data: routeData } = useRiderRoute(selectedId, routeDate);

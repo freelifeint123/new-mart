@@ -14,6 +14,7 @@ import { useRef, useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 /* ── Fix Leaflet's broken default icon paths in Vite ── */
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -30,11 +31,22 @@ export interface MapMarkerData {
   id: string;
   lat: number;
   lng: number;
-  /** Pre-built SVG/HTML string for the icon body */
+  /**
+   * Pre-built SVG/HTML string for the icon body.
+   *
+   * SECURITY: This is injected via `dangerouslySetInnerHTML`. Callers are
+   * responsible for ensuring the value is a trusted, statically-built
+   * markup snippet (e.g. SVG generated from internal config). Never pass
+   * user-controlled data here without sanitising it first.
+   */
   iconHtml: string;
   /** Square pixel size of the icon container */
   iconSize: number;
-  /** Optional text label rendered above the marker (rider name / ID) */
+  /**
+   * Optional text label rendered above the marker (rider name / ID).
+   * Treated as plain text — HTML special characters are escaped before
+   * being injected into the marker DOM.
+   */
   label?: string;
   /** Reduces opacity to 50 % — used for offline-but-recently-active riders */
   dimmed?: boolean;
@@ -70,8 +82,10 @@ interface UniversalMapProps {
 
 function makeDivIcon(m: MapMarkerData): L.DivIcon {
   const opacity = m.dimmed ? "0.5" : "1";
+  // Labels may contain rider names / arbitrary text from the DB. Escape
+  // before interpolating into the icon HTML to defeat XSS via labels.
   const labelHtml = m.label
-    ? `<div style="position:absolute;top:${-(m.iconSize / 2 + 18)}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;pointer-events:none">${m.label}</div>`
+    ? `<div style="position:absolute;top:${-(m.iconSize / 2 + 18)}px;left:50%;transform:translateX(-50%);white-space:nowrap;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;pointer-events:none">${escapeHtml(m.label)}</div>`
     : "";
   return L.divIcon({
     html: `<div style="position:relative;opacity:${opacity}">
@@ -345,7 +359,11 @@ function GoogleMap({ token = "", center, zoom = 12, markers = [], polylines = []
         });
       }
       setGmReady(true);
-    }).catch(() => { /* loader failure — token invalid or network error */ });
+    }).catch((err) => {
+      // Loader failure (invalid API key, network error, billing disabled).
+      // Logged so admins can diagnose why the Google map didn't render.
+      console.error("[UniversalMap] Google Maps loader failed:", err);
+    });
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps

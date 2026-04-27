@@ -12,6 +12,7 @@ import {
 
 import { SEARCH_INDEX, type SearchEntry, type SearchCategory } from "@/lib/searchIndex";
 import { matchesKeywords } from "@/lib/romanUrdu";
+import { safeLocalGet, safeLocalSet } from "@/lib/safeStorage";
 
 /* ─── Keywords that signal a command intent (not a search) ─────────────── */
 const CMD_KEYWORDS = [
@@ -98,9 +99,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [selected, setSelected] = useState(0);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("All");
   const [activeStatus, setActiveStatus] = useState<StatusFilter | null>(null);
-  const [aiEnabled, setAiEnabled] = useState(() => {
-    try { return localStorage.getItem("admin-ai-search") === "on"; } catch { return false; }
-  });
+  const [aiEnabled, setAiEnabled] = useState(() => safeLocalGet("admin-ai-search") === "on");
   const [cmdExecuting, setCmdExecuting] = useState(false);
   const [cmdResult, setCmdResult] = useState<CmdResult | null>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -128,8 +127,10 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       } else {
         toast({ title: "Command info", description: result.description ?? "Command not executed" });
       }
-    } catch {
-      toast({ title: "Command failed", variant: "destructive" });
+    } catch (err) {
+      console.error("[CommandPalette] command execution failed:", err);
+      const message = err instanceof Error ? err.message : "Command could not be executed.";
+      toast({ title: "Command failed", description: message, variant: "destructive" });
     } finally {
       setCmdExecuting(false);
     }
@@ -139,7 +140,14 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const toggleAi = () => {
     setAiEnabled(v => {
       const next = !v;
-      try { localStorage.setItem("admin-ai-search", next ? "on" : "off"); } catch {}
+      const result = safeLocalSet("admin-ai-search", next ? "on" : "off");
+      if (!result.ok) {
+        toast({
+          title: "AI preference not saved",
+          description: "Storage is unavailable — the setting will reset on reload.",
+          variant: "destructive",
+        });
+      }
       return next;
     });
   };

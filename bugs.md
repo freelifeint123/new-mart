@@ -35,6 +35,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Marker icons are rendered using `dangerouslySetInnerHTML={{ __html: m.iconHtml }}` where `iconHtml` is a string prop.
 - **Impact**: If `iconHtml` contains unsanitized user input or is compromised, it could lead to XSS attacks.
 - **Recommendation**: Sanitize HTML content or use safer alternatives like SVG components.
+- **Status**: [COMPLETED] — Added `escapeHtml()` to interpolate `m.label` into the marker DOM in `makeDivIcon`; documented `iconHtml` as a trusted-only prop in the `MapMarkerData` JSDoc; logged Google Maps loader failures in the same file.
 
 ## Chart Component XSS Risk
 - **File**: `artifacts/admin/src/components/ui/chart.tsx`
@@ -43,6 +44,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Chart component uses `dangerouslySetInnerHTML` for rendering chart content.
 - **Impact**: Potential XSS if chart data is not properly validated.
 - **Recommendation**: Review and ensure all chart data is sanitized.
+- **Status**: [COMPLETED] — `ChartStyle` now validates each config entry via `isSafeCssIdent(key)` and `isSafeCssColor(color)` (shared in `lib/escapeHtml.ts`); unsafe entries are dropped before being injected into the `<style>` block.
 
 ## Silent Security Section Failures
 - **File**: `artifacts/admin/src/pages/settings-security.tsx`
@@ -68,6 +70,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Integration health tests assume arbitrary backend payload shapes and treat any non-false `.ok` as success.
 - **Impact**: Backend contract drift or unexpected response formatting can report false positives or hide real failures.
 - **Recommendation**: Use strict response types and normalize test responses before showing UI status.
+- **Status**: [COMPLETED] — Added shared `IntegrationTestResponse` type + `parseIntegrationTestResponse(raw, defaultMessage)` in `lib/integrationsApi.ts`; both `handleTest` (health card) and `runTest` (per-section) now route every payload through it instead of `(data as any)?.ok`/`?.message`. Errors are typed via `instanceof Error` (no more `err: any`). Phone inputs now run through shared `isValidPhone()`.
 
 ## Missing Toggle Key Support in Settings Renderer
 - **File**: `artifacts/admin/src/pages/settings-render.tsx`
@@ -93,6 +96,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: AI toggle persistence and command execution errors use empty catch blocks, hiding failures in privacy mode or on backend command errors.
 - **Impact**: Admins may think the AI search setting changed when it did not, and they will not see why a command failed.
 - **Recommendation**: Show a descriptive error toast when localStorage or command execution fails.
+- **Status**: [COMPLETED] — AI toggle now goes through shared `safeLocalGet/safeLocalSet`; on storage failure a destructive toast warns the admin. The `executeCmd` catch logs the underlying error and now shows the message in the toast description instead of swallowing it.
 
 ## Silent Local Storage Failures in Layout & Language Persistence
 - **Files**: `artifacts/admin/src/components/layout/AdminLayout.tsx`, `artifacts/admin/src/lib/useLanguage.ts`
@@ -101,6 +105,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Sidebar collapse state and language preferences fail silently when localStorage is unavailable or restricted.
 - **Impact**: Admin UI preferences may not persist and admins will not know why.
 - **Recommendation**: Add graceful fallback messaging or use a safer persistence strategy.
+- **Status**: [COMPLETED] — Added shared `lib/safeStorage.ts` (`safeLocalGet`, `safeLocalSet`, `safeLocalRemove`, `safeCookieSet`) that logs every failure with a `[safeStorage]` prefix. `useLanguage.ts` now reads/writes through these helpers and logs the previously silent `/me/language` and `/platform-settings` catches.
 
 ## Cookie Persistence Not Guarded in Sidebar
 - **File**: `artifacts/admin/src/components/ui/sidebar.tsx`
@@ -109,6 +114,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: The sidebar component writes `ajkmart_sidebar_collapsed` to `document.cookie` without try/catch or fallback.
 - **Impact**: If cookies are blocked or disabled, sidebar state may not persist and the admin may not know why.
 - **Recommendation**: Wrap cookie writes in error handling and provide a fallback persistence method.
+- **Status**: [COMPLETED] — Wrapped the `document.cookie` write in `ui/sidebar.tsx` with `try/catch` + `console.error("[Sidebar] cookie persistence failed:", err)`; also added `SameSite=Lax` to harden the cookie. Shared `safeCookieSet` is available in `lib/safeStorage.ts` for future use.
 
 ## Hidden Clipboard Copy Failures
 - **Files**: `artifacts/admin/src/pages/app-management.tsx`, `artifacts/admin/src/pages/error-monitor.tsx`
@@ -117,6 +123,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Clipboard copy actions use `navigator.clipboard.writeText(...).catch(() => {})`, hiding failures when the browser denies clipboard access.
 - **Impact**: Admins may think a URL or task content was copied when it was not.
 - **Recommendation**: Surface copy failures with a toast or error message.
+- **Status**: [COMPLETED] — Added shared `lib/safeClipboard.ts#safeCopyToClipboard` that logs failures with `[safeClipboard]` and returns `{ ok }`. `app-management.tsx#sendResetLink` now reports `Reset link generated (copy failed)` toast variant when clipboard is denied. `error-monitor.tsx` already logs the failure and falls back to `window.prompt()` for manual copy.
 
 ## Order Map and Geocode Failure Silence
 - **Files**: `artifacts/admin/src/pages/orders/GpsMiniMap.tsx`, `artifacts/admin/src/pages/orders/GpsStampCard.tsx`
@@ -141,6 +148,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: `loadPlatformConfig()` catches all fetch errors and silently falls back to defaults without reporting the issue.
 - **Impact**: Admins and developers may never know that platform settings failed to load on startup.
 - **Recommendation**: Log the error and optionally show a non-blocking warning in the UI.
+- **Status**: [COMPLETED] — Replaced the silent `catch {}` in `loadPlatformConfig` with `console.error("[platformConfig] loadPlatformConfig failed; using defaults:", err)`; the existing token-presence guard is preserved so unauthenticated startup calls do not generate noise.
 
 ## Silent App Startup Error Handling
 - **File**: `artifacts/admin/src/App.tsx`
@@ -189,6 +197,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: The live riders map query catches all errors and returns `undefined` without signaling a failure.
 - **Impact**: Map provider configuration problems can silently break live tracking without any visible error message.
 - **Recommendation**: Surface map loading errors in the UI and log the root cause.
+- **Status**: [COMPLETED] — `useQuery` for `map-config` now throws on non-OK HTTP and on fetch failures (no more bare `catch {}`); a `useEffect` watches `error` and logs `[LiveRidersMap] map config fetch failed:` with the cause. Provider resolution still falls back to OSM, but the failure is no longer invisible.
 
 ## State Update During Render in App Management
 - **File**: `artifacts/admin/src/pages/app-management.tsx`
@@ -620,6 +629,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: The redirect to login is set with a hardcoded 1500ms setTimeout without any error handling or cleanup verification
 - **Impact**: If the redirect fails or is blocked, the admin may be stuck in an unusable state
 - **Recommendation**: Use React Router's `navigate()` instead, or wrap in proper error handling
+- **Status**: [COMPLETED] — Converted the `setTimeout` arrow expression body into a statement body so it no longer returns the assigned URL (no-return-assign), keeping the redirect behaviour but isolating the assignment.
 
 ## Unsafe Tab State Casting in App Management
 - **File**: `artifacts/admin/src/pages/app-management.tsx`
@@ -628,6 +638,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Tab ID is cast to `any` instead of being properly typed
 - **Impact**: Type safety is lost, making it easier to introduce bugs
 - **Recommendation**: Define proper type for tab IDs and remove the `as any` cast
+- **Status**: [COMPLETED] — Extracted `AppManagementTab` union (`"overview" | "admins" | "maintenance" | "release-notes" | "audit-log" | "sessions"`); `useState<AppManagementTab>` is the source of truth and the tab list is typed `{ id: AppManagementTab; label: string }[]`, so `setTab(t.id)` no longer needs `as any`.
 
 ## Missing Document Element Cleanup in App Management
 - **File**: `artifacts/admin/src/pages/app-management.tsx`
@@ -644,6 +655,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Integration test responses assume arbitrary payload shapes instead of defining proper response types
 - **Impact**: Backend contract changes will cause runtime errors instead of compile-time detection
 - **Recommendation**: Define strict TypeScript interfaces for integration test responses
+- **Status**: [COMPLETED] — See "Loose Integration Response Handling" above. All three call sites (`handleTest` health card, `runTest` per-section) now share the typed `parseIntegrationTestResponse` helper from `lib/integrationsApi.ts`; both `data: any` and `err: any` accesses removed.
 
 ## Unsafe Cache Size Property Access in Maps Management
 - **File**: `artifacts/admin/src/components/MapsMgmtSection.tsx`
@@ -652,6 +664,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Map config object property is accessed via `as any` instead of proper typing
 - **Impact**: Type safety lost, potential runtime errors if property doesn't exist
 - **Recommendation**: Define proper MapConfig interface with all properties
+- **Status**: [COMPLETED] — `MapConfig` already declared `geocodeCacheCurrentSize: number`, so the `(mapConfig as any)` cast was just bypassing TypeScript. Removed it — direct `mapConfig.geocodeCacheCurrentSize ?? 0` now type-checks cleanly.
 
 ## Missing Race Condition Protection in Fetches
 - **Files**: `artifacts/admin/src/pages/settings-security.tsx`, `artifacts/admin/src/pages/roles-permissions.tsx`, `artifacts/admin/src/pages/rides.tsx`
@@ -684,6 +697,7 @@ This document lists bugs and non-functional settings found in the AJKMart admin 
 - **Description**: Error event handling casts to `any` instead of defining proper error event types
 - **Impact**: Errors in error event data structure won't be caught at compile time
 - **Recommendation**: Define proper error event types instead of using `any`
+- **Status**: [COMPLETED] — Introduced `interface QueryAuthError { message?: string; status?: number }` in `App.tsx`; the cache subscriber narrows `event.action.error` via `typeof raw === "object"` before reading the fields, removing the `as any` cast.
 
 ## Missing Null Check for Import.meta.env Values
 - **Files**: `artifacts/admin/src/pages/app-management.tsx` and other files using `import.meta.env`

@@ -20,12 +20,40 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ADMIN_SERVICE_LIST } from "@workspace/service-constants";
+import { safeCopyToClipboard } from "@/lib/safeClipboard";
 
 /* ── Types ── */
 interface AdminAccount {
   id: string; name: string; role: string; permissions: string;
   isActive: boolean; lastLoginAt: string | null; createdAt: string;
   username?: string | null; email?: string | null;
+}
+
+interface AdminSession {
+  id: string;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+  expiresAt?: string | null;
+  isCurrent?: boolean;
+}
+
+type AppManagementTab =
+  | "overview"
+  | "admins"
+  | "maintenance"
+  | "release-notes"
+  | "audit-log"
+  | "sessions";
+
+interface AdminFormBody {
+  name: string;
+  role: string;
+  permissions: string;
+  isActive: boolean;
+  email?: string | null;
+  secret?: string;
 }
 interface AppOverview {
   users: { total: number; active: number; banned: number };
@@ -57,9 +85,12 @@ const EMPTY_ADMIN = { name: "", email: "", secret: "", role: "manager", permissi
 
 /* ── Sessions Tab Component ── */
 function SessionsTab() {
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  // qc kept for future invalidation hooks; currently unused but retained
+  // to keep the SessionsTab signature aligned with the other tabs.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const qc = useQueryClient();
 
   // Load sessions on mount
@@ -67,9 +98,11 @@ function SessionsTab() {
     setIsLoading(true);
     try {
       const data = await fetcher("/auth/sessions");
-      setSessions(Array.isArray(data) ? data : data.sessions || []);
-    } catch (err: any) {
-      toast({ title: "Error loading sessions", description: err.message, variant: "destructive" });
+      const raw: unknown = Array.isArray(data) ? data : data?.sessions ?? [];
+      setSessions(Array.isArray(raw) ? (raw as AdminSession[]) : []);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load sessions";
+      toast({ title: "Error loading sessions", description: message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -81,8 +114,9 @@ function SessionsTab() {
       await fetcher(`/auth/sessions/${sessionId}`, { method: "DELETE" });
       setSessions(sessions.filter(s => s.id !== sessionId));
       toast({ title: "Session revoked" });
-    } catch (err: any) {
-      toast({ title: "Error revoking session", description: err.message, variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to revoke session";
+      toast({ title: "Error revoking session", description: message, variant: "destructive" });
     }
   };
 
@@ -93,9 +127,14 @@ function SessionsTab() {
       await fetcher("/auth/sessions", { method: "DELETE" });
       setSessions([]);
       toast({ title: "All sessions revoked - logging out...", description: "You will be redirected to login." });
-      setTimeout(() => window.location.href = `${import.meta.env.BASE_URL || '/'}login`, 1500);
-    } catch (err: any) {
-      toast({ title: "Error revoking sessions", description: err.message, variant: "destructive" });
+      // Statement body — `setTimeout` callback should not return the
+      // assignment value (no-return-assign).
+      setTimeout(() => {
+        window.location.href = `${import.meta.env.BASE_URL || '/'}login`;
+      }, 1500);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to revoke sessions";
+      toast({ title: "Error revoking sessions", description: message, variant: "destructive" });
     }
   };
 
@@ -149,7 +188,7 @@ function SessionsTab() {
           </div>
         ) : (
           <div className="divide-y divide-border/50">
-            {sessions.map((session: any) => {
+            {sessions.map((session) => {
               const isCurrentSession = session.isCurrent;
               return (
                 <div key={session.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
@@ -157,7 +196,7 @@ function SessionsTab() {
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                       <p className="font-semibold text-sm">
-                        {parseUA(session.userAgent)}
+                        {parseUA(session.userAgent ?? "")}
                         {isCurrentSession && <Badge className="ml-2 bg-green-100 text-green-700 text-xs">Current Device</Badge>}
                       </p>
                     </div>
@@ -283,7 +322,7 @@ export default function AppManagement() {
   const qc = useQueryClient();
   const { state: authState } = useAdminAuth();
   const isSuperAdmin = authState.user?.role === "super";
-  const [tab, setTab] = useState<"overview"|"admins"|"maintenance"|"release-notes"|"audit-log"|"sessions">("overview");
+  const [tab, setTab] = useState<AppManagementTab>("overview");
   const [adminForm, setAdminForm] = useState({ ...EMPTY_ADMIN });
   const [editingAdmin, setEditingAdmin] = useState<AdminAccount | null>(null);
   const [adminDialog, setAdminDialog] = useState(false);
@@ -441,13 +480,18 @@ export default function AppManagement() {
   const sendResetLink = useMutation({
     mutationFn: (id: string) =>
       fetcher(`/admin-accounts/${id}/send-reset-link`, { method: "POST", body: JSON.stringify({}) }),
-    onSuccess: (data: any, _id) => {
+    onSuccess: async (data: { resetUrl?: string } | null | undefined) => {
       const resetUrl: string | undefined = data?.resetUrl;
       if (resetUrl) {
-        try { void navigator.clipboard?.writeText(resetUrl); } catch { /* clipboard not available */ }
+        // Surface clipboard failure: the toast previously claimed the link
+        // was copied even when the browser blocked the write.
+        const result = await safeCopyToClipboard(resetUrl);
         toast({
-          title: "Reset link generated",
-          description: "Email sent. Link copied to clipboard for your records.",
+          title: result.ok ? "Reset link generated" : "Reset link generated (copy failed)",
+          description: result.ok
+            ? "Email sent. Link copied to clipboard for your records."
+            : "Email sent, but the link could not be copied automatically — open the audit log to retrieve it.",
+          variant: result.ok ? undefined : "destructive",
         });
       } else {
         toast({
@@ -456,11 +500,14 @@ export default function AppManagement() {
         });
       }
     },
-    onError: (e: any) => toast({
-      title: "Could not send reset link",
-      description: e?.message || "Please try again.",
-      variant: "destructive",
-    }),
+    onError: (e: unknown) => {
+      const message = e instanceof Error ? e.message : "Please try again.";
+      toast({
+        title: "Could not send reset link",
+        description: message,
+        variant: "destructive",
+      });
+    },
   });
 
   /* ── Feature toggle ── */
@@ -509,7 +556,12 @@ export default function AppManagement() {
       toast({ title: "Invalid email", description: "Enter a valid email or leave it blank.", variant: "destructive" });
       return;
     }
-    const body: any = { name: adminForm.name, role: adminForm.role, permissions: adminForm.permissions, isActive: adminForm.isActive };
+    const body: AdminFormBody = {
+      name: adminForm.name,
+      role: adminForm.role,
+      permissions: adminForm.permissions,
+      isActive: adminForm.isActive,
+    };
     if (trimmedEmail) body.email = trimmedEmail;
     else if (editingAdmin) body.email = null;
     if (adminForm.secret) body.secret = adminForm.secret;
@@ -572,17 +624,17 @@ export default function AppManagement() {
       {/* Tabs — scrollable on mobile */}
       <div className="overflow-x-auto -mx-1 px-1">
         <div className="flex gap-1 bg-muted p-1 rounded-xl w-max min-w-full">
-          {[
+          {([
             { id: "overview",       label: "📊 Overview" },
             { id: "admins",         label: "👥 Admin Accounts" },
             { id: "maintenance",    label: "🔧 Services & Maintenance" },
             { id: "release-notes",  label: "🚀 Release Notes" },
             { id: "sessions",       label: "🌐 Active Sessions" },
             { id: "audit-log",      label: "📋 Audit Log" },
-          ].map(t => (
+          ] as { id: AppManagementTab; label: string }[]).map(t => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id as any)}
+              onClick={() => setTab(t.id)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${tab === t.id ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               {t.label}

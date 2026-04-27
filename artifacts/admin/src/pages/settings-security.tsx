@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiAbsoluteFetchRaw } from "@/lib/api";
+import { splitCsv } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -466,7 +467,7 @@ export function SecuritySection({ localValues, dirtyKeys, handleChange, handleTo
                 mono hint="Reject all other file types at the upload API layer" />
               {/* Visual type badges */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {(val("security_allowed_types","jpg,jpeg,png,pdf")).split(",").map(t => t.trim()).filter(Boolean).map(ext => (
+                {splitCsv(val("security_allowed_types","jpg,jpeg,png,pdf")).map(ext => (
                   <span key={ext} className="px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full text-xs font-bold uppercase">{ext}</span>
                 ))}
               </div>

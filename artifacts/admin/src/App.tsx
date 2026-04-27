@@ -83,19 +83,26 @@ const queryClient = new QueryClient({
 /* Auto-logout when an authenticated query returns 401.
    Guard: only remove token + redirect if we're actually logged in.
    This prevents pre-login query failures (expected 401s) from redirecting. */
+interface QueryAuthError {
+  message?: string;
+  status?: number;
+}
+
 queryClient.getQueryCache().subscribe(event => {
   if (event.type === "updated" && event.action.type === "error") {
-    const err = event.action.error as any;
-    const msg = (err?.message || "").toLowerCase();
+    const raw = event.action.error;
+    const err: QueryAuthError =
+      raw && typeof raw === "object" ? (raw as QueryAuthError) : {};
+    const msg = (err.message || "").toLowerCase();
     const is401 =
       msg.includes("unauthorized") ||
       msg.includes("session expired") ||
       msg.includes("please log in") ||
-      err?.status === 401;
+      err.status === 401;
     // Note: Auth state is managed by adminAuthContext (in-memory only)
     // The fetcher will handle 401 with auto-refresh + redirect
     if (is401) {
-      console.warn("Received 401 from query - auth will be handled by fetcher");
+      console.warn("[App] Received 401 from query - auth will be handled by fetcher");
     }
   }
 });

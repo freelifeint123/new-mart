@@ -638,7 +638,7 @@ export function MapsMgmtSection({ localValues, dirtyKeys, handleChange, handleTo
         <SLabel icon={Settings}>Geocoding Cache Configuration</SLabel>
         <p className="text-xs text-muted-foreground mb-3">
           Server-side LRU cache for reverse-geocode results. Reduces redundant API calls on minor coordinate drift.
-          {mapConfig ? ` Current cache size: ${(mapConfig as any).geocodeCacheCurrentSize ?? 0} entries.` : ""}
+          {mapConfig ? ` Current cache size: ${mapConfig.geocodeCacheCurrentSize ?? 0} entries.` : ""}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field

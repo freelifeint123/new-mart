@@ -83,7 +83,15 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      // Wrapped because cookie writes throw in some restricted browsers
+      // (Safari ITP private mode, third-party-cookie blockers, embedded
+      // WebViews); silent failures meant collapse state quietly stopped
+      // persisting without any diagnostic.
+      try {
+        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; SameSite=Lax`
+      } catch (err) {
+        console.error("[Sidebar] cookie persistence failed:", err)
+      }
     },
     [setOpenProp, open]
   )

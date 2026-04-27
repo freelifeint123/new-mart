@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { Language } from "@workspace/i18n";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, isRTL } from "@workspace/i18n";
 import { fetcher, getAdminAccessToken } from "./api";
+import { safeLocalGet, safeLocalSet } from "./safeStorage";
 
 const VALID_LANGS = new Set<string>(LANGUAGE_OPTIONS.map(o => o.value));
 const STORAGE_KEY = "ajkmart_admin_language";
@@ -13,10 +14,8 @@ function applyRTL(lang: Language) {
 }
 
 function getSavedLanguage(): Language | null {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && VALID_LANGS.has(saved)) return saved as Language;
-  } catch {}
+  const saved = safeLocalGet(STORAGE_KEY);
+  if (saved && VALID_LANGS.has(saved)) return saved as Language;
   return null;
 }
 
@@ -52,11 +51,13 @@ export function useLanguage() {
         if (serverLang && VALID_LANGS.has(serverLang)) {
           setLang(serverLang as Language);
           applyRTL(serverLang as Language);
-          try { localStorage.setItem(STORAGE_KEY, serverLang); } catch {}
+          safeLocalSet(STORAGE_KEY, serverLang);
           setInitialised(true);
           return;
         }
-      } catch {}
+      } catch (err) {
+        console.error("[useLanguage] /me/language fetch failed:", err);
+      }
 
       const local = getSavedLanguage();
       if (local) {
@@ -72,7 +73,9 @@ export function useLanguage() {
           setLang(platformLang as Language);
           applyRTL(platformLang as Language);
         }
-      } catch {}
+      } catch (err) {
+        console.error("[useLanguage] /platform-settings fetch failed:", err);
+      }
 
       setInitialised(true);
     };
@@ -84,10 +87,12 @@ export function useLanguage() {
     setLoading(true);
     setLang(lang);
     applyRTL(lang);
-    try { localStorage.setItem(STORAGE_KEY, lang); } catch {}
+    safeLocalSet(STORAGE_KEY, lang);
     try {
       await fetcher("/me/language", { method: "PUT", body: JSON.stringify({ language: lang }) });
-    } catch {}
+    } catch (err) {
+      console.error("[useLanguage] /me/language PUT failed:", err);
+    }
     setLoading(false);
   }, []);
 

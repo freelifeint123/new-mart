@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { fetcher, apiAbsoluteFetch } from "@/lib/api";
+import { parseIntegrationTestResponse } from "@/lib/integrationsApi";
+import { isValidPhone } from "@/lib/validation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,6 +270,16 @@ function IntegrationHealthPanel({
             setTestingMap(prev => ({ ...prev, [id]: false }));
             return;
           }
+          if (!isValidPhone(phone)) {
+            setPhoneInputs(p => ({ ...p, [id + "_phone_err"]: "1" }));
+            setTestingMap(prev => ({ ...prev, [id]: false }));
+            toast({
+              title: "Invalid phone",
+              description: "Use E.164 (+countrycode...) or local 03xxxxxxxxx.",
+              variant: "destructive",
+            });
+            return;
+          }
           body["phone"] = phone;
         } else if (row.testType === "fcm") {
           const token = (phoneInputs[id + "_token"] ?? "").trim();
@@ -280,12 +292,18 @@ function IntegrationHealthPanel({
         }
         data = await fetcher(`/system/test-integration/${row.testType}`, { method: "POST", body: JSON.stringify(body) });
       }
-      const ok = (data as any)?.ok !== false;
-      const msg = (data as any)?.message ?? `${row.label} test ${ok ? "passed" : "failed"}`;
-      setTestResults(prev => ({ ...prev, [id]: { ok, msg } }));
-      toast({ title: ok ? `${row.label} ✅` : `${row.label} ⚠️`, description: msg, ...(ok ? {} : { variant: "destructive" as const }) });
-    } catch (err: any) {
-      const msg = err?.message ?? `${row.label} test failed`;
+      // Use the typed normaliser instead of `(data as any)` accesses so
+      // that the integration health card honours backend `ok`/`error`
+      // fields consistently across endpoints.
+      const parsed = parseIntegrationTestResponse(data, `${row.label} test passed`);
+      setTestResults(prev => ({ ...prev, [id]: { ok: parsed.ok, msg: parsed.message } }));
+      toast({
+        title: parsed.ok ? `${row.label} ✅` : `${row.label} ⚠️`,
+        description: parsed.message,
+        ...(parsed.ok ? {} : { variant: "destructive" as const }),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `${row.label} test failed`;
       setTestResults(prev => ({ ...prev, [id]: { ok: false, msg } }));
       toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
     } finally {
@@ -516,6 +534,15 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
           setTestingMap(prev => ({ ...prev, [type]: false }));
           return;
         }
+        if (!isValidPhone(phone)) {
+          toast({
+            title: "Invalid phone",
+            description: "Use E.164 (+countrycode...) or local 03xxxxxxxxx.",
+            variant: "destructive",
+          });
+          setTestingMap(prev => ({ ...prev, [type]: false }));
+          return;
+        }
         body["phone"] = phone;
       }
       if (type === "fcm") {
@@ -531,11 +558,15 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
         method: "POST",
         body: JSON.stringify(body),
       });
-      const msg = (data as any)?.message ?? `${type} test sent successfully`;
-      setTestResults(prev => ({ ...prev, [type]: { ok: true, msg } }));
-      toast({ title: "Test Passed ✅", description: msg });
-    } catch (err: any) {
-      const msg = err?.message ?? `${type} test failed`;
+      const parsed = parseIntegrationTestResponse(data, `${type} test sent successfully`);
+      setTestResults(prev => ({ ...prev, [type]: { ok: parsed.ok, msg: parsed.message } }));
+      toast({
+        title: parsed.ok ? "Test Passed ✅" : "Test Failed ❌",
+        description: parsed.message,
+        ...(parsed.ok ? {} : { variant: "destructive" as const }),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `${type} test failed`;
       setTestResults(prev => ({ ...prev, [type]: { ok: false, msg } }));
       toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
     } finally {
@@ -778,8 +809,8 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                     <FlaskConical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-xs font-semibold text-foreground">Send test push to FCM device token</span>
                     {testResults["fcm"] && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["fcm"]!.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        {testResults["fcm"]!.ok ? "✓ PASSED" : "✗ FAILED"}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["fcm"]?.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {testResults["fcm"]?.ok ? "✓ PASSED" : "✗ FAILED"}
                       </span>
                     )}
                   </div>
@@ -798,7 +829,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                     {testingMap["fcm"] ? "Sending…" : "Send Test Push"}
                   </button>
                   {testResults["fcm"] && (
-                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["fcm"]!.msg}>{testResults["fcm"]!.msg}</p>
+                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["fcm"]?.msg}>{testResults["fcm"]?.msg}</p>
                   )}
                 </div>
               </div>
@@ -1218,8 +1249,8 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                     <FlaskConical className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-xs font-semibold text-foreground">Geocode "Muzaffarabad, Azad Kashmir"</span>
                     {testResults["maps"] && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["maps"]!.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        {testResults["maps"]!.ok ? "✓ PASSED" : "✗ FAILED"}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${testResults["maps"]?.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        {testResults["maps"]?.ok ? "✓ PASSED" : "✗ FAILED"}
                       </span>
                     )}
                   </div>
@@ -1232,7 +1263,7 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
                     {testingMap["maps"] ? "Testing…" : "Test Geocoding"}
                   </button>
                   {testResults["maps"] && (
-                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["maps"]!.msg}>{testResults["maps"]!.msg}</p>
+                    <p className="text-[10px] text-muted-foreground w-full sm:w-auto truncate max-w-xs" title={testResults["maps"]?.msg}>{testResults["maps"]?.msg}</p>
                   )}
                 </div>
               </div>
