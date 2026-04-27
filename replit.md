@@ -140,3 +140,13 @@ credentials through the post-login popup once signed in.
 - **pnpm** (enforced via preinstall hook).
 - **Drizzle Kit** for schema migrations.
 - **Sentry** (lazy-loaded for error reporting).
+
+### Testing (admin app)
+- **Vitest** unit tests for shared helpers in `artifacts/admin/tests/*.test.ts`
+  (safeJson, escapeHtml, sanitizeMarkerHtml, highlightHtml).
+- **Integration tests** in `artifacts/admin/tests/integration/*.test.tsx`
+  using `@testing-library/react`, `@testing-library/user-event`, `jsdom`,
+  and `msw` for HTTP mocking. Covers admin auth (login + token refresh +
+  logout), settings persistence (`SystemSection` demo-backup save), and
+  CSV export with blob URL revocation. Run with
+  `pnpm --filter @workspace/admin test` (full suite < 15s).
