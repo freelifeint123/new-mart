@@ -23,6 +23,16 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 
+/**
+ * Documented default seed password — kept in sync with
+ * `DEFAULT_SEED_PASSWORD` in `admin-seed.service.ts` and the helper
+ * text on the login page. Used as the implicit "current password"
+ * when `usingDefaultCredentials=true` so the popup only asks for the
+ * fields the user actually needs to fill in (new username / new
+ * password / confirm).
+ */
+const DOCUMENTED_DEFAULT_PASSWORD = "Toqeerkhan@123.com";
+
 /** Same rules the API enforces (validatePasswordStrength). */
 function validateStrength(pw: string): string | null {
   if (pw.length < 8) return "Password must be at least 8 characters.";
@@ -56,7 +66,6 @@ export function FirstLoginCredentialsDialog() {
   }, [state.accessToken]);
 
   const [username, setUsername] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
@@ -67,7 +76,6 @@ export function FirstLoginCredentialsDialog() {
   useEffect(() => {
     if (open) {
       setUsername(state.user?.username ?? "");
-      setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setFormError(null);
@@ -90,7 +98,7 @@ export function FirstLoginCredentialsDialog() {
       trimmedUsername.length > 0 && trimmedUsername !== currentUsername;
     const wantsPasswordChange =
       !passwordSavedThisSession &&
-      (newPassword.length > 0 || currentPassword.length > 0 || confirmPassword.length > 0);
+      (newPassword.length > 0 || confirmPassword.length > 0);
 
     if (!wantsUsernameChange && !wantsPasswordChange) {
       setFormError(
@@ -102,10 +110,6 @@ export function FirstLoginCredentialsDialog() {
     }
 
     if (wantsPasswordChange) {
-      if (!currentPassword) {
-        setFormError("Enter your current password to confirm a password change.");
-        return;
-      }
       if (newPassword !== confirmPassword) {
         setFormError("The new password and confirmation do not match.");
         return;
@@ -115,8 +119,8 @@ export function FirstLoginCredentialsDialog() {
         setFormError(strengthError);
         return;
       }
-      if (newPassword === currentPassword) {
-        setFormError("The new password must be different from the current one.");
+      if (newPassword === DOCUMENTED_DEFAULT_PASSWORD) {
+        setFormError("The new password must be different from the default.");
         return;
       }
     }
@@ -125,9 +129,8 @@ export function FirstLoginCredentialsDialog() {
     try {
       if (wantsPasswordChange) {
         try {
-          await changePassword(currentPassword, newPassword);
+          await changePassword(DOCUMENTED_DEFAULT_PASSWORD, newPassword);
           setPasswordSavedThisSession(true);
-          setCurrentPassword("");
           setNewPassword("");
           setConfirmPassword("");
         } catch (err) {
@@ -233,22 +236,6 @@ export function FirstLoginCredentialsDialog() {
             </div>
           ) : (
             <div className="border-t pt-4 space-y-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="flcd-current">
-                  Current password
-                </label>
-                <Input
-                  id="flcd-current"
-                  type={showPasswords ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Required to change password"
-                  autoComplete="current-password"
-                  disabled={submitting}
-                  data-testid="input-current-password"
-                />
-              </div>
-
               <div className="space-y-2">
                 <label className="text-sm font-medium" htmlFor="flcd-new">
                   New password

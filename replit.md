@@ -106,7 +106,7 @@ self-edits their password (`/api/admin/auth/change-password`) or
 username (`PATCH /api/admin/system/admin-accounts/:id`).
 
 Configurable via env (`ADMIN_SEED_EMAIL` defaults to `admin@ajkmart.local`,
-`ADMIN_SEED_USERNAME` to `superadmin`, `ADMIN_SEED_NAME` to
+`ADMIN_SEED_USERNAME` to `admin`, `ADMIN_SEED_NAME` to
 `Super Admin`). `ADMIN_SEED_PASSWORD` is **optional** — if unset, the
 documented default `Toqeerkhan@123.com` is used so the credentials shown
 on the login page always work out-of-the-box. Operators may override
