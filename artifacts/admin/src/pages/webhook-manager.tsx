@@ -52,39 +52,64 @@ export default function WebhookManagerPage() {
   });
   const logs: WebhookLogEntry[] = logsData?.logs || [];
 
+  // Shared narrowing for mutation error / response payloads — replaces the
+  // previous scattered `(e: any)` / `(data: any)` casts.
+  const errMsg = (e: unknown) =>
+    e instanceof Error ? e.message : typeof e === "string" ? e : "Unknown error";
+
+  interface CreateWebhookBody {
+    url: string;
+    event: string;
+    secret?: string;
+    isActive?: boolean;
+  }
+
+  interface WebhookTestResponse {
+    success?: boolean;
+    status?: number;
+    durationMs?: number;
+    error?: string;
+  }
+
   const createMutation = useMutation({
-    mutationFn: (body: any) => fetcher("/webhooks", { method: "POST", body: JSON.stringify(body) }),
+    mutationFn: (body: CreateWebhookBody) =>
+      fetcher("/webhooks", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-webhooks"] });
       toast({ title: "Webhook registered" });
       resetForm();
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) =>
+      toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => fetcher(`/webhooks/${id}/toggle`, { method: "PATCH", body: "{}" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-webhooks"] }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) =>
+      toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
   });
 
   const testMutation = useMutation({
     mutationFn: (id: string) => fetcher(`/webhooks/${id}/test`, { method: "POST", body: "{}" }),
-    onSuccess: (data: any) => {
-      if (data?.success) {
-        toast({ title: "Ping successful", description: `Status: ${data.status}, ${data.durationMs}ms` });
+    onSuccess: (data: unknown) => {
+      const resp = (data ?? {}) as WebhookTestResponse;
+      if (resp.success) {
+        toast({ title: "Ping successful", description: `Status: ${resp.status}, ${resp.durationMs}ms` });
       } else {
-        toast({ title: "Ping failed", description: data?.error || "No response", variant: "destructive" });
+        toast({ title: "Ping failed", description: resp.error || "No response", variant: "destructive" });
       }
       qc.invalidateQueries({ queryKey: ["admin-webhook-logs"] });
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) =>
+      toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => fetcher(`/webhooks/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin-webhooks"] }); toast({ title: "Webhook deleted" }); },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) =>
+      toast({ title: "Failed", description: errMsg(e), variant: "destructive" }),
   });
 
   function resetForm() {

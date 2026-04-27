@@ -266,16 +266,55 @@ const MapboxMapLazy = lazy(() =>
   })
 );
 
+/**
+ * Sized Suspense fallback for the lazy Mapbox bundle. The fallback
+ * inherits the `style` / `className` props passed to `<UniversalMap>`
+ * so the skeleton occupies the same box the resolved map will occupy —
+ * eliminating the layout shift between the placeholder and the
+ * fully-hydrated map when the dynamic import resolves.
+ */
 function MapboxMap(props: UniversalMapProps) {
+  const { style, className } = props;
+  const fallbackStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    minHeight: 200,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#f8f9fa",
+    borderRadius: 8,
+    ...style,
+  };
   return (
-    <Suspense fallback={
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8f9fa" }}>
-        <div style={{ textAlign: "center", color: "#6b7280", fontSize: 13 }}>
-          <div style={{ width: 32, height: 32, border: "4px solid #6366f1", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 8px" }} />
-          Loading Mapbox…
+    <Suspense
+      fallback={
+        <div
+          role="status"
+          aria-live="polite"
+          aria-label="Loading map"
+          data-testid="mapbox-skeleton"
+          className={className}
+          style={fallbackStyle}
+        >
+          <div style={{ textAlign: "center", color: "#6b7280", fontSize: 13 }}>
+            <div
+              aria-hidden="true"
+              style={{
+                width: 32,
+                height: 32,
+                border: "4px solid #6366f1",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+                margin: "0 auto 8px",
+              }}
+            />
+            Loading Mapbox…
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <MapboxMapLazy {...props} />
     </Suspense>
   );

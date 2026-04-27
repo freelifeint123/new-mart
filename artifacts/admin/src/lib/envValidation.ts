@@ -48,16 +48,34 @@ export function auditAdminEnv(): EnvAuditResult {
   /* ── User-defined VITE_* keys ───────────────────────────────────── */
   // Walk every VITE_-prefixed entry and warn if any is declared in
   // `.env*` but resolved to an empty / non-string value at build time.
-  // The admin currently exposes none, so this loop is a no-op until the
-  // first VITE_ key is added — at which point a missing value surfaces
-  // immediately in the console rather than a downstream `undefined`.
+  // Optional keys (consumed via fallbacks) are skipped from the warning
+  // sweep — only declared but malformed keys surface.
+  const OPTIONAL_VITE_KEYS = new Set([
+    /* `error-reporter.ts#getApiBase()` falls back to
+       `window.location.origin/api` when this is not set. */
+    "VITE_API_BASE_URL",
+  ]);
   const viteKeys = Object.keys(env).filter(k => k.startsWith("VITE_"));
   for (const key of viteKeys) {
     const v = env[key];
     if (v === undefined || v === null || v === "") {
-      warnings.push(`${key} is empty — consumers may receive undefined`);
+      if (!OPTIONAL_VITE_KEYS.has(key)) {
+        warnings.push(`${key} is empty — consumers may receive undefined`);
+      }
     } else if (typeof v !== "string") {
       warnings.push(`${key} has unexpected type ${typeof v} — expected string`);
+    }
+  }
+
+  /* `VITE_API_BASE_URL` validation: when present it must be an absolute URL. */
+  const apiBase = env.VITE_API_BASE_URL;
+  if (typeof apiBase === "string" && apiBase.trim()) {
+    try {
+      new URL(apiBase.trim());
+    } catch {
+      warnings.push(
+        `VITE_API_BASE_URL is not a valid absolute URL — falling back to window.location.origin/api`,
+      );
     }
   }
 

@@ -476,3 +476,39 @@ export function readCsrfFromCookie(): string {
   }
   return '';
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Selector hooks
+ *
+ * Components that only need a slice of auth state should use these
+ * narrow selectors instead of `useAdminAuth()` so they don't re-render
+ * on unrelated context changes (e.g. token rotation refreshing
+ * `accessToken` should not re-render a component that only reads the
+ * current admin's display name).
+ *
+ * This is the lightweight, incremental form of the broader
+ * "Context-Based State Architecture" refactor in `bugs.md` —
+ * selector hooks now exist for the highest-traffic slices and pages
+ * can opt in without touching the provider.
+ * ───────────────────────────────────────────────────────────────── */
+
+/** Returns the current admin user (or `null` when logged out). */
+export function useAdminUser(): AdminUser | null {
+  return useAdminAuth().state.user;
+}
+
+/** Returns just the access token; `null` when not authenticated. */
+export function useAdminAccessToken(): string | null {
+  return useAdminAuth().state.accessToken;
+}
+
+/** Returns the auth-ready boolean (true once bootstrap is no longer loading). */
+export function useAdminAuthReady(): boolean {
+  return !useAdminAuth().state.isLoading;
+}
+
+/** Returns true when the user is authenticated and ready to make calls. */
+export function useIsAdminAuthenticated(): boolean {
+  const { state } = useAdminAuth();
+  return !!state.accessToken && !!state.user;
+}

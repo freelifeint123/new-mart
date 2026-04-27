@@ -244,3 +244,116 @@ table thead th {
     content: "" !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────
+ * Z-index token scale (admin design system)
+ *
+ * Functional layering for overlays. Inline z-index values across the
+ * codebase should reference these tokens (e.g. `z-[var(--z-modal)]`)
+ * so the stacking order stays consistent and is changeable in one
+ * place. Cf. bugs.md → "Inline z-index values".
+ * ───────────────────────────────────────────────────────────────── */
+:root {
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-dropdown: 30;
+  --z-overlay: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-popover: 70;
+  --z-tooltip: 80;
+  --z-toast: 90;
+  --z-banner: 95;
+  --z-debug: 100;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * Shared admin transition utilities
+ *
+ * Drop-in classes used across hover/focus/disabled states for a
+ * consistent micro-interaction feel. Cf. bugs.md → "Missing
+ * Animations and Transitions".
+ * ───────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .admin-transition {
+    transition-property: color, background-color, border-color,
+      text-decoration-color, fill, stroke, opacity, box-shadow,
+      transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+  }
+  .admin-transition-slow {
+    transition-property: color, background-color, border-color,
+      text-decoration-color, fill, stroke, opacity, box-shadow,
+      transform, filter, backdrop-filter;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+  .admin-press {
+    transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .admin-press:active {
+    transform: scale(0.97);
+  }
+  /* Visible focus ring for keyboard users. */
+  .admin-focus-ring:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+/* Respect reduced-motion preferences for the shared utilities above. */
+@media (prefers-reduced-motion: reduce) {
+  .admin-transition,
+  .admin-transition-slow,
+  .admin-press {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ * Accessibility tokens (admin-only)
+ *
+ * Driven by `lib/useAccessibilitySettings.ts`. The hook stamps two
+ * attributes on `<html>`:
+ *   data-admin-font-scale="0.875|1|1.125|1.25"
+ *   data-admin-contrast="normal|high"
+ * — and pages opt in by reading the `--admin-font-scale` variable
+ * (set as a CSS custom property) and the high-contrast overrides.
+ * ───────────────────────────────────────────────────────────────── */
+:root {
+  --admin-font-scale: 1;
+}
+
+html[data-admin-font-scale] body {
+  font-size: calc(1rem * var(--admin-font-scale, 1));
+}
+
+html[data-admin-contrast="high"] {
+  /* Push borders + foreground colours to the strongest available value
+     so low-vision admins meet WCAG 2.1 AAA contrast on critical chrome. */
+  --border: 0 0% 0%;
+  --input: 0 0% 0%;
+  --foreground: 0 0% 0%;
+  --muted-foreground: 0 0% 15%;
+}
+
+html[data-admin-contrast="high"] body {
+  color-scheme: light;
+}
+
+html[data-admin-contrast="high"] *:focus-visible {
+  outline: 3px solid #000 !important;
+  outline-offset: 2px !important;
+}
+
+html[data-admin-reduce-motion="1"] *,
+html[data-admin-reduce-motion="1"] *::before,
+html[data-admin-reduce-motion="1"] *::after {
+  animation-duration: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0ms !important;
+  scroll-behavior: auto !important;
+}

@@ -56,6 +56,13 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     /**
+     * Browser support matrix (mirrored in `package.json#browserslist`):
+     *   Chrome ≥100, Firefox ≥100, Safari ≥15.4, Edge ≥100, iOS ≥15.4.
+     * The esbuild targets below ensure the emitted JS only uses syntax
+     * supported by every entry in the matrix.
+     */
+    target: ["chrome100", "firefox100", "safari15.4", "edge100"],
+    /**
      * Heavy third-party deps split into their own chunks. Without this
      * the entry chunk balloons (recharts + leaflet + mapbox-gl alone are
      * ~1MB minified) and a single deploy invalidates every cache.

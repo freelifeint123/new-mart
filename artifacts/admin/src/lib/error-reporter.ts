@@ -8,7 +8,22 @@ let _flushing = false;
 /** Deduplicate window.error and unhandledrejection events (not just console.error) */
 const _recentEventErrors = new Map<string, number>();
 
+/**
+ * Resolve the admin API base URL.
+ *
+ * Priority:
+ *   1. `VITE_API_BASE_URL` env var (e.g. `https://api.example.com/api`)
+ *      — set this in `.env` when the admin is deployed on a different
+ *      origin than the API server.
+ *   2. `${window.location.origin}/api` — default for the in-monorepo
+ *      sibling-proxy setup (admin and api share an origin).
+ */
 function getApiBase(): string {
+  const env = import.meta.env as Record<string, unknown>;
+  const override = env.VITE_API_BASE_URL;
+  if (typeof override === "string" && override.trim()) {
+    return override.trim().replace(/\/$/, "");
+  }
   return `${window.location.origin}/api`;
 }
 

@@ -85,7 +85,12 @@ function StatsPanel() {
     staleTime: 30_000,
   });
 
-  const stats = data?.data ?? (data as any);
+  // The wallet stats endpoint returns either `{ data: WalletStats }` or
+  // a bare `WalletStats` payload depending on the route version.
+  // Narrow via a typed cast through `unknown` instead of `as any` so the
+  // shape stays auditable.
+  const stats: WalletStats | undefined =
+    data?.data ?? (data as unknown as WalletStats | undefined);
 
   const cards = [
     { label: "Today's Transfers", value: stats?.today?.transfers ?? 0, color: "text-blue-600", icon: <ArrowRight className="w-4 h-4 text-blue-400" /> },
@@ -145,9 +150,14 @@ function TransactionsPanel() {
     staleTime: 15_000,
   });
 
-  const transactions: P2PTx[] = (data as any)?.transactions ?? [];
-  const total: number = (data as any)?.total ?? 0;
-  const pages: number = (data as any)?.pages ?? 1;
+  // Backend returns `{ transactions: P2PTx[], total: number, pages: number }`.
+  // Narrow once via a typed alias instead of repeating `(data as any)`.
+  const txnsResp = data as
+    | { transactions?: P2PTx[]; total?: number; pages?: number }
+    | undefined;
+  const transactions: P2PTx[] = txnsResp?.transactions ?? [];
+  const total: number = txnsResp?.total ?? 0;
+  const pages: number = txnsResp?.pages ?? 1;
 
   const flagMutation = useMutation({
     mutationFn: ({ id, flag, reason }: { id: string; flag: boolean; reason?: string }) =>

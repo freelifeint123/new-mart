@@ -7,7 +7,14 @@
  * Each value can be overridden at runtime via `applyAdminTimingOverrides`,
  * which `loadPlatformConfig()` calls when the backend exposes matching
  * `admin_timing_*` settings.
+ *
+ * Implementation note: the override / reset / get plumbing is provided
+ * by `@workspace/admin-timing-shared#createTimingRegistry`, which the
+ * rider, vendor, and customer apps can adopt with their own typed
+ * defaults so every app shares identical override semantics.
  */
+
+import { createTimingRegistry } from "@workspace/admin-timing-shared";
 
 export interface AdminTimingConfig {
   commandPaletteDebounceMs: number;
@@ -51,30 +58,20 @@ const DEFAULTS: AdminTimingConfig = {
   pullToRefreshThresholdPx: 80,
 };
 
-let _current: AdminTimingConfig = { ...DEFAULTS };
+const _registry = createTimingRegistry<AdminTimingConfig>(DEFAULTS);
 
 export function getAdminTiming(): AdminTimingConfig {
-  return _current;
+  return _registry.get();
 }
 
 export function applyAdminTimingOverrides(
   overrides: Partial<Record<keyof AdminTimingConfig, unknown>> | null | undefined,
 ): void {
-  if (!overrides) return;
-  const next: AdminTimingConfig = { ..._current };
-  for (const key of Object.keys(DEFAULTS) as (keyof AdminTimingConfig)[]) {
-    const raw = overrides[key];
-    if (raw === undefined || raw === null) continue;
-    const numeric = typeof raw === "number" ? raw : Number(raw);
-    if (Number.isFinite(numeric) && numeric > 0) {
-      next[key] = numeric;
-    }
-  }
-  _current = next;
+  _registry.apply(overrides);
 }
 
 export function resetAdminTiming(): void {
-  _current = { ...DEFAULTS };
+  _registry.reset();
 }
 
-export const ADMIN_TIMING_DEFAULTS: Readonly<AdminTimingConfig> = DEFAULTS;
+export const ADMIN_TIMING_DEFAULTS: Readonly<AdminTimingConfig> = _registry.defaults;

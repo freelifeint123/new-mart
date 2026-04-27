@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  loadIntegrationTestHistory,
+  recordIntegrationTestResult,
+} from "@/lib/integrationTestHistory";
 import {
   AlertTriangle, Info, ExternalLink, CheckCircle2, XCircle, Wifi, Loader2,
   MessageSquare, Phone, Globe, MapPin, BarChart3, Shield, Bug, Link,
@@ -247,6 +251,22 @@ function IntegrationHealthPanel({
   const [testingMap, setTestingMap] = useState<Record<string, boolean>>({});
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; msg: string } | null>>({});
 
+  /**
+   * Hydrate previously persisted test results so admins see the last
+   * known state of each integration after a reload, rather than having
+   * to re-run every probe. Persistence is best-effort (see
+   * `integrationTestHistory.ts`) and never throws into the React tree.
+   */
+  useEffect(() => {
+    const history = loadIntegrationTestHistory();
+    if (Object.keys(history).length === 0) return;
+    const seed: Record<string, { ok: boolean; msg: string } | null> = {};
+    for (const [id, entry] of Object.entries(history)) {
+      seed[id] = { ok: entry.ok, msg: entry.msg };
+    }
+    setTestResults(prev => ({ ...seed, ...prev }));
+  }, []);
+
   const rows = computeHealth(localValues);
   const configuredCount = rows.filter(r => r.status === "configured" || r.status === "manual").length;
   const missingCount = rows.filter(r => r.status === "missing").length;
@@ -296,7 +316,9 @@ function IntegrationHealthPanel({
       // that the integration health card honours backend `ok`/`error`
       // fields consistently across endpoints.
       const parsed = parseIntegrationTestResponse(data, `${row.label} test passed`);
-      setTestResults(prev => ({ ...prev, [id]: { ok: parsed.ok, msg: parsed.message } }));
+      const entry = { ok: parsed.ok, msg: parsed.message };
+      setTestResults(prev => ({ ...prev, [id]: entry }));
+      recordIntegrationTestResult(id, entry);
       toast({
         title: parsed.ok ? `${row.label} ✅` : `${row.label} ⚠️`,
         description: parsed.message,
@@ -304,7 +326,9 @@ function IntegrationHealthPanel({
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : `${row.label} test failed`;
-      setTestResults(prev => ({ ...prev, [id]: { ok: false, msg } }));
+      const entry = { ok: false, msg };
+      setTestResults(prev => ({ ...prev, [id]: entry }));
+      recordIntegrationTestResult(id, entry);
       toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
     } finally {
       setTestingMap(prev => ({ ...prev, [id]: false }));
@@ -513,6 +537,19 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
 
   const { toast } = useToast();
 
+  /* Hydrate persisted test results — see IntegrationHealthMatrix above. */
+  useEffect(() => {
+    const history = loadIntegrationTestHistory();
+    const seed: Record<string, { ok: boolean; msg: string } | null> = {};
+    for (const type of ["email", "sms", "whatsapp", "fcm", "maps"] as const) {
+      const entry = history[`runTest:${type}`];
+      if (entry) seed[type] = { ok: entry.ok, msg: entry.msg };
+    }
+    if (Object.keys(seed).length > 0) {
+      setTestResults(prev => ({ ...seed, ...prev }));
+    }
+  }, []);
+
   const val = (k: string) => localValues[k] ?? "";
   const dirty = (k: string) => dirtyKeys.has(k);
   const tog = (k: string, def: string = "off") => (localValues[k] ?? def) === "on";
@@ -559,7 +596,9 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
         body: JSON.stringify(body),
       });
       const parsed = parseIntegrationTestResponse(data, `${type} test sent successfully`);
-      setTestResults(prev => ({ ...prev, [type]: { ok: parsed.ok, msg: parsed.message } }));
+      const entry = { ok: parsed.ok, msg: parsed.message };
+      setTestResults(prev => ({ ...prev, [type]: entry }));
+      recordIntegrationTestResult(`runTest:${type}`, entry);
       toast({
         title: parsed.ok ? "Test Passed ✅" : "Test Failed ❌",
         description: parsed.message,
@@ -567,7 +606,9 @@ export function IntegrationsSection({ localValues, dirtyKeys, handleChange, hand
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : `${type} test failed`;
-      setTestResults(prev => ({ ...prev, [type]: { ok: false, msg } }));
+      const entry = { ok: false, msg };
+      setTestResults(prev => ({ ...prev, [type]: entry }));
+      recordIntegrationTestResult(`runTest:${type}`, entry);
       toast({ title: "Test Failed ❌", description: msg, variant: "destructive" });
     } finally {
       setTestingMap(prev => ({ ...prev, [type]: false }));

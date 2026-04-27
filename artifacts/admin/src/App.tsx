@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
+import { OnlineStatusBanner } from "@/components/OnlineStatusBanner";
 import { useLanguage } from "@/lib/useLanguage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { initSentry, setSentryUser } from "@/lib/sentry";
@@ -14,10 +15,14 @@ import { AdminAuthProvider, useAdminAuth } from "@/lib/adminAuthContext";
 import { setupAdminFetcherHandlers } from "@/lib/adminFetcher";
 import { setTokenHandlers } from "@/lib/api";
 import { auditAdminEnv } from "@/lib/envValidation";
+import { bootAccessibilitySettings } from "@/lib/useAccessibilitySettings";
 
 // Run env audit once at module load so warnings appear before any
 // component depends on `import.meta.env.BASE_URL` etc.
 auditAdminEnv();
+// Apply persisted font-scale + contrast on boot so the very first paint
+// already honours the admin's accessibility preferences.
+bootAccessibilitySettings();
 
 // Layout & Pages
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -41,6 +46,9 @@ import FlashDeals from "@/pages/flash-deals";
 import Categories from "@/pages/categories";
 import Banners from "@/pages/banners";
 import AppManagement from "@/pages/app-management";
+import AccessibilityPage from "@/pages/accessibility";
+import ConsentLogPage from "@/pages/consent-log";
+import VendorInventorySettingsPage from "@/pages/vendor-inventory-settings";
 import Vendors from "@/pages/vendors";
 import Riders from "@/pages/riders";
 import PromoCodes from "@/pages/promo-codes";
@@ -297,6 +305,9 @@ function Router() {
       <Route path="/otp-control"><ProtectedRoute component={OtpControl} /></Route>
       <Route path="/sms-gateways"><ProtectedRoute component={SmsGateways} /></Route>
       <Route path="/roles-permissions"><ProtectedRoute component={RolesPermissions} /></Route>
+      <Route path="/accessibility"><ProtectedRoute component={AccessibilityPage} /></Route>
+      <Route path="/consent-log"><ProtectedRoute component={ConsentLogPage} /></Route>
+      <Route path="/vendor-inventory-settings"><ProtectedRoute component={VendorInventorySettingsPage} /></Route>
 
       <Route component={NotFound} />
     </Switch>
@@ -383,6 +394,7 @@ function App() {
             </WouterRouter>
             <Toaster />
             <PwaInstallBanner />
+            <OnlineStatusBanner />
           </TooltipProvider>
         </QueryClientProvider>
       </AdminAuthProvider>

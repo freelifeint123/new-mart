@@ -50,11 +50,20 @@ function GatewayCard({
   const handleTest = async () => {
     setTesting(true); setTestResult(null);
     try {
-      const raw = await apiAbsoluteFetchRaw(`/api/payments/test-connection/${prefix}`) as any;
-      // Backend uses sendSuccess(res, { ok, message }) → envelope { success, data: { ok, message } }.
-      // apiAbsoluteFetchRaw does NOT unwrap, so read the inner payload first; fall back if a future
-      // route returns the bare object directly.
-      const payload = raw?.data ?? raw;
+      // Backend uses sendSuccess(res, { ok, message }) → envelope
+      // `{ success, data: { ok, message } }`. `apiAbsoluteFetchRaw`
+      // does NOT unwrap, so read the inner payload first; fall back
+      // if a future route returns the bare object directly.
+      interface PaymentTestPayload { ok?: boolean; message?: string }
+      interface PaymentTestEnvelope {
+        data?: PaymentTestPayload;
+        message?: string;
+        ok?: boolean;
+      }
+      const raw = (await apiAbsoluteFetchRaw(
+        `/api/payments/test-connection/${prefix}`,
+      )) as unknown as PaymentTestEnvelope;
+      const payload: PaymentTestPayload = raw?.data ?? raw;
       const ok = payload?.ok === true;
       const message = payload?.message || raw?.message || (ok ? "Connection succeeded" : "Connection failed");
       setTestResult({ ok, message });
@@ -63,9 +72,10 @@ function GatewayCard({
         description: message,
         variant: ok ? "default" : "destructive",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Surface real error info instead of swallowing every failure as the same generic line.
-      let detail = err?.message || String(err) || "Unknown error";
+      let detail =
+        err instanceof Error ? err.message : typeof err === "string" ? err : "Unknown error";
       // Common cases: HTTP error codes embedded in apiAbsoluteFetchRaw error message
       if (/401|403/.test(detail)) detail = "Unauthorized — please re-login as admin";
       else if (/404/.test(detail))  detail = "Endpoint not found — check that the API server is up to date";
