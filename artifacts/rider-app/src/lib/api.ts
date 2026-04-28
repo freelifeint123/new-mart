@@ -2,6 +2,11 @@ const BASE = import.meta.env.VITE_CAPACITOR === "true" && import.meta.env.VITE_A
   ? `${(import.meta.env.VITE_API_BASE_URL as string).replace(/\/+$/, "")}/api`
   : `/api`;
 
+/* PWA4: Centralized base URL getter used by socket.tsx and error-reporter.ts to ensure sync */
+export function getApiBase(): string {
+  return BASE;
+}
+
 const TOKEN_KEY   = "ajkmart_rider_token";
 const REFRESH_KEY = "ajkmart_rider_refresh_token";
 

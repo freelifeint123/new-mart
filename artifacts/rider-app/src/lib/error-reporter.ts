@@ -1,19 +1,14 @@
+import { getApiBase } from "./api";
+
 const SOURCE_APP = "rider";
 let _initialized = false;
 let _queue: Array<Record<string, unknown>> = [];
 let _flushing = false;
-
-function getApiBase(): string {
-  const env = import.meta.env;
-  const capacitorBase = env.VITE_CAPACITOR === "true" && env.VITE_API_BASE_URL;
-  return capacitorBase
-    ? `${String(capacitorBase).replace(/\/+$/, "")}/api`
-    : `/api`;
-}
+let _flushTimer: ReturnType<typeof setTimeout> | null = null; /* PF7: Single debounced flush (COMPLETED) */
 
 async function sendReport(report: Record<string, unknown>): Promise<void> {
   try {
-    await fetch(`${getApiBase()}/error-reports`, {
+    await fetch(`${getApiBase()}/error-reports`, { /* PWA4: Use centralized getApiBase() (COMPLETED) */
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(report),
@@ -29,13 +24,17 @@ async function flushQueue(): Promise<void> {
     await sendReport(report);
   }
   _flushing = false;
-  if (_queue.length > 0) setTimeout(flushQueue, 1000);
+  if (_queue.length > 0) {
+    _flushTimer = setTimeout(flushQueue, 1000);
+  }
 }
 
 function enqueue(report: Record<string, unknown>): void {
   _queue.push(report);
   if (_queue.length > 50) _queue.shift();
-  setTimeout(flushQueue, 100);
+  /* PF7: Single debounced flush timer (COMPLETED) */
+  if (_flushTimer) clearTimeout(_flushTimer);
+  _flushTimer = setTimeout(flushQueue, 100);
 }
 
 export function reportError(opts: {

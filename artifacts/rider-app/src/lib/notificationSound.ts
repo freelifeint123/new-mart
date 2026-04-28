@@ -133,3 +133,12 @@ function vibrateFallback() {
     navigator?.vibrate?.([200, 100, 200]);
   } catch {}
 }
+
+/* C7, PWA7: Stop notification sound (no-op for synthesized tones,  used for cleanup) */
+export function stopSound() {
+  /* Synthesized tones auto-stop based on duration, but we can suspend audio context if needed */
+  const ctx = getCtx();
+  if (ctx && ctx.state === "running") {
+    /* Don't suspend here — keep context active for future sounds */
+  }
+}

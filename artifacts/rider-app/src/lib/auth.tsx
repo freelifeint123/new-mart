@@ -2,12 +2,14 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback, ty
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 
+/* A2: UTF-8 safe JWT decoder (COMPLETED) */
 function decodeJwtExp(tok: string): number | null {
   try {
     const parts = tok.split(".");
     if (parts.length !== 3) return null;
     const b64 = (parts[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
-    const payload = JSON.parse(atob(b64));
+    /* UTF-8 safe decoder for non-ASCII claim values */
+    const payload = JSON.parse(decodeURIComponent(escape(atob(b64))));
     return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
     return null;
@@ -86,10 +88,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           api.clearTokens();
           setToken(null);
           setUser(null);
+        } else if (result === "transient") {
+          /* A3: Apply exponential backoff on transient failures (COMPLETED) */
+          refreshFailCountRef.current++;
+          if (refreshFailCountRef.current <= 5) {
+            const backoffMs = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+            refreshTimerRef.current = setTimeout(() => {
+              const currentToken = api.getToken();
+              if (currentToken) scheduleProactiveRefresh(currentToken);
+            }, backoffMs);
+          } else {
+            /* Bail after ~5 failures */
+            api.clearTokens();
+            setToken(null);
+            setUser(null);
+            try {
+              window.dispatchEvent(new CustomEvent("ajkmart:refresh-user-failed"));
+            } catch {}
+          }
+          refreshingRef.current = false;
+          return; /* Don't fall through to finally */
         }
       } catch {
-        const currentToken = api.getToken();
-        if (currentToken) scheduleProactiveRefresh(currentToken);
+        /* A3: Network errors also get backoff */
+        refreshFailCountRef.current++;
+        if (refreshFailCountRef.current <= 5) {
+          const backoffMs = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+          refreshTimerRef.current = setTimeout(() => {
+            const currentToken = api.getToken();
+            if (currentToken) scheduleProactiveRefresh(currentToken);
+          }, backoffMs);
+        }
       } finally {
         refreshingRef.current = false;
       }

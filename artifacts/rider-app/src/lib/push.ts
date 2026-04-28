@@ -1,9 +1,11 @@
+import { api } from "./api";
+
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
 export async function registerPush(): Promise<void> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
-    const reg = await navigator.serviceWorker.register(`${BASE}/sw.js`);
+    const reg = await navigator.serviceWorker.register(`${BASE}/sw.js`, { scope: BASE + "/" }); /* PWA1: explicit scope */
     const existing = await reg.pushManager.getSubscription();
     if (existing) return;
 
@@ -23,7 +25,7 @@ export async function registerPush(): Promise<void> {
       applicationServerKey: keyBuffer,
     });
 
-    const token = localStorage.getItem("ajkmart_rider_token") ?? "";
+    const token = api.getToken(); /* S-Sec3: use api.getToken() instead of localStorage (COMPLETED) */
     await fetch(`${BASE}/api/push/subscribe`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
