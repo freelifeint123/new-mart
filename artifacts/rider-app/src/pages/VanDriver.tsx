@@ -167,26 +167,67 @@ export default function VanDriver() {
     onError: (e: Error) => setError(e.message),
   });
 
+  /* G6: Surface geolocation errors to the UI rather than swallowing them.
+     G7: Use an in-flight flag so the 5s interval never queues a second
+         getCurrentPosition while the first is still running.
+     G8: Stop the broadcast when tripStatus leaves in_progress (e.g. dispatcher
+         cancels server-side). We reuse the existing `error` state for the
+         UI banner so users see the same red bar that mutation failures use,
+         rather than introducing a parallel display surface. */
+  const gpsInflightRef = useRef<boolean>(false);
+  const highAccuracyRef = useRef<boolean>(true);
+  const setGpsError = (msg: string | null) => {
+    /* Only overwrite the error banner when there's something to show — never
+       clobber a mutation error with a stale clear, or vice versa. */
+    if (msg) setError(msg);
+  };
+
   function startGpsBroadcast() {
     if (!selectedSchedule) return;
+    if (!navigator?.geolocation) {
+      /* G6: Don't silently say "broadcasting" when geolocation is unavailable. */
+      setGpsError("Location services are not available on this device.");
+      return;
+    }
     setBroadcasting(true);
+    setGpsError(null);
     const schedId = selectedSchedule.id;
     const schedDate = selectedSchedule.date;
     gpsIntervalRef.current = window.setInterval(() => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            sendLocation(schedId, schedDate, pos.coords.latitude, pos.coords.longitude).catch(() => {});
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 5000 }
-        );
-      }
+      /* G7: Skip this tick if the previous getCurrentPosition is still
+         pending. Stacking concurrent requests on weak GPS used to ANR. */
+      if (gpsInflightRef.current) return;
+      gpsInflightRef.current = true;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          gpsInflightRef.current = false;
+          setGpsError(null);
+          sendLocation(schedId, schedDate, pos.coords.latitude, pos.coords.longitude).catch(() => {});
+        },
+        (err) => {
+          gpsInflightRef.current = false;
+          /* G6: Map the standard PositionError codes to actionable UI strings.
+             On PERMISSION_DENIED we stop the broadcast — there is no point
+             retrying since the OS won't re-prompt without a user gesture. */
+          if (err.code === 1 /* PERMISSION_DENIED */) {
+            setGpsError("Location permission denied. Enable it in your browser/OS settings to broadcast.");
+            stopGpsBroadcast();
+          } else if (err.code === 3 /* TIMEOUT */) {
+            /* G6: Fall back to coarse accuracy on timeout. */
+            highAccuracyRef.current = false;
+            setGpsError("GPS timed out — falling back to coarse accuracy.");
+          } else {
+            setGpsError("Couldn't read location — try moving to an open-sky area.");
+          }
+        },
+        { enableHighAccuracy: highAccuracyRef.current, timeout: 4500, maximumAge: 2000 }
+      );
     }, 5000);
   }
 
   function stopGpsBroadcast() {
     setBroadcasting(false);
+    gpsInflightRef.current = false;
     if (gpsIntervalRef.current) {
       clearInterval(gpsIntervalRef.current);
       gpsIntervalRef.current = null;
@@ -200,8 +241,12 @@ export default function VanDriver() {
   useEffect(() => {
     if (selectedSchedule?.tripStatus === "in_progress" && !broadcasting) {
       startGpsBroadcast();
+    } else if (selectedSchedule?.tripStatus !== "in_progress" && broadcasting) {
+      /* G8: tripStatus left in_progress (server-side cancel, completion, etc.)
+         — stop broadcasting immediately rather than waiting for navigation. */
+      stopGpsBroadcast();
     }
-  }, [selectedSchedule?.tripStatus]);
+  }, [selectedSchedule?.tripStatus, broadcasting]);
 
   const boardedCount = passengers.filter(p => p.status === "boarded" || p.status === "completed").length;
   const confirmedCount = passengers.filter(p => p.status === "confirmed").length;

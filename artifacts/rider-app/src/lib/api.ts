@@ -164,9 +164,64 @@ interface ApiEnvelope<T = unknown> {
 }
 
 /** Typed shape returned by GET /rider/requests (includes serverTime envelope field) */
+/* T1: Concrete shapes for the Rider request feed. The previous `any[]`
+   annotations propagated unchecked through Home/Active filters and renderers,
+   so a backend rename used to silently render `undefined`. We keep the types
+   permissive (most fields optional) because the backend still returns
+   loosely-shaped payloads in some legacy code paths, but every consumer now
+   gets compile-time guidance for the canonical fields. */
+export interface Order {
+  id: string;
+  status?: string;
+  pickupAddress?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffAddress?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  customerName?: string;
+  customerPhone?: string;
+  total?: number;
+  fare?: number;
+  riderEarning?: number;
+  paymentMethod?: string;
+  distance?: number;
+  duration?: number;
+  createdAt?: string;
+  items?: Array<{ name?: string; quantity?: number; price?: number }>;
+  vendorName?: string;
+  vendorPhone?: string;
+  vendorAddress?: string;
+  notes?: string;
+  [extra: string]: unknown;
+}
+
+export interface Ride {
+  id: string;
+  status?: string;
+  pickupAddress?: string;
+  pickupLat?: number;
+  pickupLng?: number;
+  dropoffAddress?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  customerName?: string;
+  customerPhone?: string;
+  fare?: number;
+  riderEarning?: number;
+  distance?: number;
+  duration?: number;
+  paymentMethod?: string;
+  vehicleType?: string;
+  createdAt?: string;
+  scheduledFor?: string;
+  notes?: string;
+  [extra: string]: unknown;
+}
+
 export interface RiderRequestsResponse {
-  orders: any[];
-  rides: any[];
+  orders: Order[];
+  rides: Ride[];
   /** ISO timestamp from the server at response time — used to offset AcceptCountdown */
   _serverTime: string | null;
 }
@@ -352,7 +407,7 @@ export const api = {
   setOnline:    (isOnline: boolean) => apiFetch("/rider/online", { method: "PATCH", body: JSON.stringify({ isOnline }) }),
   updateProfile:(data: any) => apiFetch("/rider/profile", { method: "PATCH", body: JSON.stringify(data) }),
   getRequests:  (): Promise<RiderRequestsResponse> =>
-    apiFetch("/rider/requests", {}, 2, true).then((env: ApiEnvelope<{ orders: any[]; rides: any[] }> & { serverTime?: string }) => {
+    apiFetch("/rider/requests", {}, 2, true).then((env: ApiEnvelope<{ orders: Order[]; rides: Ride[] }> & { serverTime?: string }) => {
       const payload = env.data ?? { orders: [], rides: [] };
       return {
         orders: payload.orders ?? [],
@@ -404,4 +459,10 @@ export const api = {
   /* Settings */
   getSettings:    () => apiFetch("/settings"),
   updateSettings: (data: Record<string, unknown>) => apiFetch("/settings", { method: "PUT", body: JSON.stringify(data) }),
+
+  /* Generic fetch — exposed on the api object so Chat (and other surfaces that
+     migrated off their own apiFetch copy) can call api.apiFetch(...) and
+     transparently get the auth refresh, timeout, and error-reporter integration.
+     Closes C1/C3 by removing all parallel apiFetch implementations. */
+  apiFetch,
 };

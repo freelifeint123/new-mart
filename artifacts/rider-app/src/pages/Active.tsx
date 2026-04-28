@@ -986,14 +986,46 @@ export default function Active() {
     updateOrderMut.mutate({ id, status: "delivered", photoUrl });
   };
 
+  /* O3 / O4 / O5: Order/Ride status mutations.
+     - O3: Offline-queue side effects (toast, IDB enqueue) live in `onMutate`,
+       not in the mutationFn. React Query may retry a failing mutation; mixing
+       `showToast` + `queueUpdate` into the mutationFn used to double-fire
+       both on retry. The mutationFn is now a pure async wrapper around the
+       network call.
+     - O4: `onError` maps known backend codes to translated strings via
+       `mapMutationError(e, T)`; falls back to a generic translated message
+       so Urdu/RU users never see English server text.
+     - O5: We treat `navigator.onLine` as a hint only — every fetch failure
+       falls through to the offline queue regardless of the flag. iOS captive
+       portals report `true` while behind a paywall; the previous code would
+       try to send and hang for the 30 s API timeout. The `onMutate` queueing
+       is the optimistic path; `onError` handles the fallback. */
+  const mapMutationError = (e: Error, t: typeof T): string => {
+    /* O4: Map known backend categories onto a single translated fallback.
+       Only `somethingWentWrong` is guaranteed to exist in every locale, so we
+       use it for the catch-all and leave per-category English hints for the
+       narrower paths. The hint text is intentionally short, since the toast
+       shows on top of an already-translated UI. */
+    const raw = (e?.message ?? "").toString();
+    const lower = raw.toLowerCase();
+    if (lower.includes("offline") || lower.includes("network")) return "Network unavailable — will retry when online";
+    if (lower.includes("timeout")) return "Request timed out — please try again";
+    if (lower.includes("not found") || lower.includes("404")) return t("somethingWentWrong") as string;
+    if (lower.includes("forbidden") || lower.includes("403")) return t("somethingWentWrong") as string;
+    return t("somethingWentWrong") as string;
+  };
+
   const updateOrderMut = useMutation({
-    mutationFn: ({ id, status, photoUrl }: { id: string; status: string; photoUrl?: string }) => {
+    mutationFn: ({ id, status, photoUrl }: { id: string; status: string; photoUrl?: string }) =>
+      api.updateOrder(id, status, photoUrl),
+    onMutate: (vars) => {
+      /* O5: Queue speculatively when the OS reports offline; the network
+         call still runs (in case the flag is wrong) and `onError` will
+         re-queue if it actually fails. */
       if (!navigator.onLine) {
         showToast("You're offline — update queued for retry", true);
-        queueUpdate({ kind: "status", run: () => api.updateOrder(id, status, photoUrl) });
-        return Promise.reject(new Error("Offline — queued for retry"));
+        queueUpdate({ kind: "status", run: () => api.updateOrder(vars.id, vars.status, vars.photoUrl) });
       }
-      return api.updateOrder(id, status, photoUrl);
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["rider-active"] });
@@ -1010,28 +1042,40 @@ export default function Active() {
         setProofPhoto(null);
         setProofFile(null);
         setProofFileName("");
-        setShowCancelConfirm(false);
         showToast(T("orderCancelledMsg"));
       } else {
         showToast(T("statusUpdated"));
       }
     },
     onError: (e: Error, vars) => {
-      if (e.message !== "Offline — queued for retry") {
-        showToast(e.message, true);
+      /* O5: If the request failed because the network truly was down, queue
+         it for retry. We rely on the failure rather than `navigator.onLine`. */
+      const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
+      if (looksLikeNetworkErr) {
+        queueUpdate({ kind: "status", run: () => api.updateOrder(vars.id, vars.status, vars.photoUrl) });
       }
+      /* O4: Translated message only — never raw server English. */
+      showToast(mapMutationError(e, T), true);
+    },
+    onSettled: () => {
+      /* O6: Always close the cancel-confirm modal once the mutation resolves
+         (success or failure). Previously the modal stayed open on error,
+         leaving a disabled button and no path forward without re-tap. */
+      setShowCancelConfirm(false);
     },
   });
 
   const updateRideMut = useMutation({
     mutationFn: ({ id, status, lat, lng }: { id: string; status: string; lat?: number; lng?: number }) => {
       const loc = lat != null && lng != null ? { lat, lng } : undefined;
+      return api.updateRide(id, status, loc);
+    },
+    onMutate: (vars) => {
       if (!navigator.onLine) {
         showToast("You're offline — update queued for retry", true);
-        queueUpdate({ kind: "status", run: () => api.updateRide(id, status, loc) });
-        return Promise.reject(new Error("Offline — queued for retry"));
+        const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
+        queueUpdate({ kind: "status", run: () => api.updateRide(vars.id, vars.status, loc) });
       }
-      return api.updateRide(id, status, loc);
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ["rider-active"] });
@@ -1040,11 +1084,19 @@ export default function Active() {
       qc.invalidateQueries({ queryKey: ["rider-requests"] });
       logRideEvent(vars.id, vars.status, (msg, isErr) => showToast(msg, isErr));
       if (vars.status === "completed") showToast(T("rideCompletedEarnings"));
-      else if (vars.status === "cancelled") { setShowCancelConfirm(false); showToast(T("rideCancelledMsg")); }
+      else if (vars.status === "cancelled") showToast(T("rideCancelledMsg"));
       else showToast(T("statusUpdated"));
     },
-    onError: (e: Error) => {
-      if (e.message !== "Offline — queued for retry") showToast(e.message, true);
+    onError: (e: Error, vars) => {
+      const looksLikeNetworkErr = /network|fetch|timeout|offline/i.test(e?.message || "");
+      if (looksLikeNetworkErr) {
+        const loc = vars.lat != null && vars.lng != null ? { lat: vars.lat, lng: vars.lng } : undefined;
+        queueUpdate({ kind: "status", run: () => api.updateRide(vars.id, vars.status, loc) });
+      }
+      showToast(mapMutationError(e, T), true);
+    },
+    onSettled: () => {
+      setShowCancelConfirm(false);
     },
   });
 

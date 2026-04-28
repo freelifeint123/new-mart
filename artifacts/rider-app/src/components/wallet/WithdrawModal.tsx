@@ -86,10 +86,44 @@ export default function WithdrawModal({
   }, []);
 
   const mut = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const m = selectedMethod!;
+      /* W1: Re-fetch wallet + min-balance immediately before the request leaves
+         the device. Another tab (or a manual server-side adjustment) may have
+         changed the balance between modal open and submit; relying on the
+         captured `balance`/`minPayout` props lets the rider submit a request
+         the server will reject. We bail with a translated error rather than
+         showing the raw 4xx, and recompute the cap consistently with the
+         modal's existing `amt > balance` guard. */
+      const amt = Number(amount);
+      try {
+        const [wallet, minBal] = await Promise.all([api.getWallet(), api.getMinBalance()]);
+        const w = wallet as { balance?: number | string } | null | undefined;
+        const liveBalance = Number(w?.balance ?? balance);
+        const liveMin = Number(minBal ?? minPayout);
+        if (amt < liveMin) {
+          throw new Error(`${T("minWithdrawalLabel")}: ${fc(liveMin)}`);
+        }
+        if (amt > liveBalance - liveMin) {
+          /* Reject if the request would drop us below the platform min-balance. */
+          throw new Error(T("enterValidAmount"));
+        }
+        if (amt > liveBalance) {
+          throw new Error(T("enterValidAmount"));
+        }
+      } catch (preflightErr) {
+        /* If the preflight fetch itself fails (offline, 5xx) we let the
+           withdraw submit go through — the server is the source of truth and
+           refusing here would block legitimate withdrawals on flaky networks.
+           But if the preflight surfaced a real validation error (Error thrown
+           above), bubble it up to onError. */
+        if (preflightErr instanceof Error && /label|valid/i.test(preflightErr.message)) {
+          throw preflightErr;
+        }
+        /* Otherwise swallow the preflight failure and proceed. */
+      }
       return api.withdrawWallet({
-        amount: Number(amount),
+        amount: amt,
         bankName: m.id === "bank" ? bankName : m.id,
         accountNumber: acNo, accountTitle: acName,
         paymentMethod: m.id, note,

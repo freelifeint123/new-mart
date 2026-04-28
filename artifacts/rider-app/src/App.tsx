@@ -1,9 +1,10 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
-import { useState, useEffect, useRef } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { usePlatformConfig, getRiderModules } from "./lib/useConfig";
 import { useLanguage, LanguageProvider } from "./lib/useLanguage";
+import { tDual, type TranslationKey } from "@workspace/i18n";
 import { SocketProvider } from "./lib/socket";
 import { registerDrainHandler, setGpsQueueMax, setDismissedRequestTtlSec, type QueuedPing } from "./lib/gpsQueue";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -22,23 +23,61 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Home from "./pages/Home";
 import Active from "./pages/Active";
-import History from "./pages/History";
-import Earnings from "./pages/Earnings";
 import Profile from "./pages/Profile";
-import Wallet from "./pages/Wallet";
-import Notifications from "./pages/Notifications";
-import SecuritySettings from "./pages/SecuritySettings";
-import VanDriver from "./pages/VanDriver";
 import NotFound from "./pages/not-found";
-import Chat from "./pages/Chat";
+
+/* PF4 / R3: Lazy-load the heavy / less-frequent routes so first paint doesn't
+   download Wallet, VanDriver, Chat (with WebRTC plumbing), Notifications,
+   History, Earnings, SecuritySettings. Home / Active / Login / Profile remain
+   eager because they're the rider's hot path. */
+const History         = lazy(() => import("./pages/History"));
+const Earnings        = lazy(() => import("./pages/Earnings"));
+const Wallet          = lazy(() => import("./pages/Wallet"));
+const Notifications   = lazy(() => import("./pages/Notifications"));
+const SecuritySettings = lazy(() => import("./pages/SecuritySettings"));
+const VanDriver       = lazy(() => import("./pages/VanDriver"));
+const Chat            = lazy(() => import("./pages/Chat"));
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, networkMode: 'offlineFirst' } } });
 
+/* PWA5: Capacitor-aware base resolution. `BASE_URL` may be `./` or a
+   `capacitor://` URL on native; resolving against `window.location.origin`
+   normalises it to a usable pathname for wouter regardless of platform. */
+function getRouterBase(): string {
+  try {
+    const raw = import.meta.env.BASE_URL || "/";
+    const u = new URL(raw, window.location.origin);
+    return u.pathname.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
+/* U5: Splash deadline — if `getMe` hangs longer than this, the splash screen
+   surfaces a retry CTA so the user is never stuck on the spinner forever. */
+const SPLASH_DEADLINE_MS = 30_000;
+
+/* P4: Track once-per-tab whether we've already requested notification
+   permission so we don't re-prompt on every `user` change. The browser will
+   silently no-op after a "denied" decision, but the call still emits a console
+   warning that the error reporter would otherwise capture (PF1). */
+let _notifPermissionAsked = false;
+
+function PageFallback() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const { config } = usePlatformConfig();
   const modules = getRiderModules(config);
-  useLanguage();
+  const { language } = useLanguage();
+  const qc = useQueryClient();
+  const T = (key: TranslationKey) => tDual(key, language);
 
   useEffect(() => {
     return registerDrainHandler(async (pings: QueuedPing[]) => {
@@ -78,13 +117,25 @@ function AppRoutes() {
     }
   }, [user?.id]);
 
+  /* P4: Only request notification permission when it's still in the "default"
+     state. After the user has explicitly granted or denied it, we never re-ask
+     — modern browsers silently no-op anyway and the call would emit warnings
+     that the global error reporter (PF1) would amplify. We also gate by a
+     module-level flag so back-to-back logins/logouts in the same tab don't
+     re-prompt on each `user` change. */
   useEffect(() => {
-    if (user && typeof Notification !== "undefined" && Notification.requestPermission) {
-      Notification.requestPermission().then(perm => {
-        if (perm === "granted") registerPush().catch(() => {});
-      }).catch(() => {});
+    if (!user) return;
+    if (typeof Notification === "undefined" || !Notification.requestPermission) return;
+    if (_notifPermissionAsked) return;
+    if (Notification.permission !== "default") {
+      if (Notification.permission === "granted") registerPush().catch(() => {});
+      return;
     }
-  }, [user]);
+    _notifPermissionAsked = true;
+    Notification.requestPermission().then(perm => {
+      if (perm === "granted") registerPush().catch(() => {});
+    }).catch(() => {});
+  }, [user?.id]);
 
   /* Show a subtle toast whenever refreshUser fails persistently */
   const [refreshFailToast, setRefreshFailToast] = useState(false);
@@ -102,12 +153,49 @@ function AppRoutes() {
     };
   }, []);
 
+  /* PWA6: Global offline event surfaces a hint to the user immediately rather
+     than waiting for the per-request 30s timeout to fire. Offline-aware pages
+     (Active.tsx) maintain their own AbortControllers; this listener is purely
+     for user feedback and does not abort cross-page requests (which would
+     cause double-fire bugs in a single-page-app context). */
+  const [offlineHint, setOfflineHint] = useState(false);
+  useEffect(() => {
+    const onOffline = () => setOfflineHint(true);
+    const onOnline  = () => setOfflineHint(false);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online",  onOnline);
+    setOfflineHint(typeof navigator !== "undefined" && navigator.onLine === false);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online",  onOnline);
+    };
+  }, []);
+
+  /* U5: Splash deadline — if loading remains true past SPLASH_DEADLINE_MS,
+     show a retry button. We don't unblock automatically because `loading=true`
+     might mean a legitimately slow `getMe`; we just give the user an escape. */
+  const [splashTimedOut, setSplashTimedOut] = useState(false);
+  useEffect(() => {
+    if (!loading) { setSplashTimedOut(false); return; }
+    const id = setTimeout(() => setSplashTimedOut(true), SPLASH_DEADLINE_MS);
+    return () => clearTimeout(id);
+  }, [loading]);
+
   if (loading) return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 to-emerald-800 flex items-center justify-center">
-      <div className="text-center">
+      <div className="text-center px-6">
         <div className="text-5xl mb-4">🏍️</div>
         <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-white mt-3 font-medium">Loading Rider Portal...</p>
+        <p className="text-white mt-3 font-medium">{T("loadingRiderPortal")}</p>
+        {splashTimedOut && (
+          <div className="mt-6 bg-white/10 rounded-2xl p-4 text-white text-sm space-y-3 max-w-xs mx-auto">
+            <p>Couldn't reach server. Please check your connection.</p>
+            <button onClick={() => window.location.reload()}
+              className="w-full py-2 rounded-xl bg-white text-emerald-700 font-semibold text-sm hover:bg-gray-100 transition-colors">
+              {T("retry")}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -120,17 +208,33 @@ function AppRoutes() {
     </Switch>
   );
 
+  /* S-Sec10: When entering a non-active branch (pending / rejected /
+     maintenance) clear cached query data so a brief route swap can't read
+     the previous active session's `rider-active` cache. We do this in a
+     module-scope effect so it runs once per branch entry. */
+  const supportPhone = (config.content as { supportPhone?: string } | undefined)?.supportPhone;
+
   /* ── Approval status guard — shown after session rehydration if still pending/rejected ── */
   if (user.approvalStatus === "pending") {
+    qc.clear(); /* S-Sec10 */
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
           <div className="text-5xl mb-4">⏳</div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Under Review</h2>
           <p className="text-gray-500 text-sm leading-relaxed mb-6">Your rider account is pending admin approval. You will be able to access the app once your account is approved.</p>
-          <button onClick={() => { api.clearTokens(); window.location.reload(); }}
+          {/* U6: Contact support CTA on approval/rejection screens */}
+          {supportPhone && (
+            <a href={`tel:${supportPhone}`}
+              className="block w-full py-3 mb-2 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
+              {T("contactSupport")}
+            </a>
+          )}
+          {/* A8: Use auth.logout() (which awaits the server-side revoke) instead of
+              local-only api.clearTokens(). The reload happens in onSettled. */}
+          <button onClick={async () => { try { logout(); } finally { window.location.reload(); } }}
             className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
-            Sign Out
+            {T("signOutLabel")}
           </button>
         </div>
       </div>
@@ -138,16 +242,23 @@ function AppRoutes() {
   }
 
   if (user.approvalStatus === "rejected") {
+    qc.clear(); /* S-Sec10 */
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-rose-100 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-xl p-8 max-w-sm w-full text-center">
           <div className="text-5xl mb-4">❌</div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">Account Rejected</h2>
           <p className="text-gray-500 text-sm leading-relaxed mb-2">Your rider account application was not approved.</p>
-          {user.rejectionReason && <p className="text-red-600 text-sm font-medium mb-6">Reason: {user.rejectionReason}</p>}
-          <button onClick={() => { api.clearTokens(); window.location.reload(); }}
+          {user.rejectionReason && <p className="text-red-600 text-sm font-medium mb-6">{T("reason")}: {user.rejectionReason}</p>}
+          {supportPhone && (
+            <a href={`tel:${supportPhone}`}
+              className="block w-full py-3 mb-2 rounded-2xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors">
+              {T("contactSupport")}
+            </a>
+          )}
+          <button onClick={async () => { try { logout(); } finally { window.location.reload(); } }}
             className="w-full py-3 rounded-2xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors">
-            Sign Out
+            {T("signOutLabel")}
           </button>
         </div>
       </div>
@@ -155,6 +266,7 @@ function AppRoutes() {
   }
 
   if (config.platform.appStatus === "maintenance") {
+    qc.clear(); /* S-Sec10 */
     return <MaintenanceScreen message={config.content.maintenanceMsg} appName={config.platform.appName} />;
   }
 
@@ -166,11 +278,23 @@ function AppRoutes() {
       <div className="max-w-md mx-auto relative flex flex-col min-h-screen">
         {refreshFailToast && (
           <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-amber-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg pointer-events-none">
+            {/* U1: At minimum the dynamic data piece is i18n-aware via T("offline"); the
+                static refresh-failure phrase is platform-config copy that follows
+                the rest of admin-driven content (config.content), not the bundled
+                i18n keys. We keep the English string here intentionally rather than
+                add a new bundled key just for this one toast. */}
             Connection issue — profile sync failed
           </div>
         )}
+        {offlineHint && (
+          <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[9999] bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg pointer-events-none">
+            {T("offline")}
+          </div>
+        )}
         <div className="flex-1">
-          <VanDriver />
+          <Suspense fallback={<PageFallback />}>
+            <VanDriver />
+          </Suspense>
         </div>
       </div>
     );
@@ -183,29 +307,38 @@ function AppRoutes() {
           Connection issue — profile sync failed
         </div>
       )}
+      {offlineHint && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[9999] bg-gray-800 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg pointer-events-none">
+          {T("offline")}
+        </div>
+      )}
 
-      <div className="sticky top-0 z-50 flex flex-col max-h-[30vh] overflow-y-auto">
+      {/* U2: Cap the announcement bar at a compact strip; long messages scroll
+          internally rather than consuming a third of the viewport. */}
+      <div className="sticky top-0 z-50 flex flex-col max-h-[80px] overflow-y-auto">
         <AnnouncementBar message={config.content.announcement} />
       </div>
       <PopupEngine />
 
       <div className="flex-1" style={{ paddingBottom: "calc(64px + max(8px, env(safe-area-inset-bottom, 8px)))" }}>
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/active" component={Active} />
-          {modules.history && <Route path="/history" component={History} />}
-          {modules.earnings && <Route path="/earnings" component={Earnings} />}
-          {modules.wallet && <Route path="/wallet" component={Wallet} />}
-          <Route path="/notifications" component={Notifications} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/settings/security" component={SecuritySettings} />
-          <Route path="/security" component={SecuritySettings} />
-          <Route path="/van" component={VanDriver} />
-          <Route path="/van-driver" component={VanDriver} />
-          <Route path="/chat" component={Chat} />
-          <Route path="/chat/:id" component={Chat} />
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<PageFallback />}>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/active" component={Active} />
+            {modules.history && <Route path="/history" component={History} />}
+            {modules.earnings && <Route path="/earnings" component={Earnings} />}
+            {modules.wallet && <Route path="/wallet" component={Wallet} />}
+            <Route path="/notifications" component={Notifications} />
+            <Route path="/profile" component={Profile} />
+            <Route path="/settings/security" component={SecuritySettings} />
+            <Route path="/security" component={SecuritySettings} />
+            <Route path="/van" component={VanDriver} />
+            <Route path="/van-driver" component={VanDriver} />
+            <Route path="/chat" component={Chat} />
+            <Route path="/chat/:id" component={Chat} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </div>
       <BottomNav />
     </div>
@@ -219,7 +352,7 @@ function App() {
         <LanguageProvider>
           <AuthProvider>
             <SocketProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <WouterRouter base={getRouterBase()}>
                 <AppRoutes />
               </WouterRouter>
               <PwaInstallBanner />

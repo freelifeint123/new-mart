@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, type AuthUser } from "../lib/auth";
 import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig, getRiderAuthConfig } from "../lib/useConfig";
@@ -46,6 +47,10 @@ async function getCaptchaToken(enabled: boolean, siteKey: string | undefined, ac
 
 export default function Login() {
   const { login, setTwoFactorPending: setGlobalTwoFaPending } = useAuth();
+  /* A7: Need direct access to clear cached query data before storing new
+     tokens after 2FA. Imported here so finalize2fa can purge the previous
+     user's cache atomically. */
+  const queryClient = useQueryClient();
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
@@ -250,25 +255,38 @@ export default function Login() {
     setLoading(false);
   };
 
+  /* A5 / S-Sec9: Magic-link verification.
+     - Validate token format BEFORE calling backend (S-Sec9): reject anything
+       outside the safe URL-token charset/length to avoid 10MB header surprises
+       and weird control characters.
+     - Use a useRef latch so the effect runs at most once, eliminating the
+       stale-closure problem that occurred when doLogin captured pre-config
+       defaults on a slow first render (the original deps `[login, navigate,
+       setGlobalTwoFaPending]` did not cover doLogin / T / auth.lockoutEnabled). */
+  const magicLinkRanRef = useRef(false);
   useEffect(() => {
+    if (magicLinkRanRef.current) return;
     const params = new URLSearchParams(window.location.search);
     const magicToken = params.get("magic_token");
-    if (magicToken) {
-      setLoading(true);
-      api.magicLinkVerify({ token: magicToken })
-        .then(async (res: AuthResponse) => {
-          await doLogin(res);
-          /* Clean up token from URL only AFTER login resolves successfully */
-          window.history.replaceState({}, "", window.location.pathname);
-        })
-        .catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : T("loginFailed"));
-          /* Still clean up the URL on failure to prevent retry loops */
-          window.history.replaceState({}, "", window.location.pathname);
-        })
-        .finally(() => setLoading(false));
+    if (!magicToken) return;
+    magicLinkRanRef.current = true;
+    if (!/^[A-Za-z0-9._-]{16,512}$/.test(magicToken)) {
+      setError(T("loginFailed"));
+      window.history.replaceState({}, "", window.location.pathname);
+      return;
     }
-  }, [login, navigate, setGlobalTwoFaPending]);
+    setLoading(true);
+    api.magicLinkVerify({ token: magicToken })
+      .then(async (res: AuthResponse) => {
+        await doLogin(res);
+        window.history.replaceState({}, "", window.location.pathname);
+      })
+      .catch((e: unknown) => {
+        setError(e instanceof Error ? e.message : T("loginFailed"));
+        window.history.replaceState({}, "", window.location.pathname);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!lockoutUntil) return;
@@ -291,9 +309,15 @@ export default function Login() {
   const checkRiderRole = (res: AuthResponse): boolean => {
     const roles = (res.user?.roles || res.user?.role || "").split(",").map((r: string) => r.trim());
     if (!roles.includes("rider")) {
+      /* A9: Revoke server-side BEFORE clearing local tokens. We deliberately
+         await api.logout() (which uses the just-stored bearer to authenticate
+         the revocation, then clearTokens() in its finally). Errors are
+         logged in dev but never surfaced — the local clearTokens has run
+         either way, so the rider is signed out client-side regardless. */
       api.storeTokens(res.token, res.refreshToken);
-      apiFetch("/auth/logout", { method: "POST", body: "{}" }).catch(() => {});
-      api.clearTokens();
+      void api.logout(res.refreshToken).catch((err: Error) => {
+        if (import.meta.env.DEV) console.warn("[Login] Server logout for non-rider failed:", err.message);
+      });
       setError(T("accessDenied"));
       return false;
     }
@@ -513,10 +537,13 @@ export default function Login() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    if (step === "input" && method === "google") { handleSocialGoogle(); }
-    if (step === "input" && method === "facebook") { handleSocialFacebook(); }
-  }, [step, method]);
+  /* A4 / S-Sec8: Auto-firing the social SDK from a useEffect violates the
+     user-gesture requirement of GSI / FB SDK in some browsers AND can loop on
+     failure (popup blocker → handleAuthError doesn't change step/method →
+     next render re-fires). Social login is now triggered exclusively from the
+     button onClick handlers (handleSocialGoogle / handleSocialFacebook) which
+     are already wired up by the buttons rendered below. The previous effect
+     was the only auto-trigger and is now removed. */
 
   const finalize2fa = useCallback(async (res: Record<string, unknown>, tempToken: string) => {
     const finalToken = (res.token as string) || tempToken;
@@ -524,6 +551,11 @@ export default function Login() {
     const postRes: AuthResponse = { ...res, token: finalToken, refreshToken: refreshTk };
     if (!checkRiderRole(postRes)) { setGlobalTwoFaPending(false); return; }
     if (postRes.pendingApproval) { setStep("pending"); setGlobalTwoFaPending(false); return; }
+    /* A7: Clear the React Query cache BEFORE storing the new tokens so a
+       route swap between storeTokens and login() can never read the previous
+       user's cached query data. (login() also clears the cache, but the
+       window between storeTokens and login is exactly what the bug reports.) */
+    queryClient.clear();
     api.storeTokens(finalToken, refreshTk);
     let profile;
     try {

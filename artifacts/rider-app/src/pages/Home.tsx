@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "wouter";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
@@ -504,8 +504,19 @@ export default function Home() {
     };
   }, [user?.isOnline, hasActiveTask, user?.id]);
 
-  const orders = allOrders.filter((o: any) => !dismissed.has(o.id));
-  const rides = allRides.filter((r: any) => !dismissed.has(r.id));
+  /* PF5: Memoize the filtered request lists so unrelated re-renders (e.g.
+     typing into a controlled input on Home, GPS-driven `setGpsWarning`
+     updates) don't re-allocate these arrays and force every request card to
+     re-render. The dismissed set is a stable identity within React state, so
+     including it as a dep is correct. T2: typed callbacks instead of `any`. */
+  const orders = useMemo(
+    () => allOrders.filter((o: Order) => !dismissed.has(o.id)),
+    [allOrders, dismissed],
+  );
+  const rides = useMemo(
+    () => allRides.filter((r: Ride) => !dismissed.has(r.id)),
+    [allRides, dismissed],
+  );
   const totalRequests = orders.length + rides.length;
 
   const dismiss = useCallback(
@@ -542,12 +553,20 @@ export default function Home() {
     }
   };
 
-  /* Mutations — invalidate rider-requests on both success and error to prevent ghost cards */
+  /* O2: Order/Ride accept mutations.
+     - We invalidate `rider-requests` in `onSettled` so both the win path
+       (server returns the order) and the loss path (409 race / "already
+       taken") trigger a refetch from a single place. The previous code
+       invalidated in `onError` and `onSuccess` separately, which meant the
+       409 race could briefly show a "ghost" accepted card before the refetch
+       completed.
+     - We never navigate to /active from here; the rider's BottomNav handles
+       routing. This avoids the original bug where the loser of a race
+       navigated to /active and saw a 404. */
   const acceptOrderMut = useMutation({
     mutationFn: (id: string) => api.acceptOrder(id),
     onSuccess: () => {
       stopRequestSoundIfEmpty();
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       showToast("Order accepted! Check Active tab.", "success");
     },
@@ -562,6 +581,8 @@ export default function Home() {
       } else {
         showToast(e.message || "Could not accept order. Please try again.", "error");
       }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["rider-requests"] });
     },
   });
@@ -583,7 +604,6 @@ export default function Home() {
     mutationFn: (id: string) => api.acceptRide(id),
     onSuccess: (_: any, id: string) => {
       stopRequestSoundIfEmpty();
-      qc.invalidateQueries({ queryKey: ["rider-requests"] });
       qc.invalidateQueries({ queryKey: ["rider-active"] });
       logRideEvent(id, "accepted", (msg, isErr) =>
         showToast(msg, isErr ? "error" : "success"),
@@ -601,6 +621,8 @@ export default function Home() {
       } else {
         showToast(e.message || "Could not accept ride. Please try again.", "error");
       }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["rider-requests"] });
     },
   });

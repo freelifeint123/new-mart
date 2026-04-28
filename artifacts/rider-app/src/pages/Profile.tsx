@@ -286,7 +286,11 @@ export default function Profile() {
     setEditing(null);
   };
 
-  /* Re-sync form fields when user data updates from server (e.g. after refreshUser) */
+  /* P1: Re-sync form fields when user data updates from server (e.g. after refreshUser).
+     The `editing` flag must be in the deps because flipping it from a section
+     name back to `null` (e.g. cancelling an edit) needs to reset the form to
+     the server values, even if the `user` reference hasn't changed since open.
+     Without this, typed-but-cancelled text leaks into the next edit session. */
   useEffect(() => {
     if (!editing) {
       setName(user?.name || "");
@@ -303,7 +307,7 @@ export default function Profile() {
       setBankAccount(user?.bankAccount || "");
       setBankAccountTitle(user?.bankAccountTitle || "");
     }
-  }, [user]);
+  }, [user, editing]);
 
   const saveSection = async (section: EditSection) => {
     setSaving(true);
@@ -331,7 +335,23 @@ export default function Profile() {
             return;
           }
         }
-        Object.assign(payload, { name: name.trim(), email: email.trim(), cnic: cnic.trim(), city, address, emergencyContact: emergency });
+        /* P2: Only send keys whose trimmed value is non-empty. Backend
+           validators commonly accept `null`/missing for optional fields but
+           reject `""` (CNIC and email are both like that). Cleared fields
+           used to bounce the entire save with a confusing validation error. */
+        const trimmedName = name.trim();
+        const trimmedEmail = email.trim();
+        const trimmedCnic = cnic.trim();
+        const trimmedAddress = (address ?? "").trim();
+        const trimmedEmergency = (emergency ?? "").trim();
+        Object.assign(payload, {
+          ...(trimmedName ? { name: trimmedName } : {}),
+          ...(trimmedEmail ? { email: trimmedEmail } : {}),
+          ...(trimmedCnic ? { cnic: trimmedCnic } : {}),
+          ...(city ? { city } : {}),
+          ...(trimmedAddress ? { address: trimmedAddress } : {}),
+          ...(trimmedEmergency ? { emergencyContact: trimmedEmergency } : {}),
+        });
       }
       if (section === "vehicle")  Object.assign(payload, { vehicleType, vehiclePlate, vehicleRegNo, drivingLicense });
       if (section === "bank") {

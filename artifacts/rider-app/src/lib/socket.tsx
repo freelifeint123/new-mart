@@ -60,11 +60,22 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     s.on("disconnect", () => setConnected(false));
     s.on("connect_error", () => setConnected(false));
 
-    /* S1: On token refresh, reconnect socket to send new auth token (COMPLETED) */
+    /* S1 / T4: On token refresh, reconnect the socket so the new auth token
+       is sent on the next handshake. socket.io's typings model `auth` as
+       `string | object`, so we narrow once via a typed local rather than
+       re-casting at every read site. The cast is kept inside one helper so a
+       future socket.io upgrade only needs to delete this block. */
+    type AuthBag = { token?: string };
+    const readSocketAuth = (): AuthBag => {
+      const a = (s as { auth?: unknown }).auth;
+      return (a && typeof a === "object" ? (a as AuthBag) : {}) as AuthBag;
+    };
+    const writeSocketAuth = (next: AuthBag) => { (s as { auth?: unknown }).auth = next; };
     const tokenRefreshInterval = setInterval(async () => {
       const freshToken = api.getToken();
-      if (freshToken && freshToken !== (s.auth as { token?: string })?.token) {
-        (s.auth as { token?: string }).token = freshToken;
+      const current = readSocketAuth().token;
+      if (freshToken && freshToken !== current) {
+        writeSocketAuth({ ...readSocketAuth(), token: freshToken });
         /* Reconnect to send new token on next handshake */
         s.disconnect();
         s.connect();

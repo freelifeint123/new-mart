@@ -7,6 +7,11 @@ import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "../components/PullToRefresh";
 import WithdrawModal from "../components/wallet/WithdrawModal";
+/* W3: Each wallet modal owns its own state and is conditionally mounted —
+   we ensure that flipping `showWithdraw`/`showDeposit`/`showRemittance` to
+   false unmounts the modal so its `useState` defaults reset on next open.
+   The render below already does this via `{showWithdraw && <WithdrawModal …>}`
+   guards, so reopening the modal yields a fresh instance with empty inputs. */
 import RemittanceModal from "../components/wallet/RemittanceModal";
 import DepositModal from "../components/wallet/DepositModal";
 import {

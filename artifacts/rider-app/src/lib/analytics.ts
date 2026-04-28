@@ -13,10 +13,15 @@ declare global {
 
 let _platform = "";
 let _ready = false;
+/* S-Sec6: Persist the GA4 / Mixpanel tracking ID so identifyUser can pass it
+   to gtag("config", id, …). Previously gtag was called with `undefined` which
+   silently no-oped — the rider's GA4 user_id was never associated. */
+let _trackingId = "";
 
 export function initAnalytics(platform: string, trackingId: string, debug: boolean): void {
   if (!trackingId || _ready) return;
   _platform = platform;
+  _trackingId = trackingId;
   _ready = true;
 
   if (platform === "ga4" || platform === "google_analytics") {
@@ -62,7 +67,10 @@ export function trackPageView(path: string): void {
 export function identifyUser(id: string): void {
   if (!_ready) return;
   if (_platform === "mixpanel") window.mixpanel?.identify(id);
-  else if (typeof window.gtag === "function") window.gtag("config", undefined, { user_id: id });
+  else if (typeof window.gtag === "function" && _trackingId) {
+    /* S-Sec6: Pass the cached tracking ID instead of `undefined`. */
+    window.gtag("config", _trackingId, { user_id: id });
+  }
 }
 
 export function resetUser(): void {

@@ -44,8 +44,17 @@ export function setDismissedRequestTtlSec(sec: number): void {
   if (Number.isFinite(sec) && sec > 0) DISMISSED_TTL_MS = Math.min(sec, 86_400) * 1000;
 }
 
+/* G3/PF6: Memoize a single IDBDatabase across all callers. Per-call open()
+   is wasteful (hundreds of structured-clone handshakes per ride) and serializes
+   drain passes behind upgrade transactions. We hold one connection open for
+   the lifetime of the tab; if the connection is forcibly closed (versionchange,
+   eviction), we reset the cached promise so the next call reopens cleanly.
+   IMPORTANT: callers must NOT close this DB after each transaction. */
+let _dbPromise: Promise<IDBDatabase> | null = null;
+
 function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VER);
     req.onupgradeneeded = (event) => {
       const db = req.result;
@@ -68,9 +77,15 @@ function openDB(): Promise<IDBDatabase> {
         reject(e);
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror   = () => reject(req.error);
-  });
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onclose = () => { _dbPromise = null; };
+      db.onversionchange = () => { try { db.close(); } catch {} _dbPromise = null; };
+      resolve(db);
+    };
+    req.onerror = () => { _dbPromise = null; reject(req.error); };
+  }).catch((err) => { _dbPromise = null; throw err; });
+  return _dbPromise;
 }
 
 export async function enqueue(ping: QueuedPing): Promise<void> {
@@ -80,9 +95,10 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
       const countReq = store.count();
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-      tx.onabort = () => { db.close(); reject(tx.error); };
+      /* G3/PF6: Cached connection — do NOT call db.close() in tx callbacks. */
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
       countReq.onsuccess = () => {
         if (countReq.result >= _maxQueueSize) {
           const idx = store.index("timestamp");
@@ -90,8 +106,11 @@ export async function enqueue(ping: QueuedPing): Promise<void> {
           cursorReq.onsuccess = () => {
             const cursor = cursorReq.result;
             if (cursor) {
-              cursor.delete();
-              store.put(ping);
+              /* G2: Wait for delete to complete before put — sequencing
+                 these in the same onsuccess broke older Firefox builds. */
+              const delReq = cursor.delete();
+              delReq.onsuccess = () => { store.put(ping); };
+              delReq.onerror = () => tx.abort();
             } else {
               tx.abort();
             }
@@ -116,7 +135,6 @@ export async function dequeueAll(): Promise<QueuedPing[]> {
       const req = index.getAll();
       req.onsuccess = () => resolve((req.result ?? []) as QueuedPing[]);
       req.onerror   = () => reject(req.error);
-      tx.oncomplete = () => db.close();
     });
   } catch { return []; }
 }
@@ -129,7 +147,7 @@ export async function clearQueue(ids: string[]): Promise<void> {
       const tx = db.transaction(STORE, "readwrite");
       const store = tx.objectStore(STORE);
       ids.forEach(id => store.delete(id));
-      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.oncomplete = () => resolve();
       tx.onerror    = () => reject(tx.error);
     });
   } catch {}
@@ -144,7 +162,6 @@ export async function queueSize(): Promise<number> {
       const req = store.count();
       req.onsuccess = () => resolve(req.result);
       req.onerror   = () => reject(req.error);
-      tx.oncomplete = () => db.close();
     });
   } catch { return 0; }
 }
@@ -160,8 +177,8 @@ export async function addDismissed(id: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).put(entry);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror    = () => { db.close(); reject(tx.error); };
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
     });
   } catch {}
 }
@@ -172,8 +189,8 @@ export async function removeDismissed(id: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).delete(id);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror    = () => { db.close(); reject(tx.error); };
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
     });
   } catch {}
 }
@@ -187,7 +204,6 @@ export async function loadDismissed(): Promise<Set<string>> {
       const req = tx.objectStore(DISMISSED).getAll();
       req.onsuccess = () => resolve((req.result ?? []) as DismissedEntry[]);
       req.onerror   = () => reject(req.error);
-      tx.oncomplete = () => db.close();
     });
     const valid = entries.filter(e => e.expiresAt > now);
     const expired = entries.filter(e => e.expiresAt <= now);
@@ -207,8 +223,8 @@ async function purgeExpiredDismissed(ids: string[]): Promise<void> {
       const tx = db.transaction(DISMISSED, "readwrite");
       const store = tx.objectStore(DISMISSED);
       ids.forEach(id => store.delete(id));
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror    = () => { db.close(); reject(tx.error); };
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
     });
   } catch {}
 }
@@ -228,8 +244,8 @@ export async function clearAllDismissed(): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(DISMISSED, "readwrite");
       tx.objectStore(DISMISSED).clear();
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror    = () => { db.close(); reject(tx.error); };
+      tx.oncomplete = () => resolve();
+      tx.onerror    = () => reject(tx.error);
     });
   } catch {}
 }
@@ -275,8 +291,15 @@ async function drainQueue(): Promise<void> {
           err.spoofDetected === true;
         if (isSpoofRejection) {
           await clearQueue(chunk.map(p => p.id));
+          continue;
         }
-        break;
+        /* G1: For non-spoof transient failures (network/5xx), keep the rest of
+           the queue in IDB for the next online event but do NOT abandon the
+           remaining chunks of this drain pass — they are independent batches
+           and may succeed where the failed one didn't. We intentionally
+           continue rather than break, and the failed chunk is left in IDB
+           because we never called clearQueue() for it. */
+        continue;
       }
     }
   } catch { /* drain failed — will retry next online event */ }
