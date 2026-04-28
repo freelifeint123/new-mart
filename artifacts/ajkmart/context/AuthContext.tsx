@@ -139,13 +139,24 @@ function decodeJwtExp(tok: string): number | null {
   try {
     const parts = tok.split(".");
     if (parts.length !== 3) return null;
-    const b64 = (parts[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    
+    // Normalize base64url to base64
+    const b64Padded = (parts[1] ?? "")
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd((parts[1]?.length ?? 0) + ((4 - ((parts[1]?.length ?? 0) % 4)) % 4), "=");
+    
     let jsonStr: string;
     if (typeof atob === "function") {
-      jsonStr = atob(b64);
+      // UTF-8 safe decode: atob returns Latin-1, decode via TextDecoder
+      const bytes = new Uint8Array(atob(b64Padded).split("").map(c => c.charCodeAt(0)));
+      const decoder = new TextDecoder();
+      jsonStr = decoder.decode(bytes);
     } else {
-      jsonStr = Buffer.from(b64, "base64").toString("binary");
+      // Node.js fallback
+      jsonStr = Buffer.from(b64Padded, "base64").toString("utf8");
     }
+    
     const payload = JSON.parse(jsonStr);
     return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
@@ -165,6 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [socketState, setSocketState] = useState<Socket | null>(null);
   const { syncToServer, setAuthToken } = useLanguage();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshFailCountRef = useRef(0);
+  const REFRESH_FAIL_CAP = 6;
 
   /* FIX 4: Refs so callbacks always see the latest user/token without stale closure */
   const userRef  = useRef<AppUser | null>(null);
@@ -184,19 +197,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshingRef = useRef(false);
 
-  const scheduleProactiveRefresh = (tok: string) => {
+  const scheduleProactiveRefresh = (tok: string, backoffMs?: number) => {
     clearRefreshTimer();
     const exp = decodeJwtExp(tok);
     if (!exp) return;
     const expiresAt = exp * 1000;
-    const refreshIn = Math.max((expiresAt - Date.now()) - 60_000, 10_000);
+    
+    // If no backoff specified, use time until expiry minus 1min buffer (min 10s)
+    let refreshIn = backoffMs ?? Math.max((expiresAt - Date.now()) - 60_000, 10_000);
+    
     refreshTimerRef.current = setTimeout(async () => {
       if (refreshingRef.current) return;
       refreshingRef.current = true;
       try {
         const refreshToken = await secureGet(REFRESH_TOKEN_KEY);
         if (!refreshToken) {
-          /* FIX 4: Use ref so we always call the latest doLogout */
+          /* Use ref so we always call the latest doLogout */
           await doLogoutRef.current();
           return;
         }
@@ -207,14 +223,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({ refreshToken }),
         });
         if (!res.ok) {
-          await doLogoutRef.current();
+          refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
+          if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+            await doLogoutRef.current();
+            return;
+          }
+          // Exponential backoff: 60s * 2^n, capped at 15 minutes
+          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+          scheduleProactiveRefresh(tok, backoff);
           return;
         }
         const data = await res.json() as { token?: string; refreshToken?: string };
         if (!data.token) {
-          await doLogoutRef.current();
+          refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
+          if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+            await doLogoutRef.current();
+            return;
+          }
+          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+          scheduleProactiveRefresh(tok, backoff);
           return;
         }
+        
+        // Success: reset failure count
+        refreshFailCountRef.current = 0;
+        
         const meRes = await fetch(`${base}/api/users/profile`, {
           headers: { Authorization: `Bearer ${data.token}` },
         });
@@ -232,8 +265,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         setAuthTokenGetter(() => data.token!);
         scheduleProactiveRefresh(data.token!);
-      } catch {
-        await doLogoutRef.current();
+      } catch (error) {
+        refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
+        if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
+          await doLogoutRef.current();
+          return;
+        }
+        const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+        scheduleProactiveRefresh(tok, backoff);
       } finally {
         refreshingRef.current = false;
       }

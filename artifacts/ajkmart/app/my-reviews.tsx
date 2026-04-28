@@ -36,7 +36,7 @@ function useFetch<T>(url: string, token: string | null) {
     try {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error(`Error ${r.status}`);
-      const json = unwrapApiResponse(await r.json());
+      const json = unwrapApiResponse<T>(await r.json());
       setData(json);
     } catch (e: any) {
       setError(e.message || "Failed to load");

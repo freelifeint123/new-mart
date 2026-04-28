@@ -316,7 +316,8 @@ function DeepLinkHandler() {
     const handleDeepLink = (url: string) => {
       try {
         const parsed = new URL(url);
-        const path = parsed.hostname || parsed.pathname.replace(/^\//, "");
+        const rawPath = parsed.pathname.replace(/^\//, "");
+        const path = rawPath.split("/")[0] || parsed.hostname || "";
 
         if (path === "magic-link" || path === "auth") return;
 
@@ -363,6 +364,8 @@ function DeepLinkHandler() {
         if (path === "promo" && params.code) {
           targetPath = `/offers?code=${encodeURIComponent(params.code)}`;
         }
+
+        if (!targetPath.startsWith("/")) return;
 
         setTimeout(() => {
           try {

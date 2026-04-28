@@ -25,7 +25,7 @@ export function AuthGateSheet({ visible, onClose, returnTo, message }: AuthGateS
   const T = (key: TranslationKey) => tDual(key, language);
   const handleSignIn = async () => {
     onClose();
-    if (returnTo) {
+    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//") && !returnTo.includes("://")) {
       await AsyncStorage.setItem("@ajkmart_auth_return_to", returnTo);
     }
     router.push("/auth" as Href);

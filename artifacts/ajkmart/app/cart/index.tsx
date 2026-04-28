@@ -446,6 +446,7 @@ function CartScreenInner() {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoLoading, setPromoLoading] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [promoApplied, setPromoApplied] = useState(false);
 
   const [availableOffers, setAvailableOffers] = useState<CartAvailableOffer[]>([]);
@@ -598,10 +599,10 @@ function CartScreenInner() {
   useEffect(() => {
     fetch(`${API_BASE}/platform-config`)
       .then(r => r.json())
-      .then(unwrapApiResponse)
+      .then(d => unwrapApiResponse<{ payment?: { methods: PaymentMethodRaw[] } }>(d))
       .then(d => {
         if (d.payment?.methods) {
-          const methods: PaymentMethod[] = (d as PaymentMethodsApiResponse).payment.methods.map((m: PaymentMethodRaw) => ({
+          const methods: PaymentMethod[] = d.payment.methods.map((m: PaymentMethodRaw) => ({
             id: m.id as PayMethod, label: m.label, logo: m.logo ?? "",
             available: m.available ?? true, description: m.description ?? "", mode: m.mode,
           }));
@@ -704,7 +705,7 @@ function CartScreenInner() {
     setAddrLoading(true);
     fetch(`${API_BASE}/addresses`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       .then(r => r.json())
-      .then(unwrapApiResponse)
+      .then(d => unwrapApiResponse<{ addresses?: SavedAddress[] }>(d))
       .then(d => {
         const addrs: SavedAddress[] = d.addresses || [];
         setAddresses(prev => {
@@ -767,7 +768,7 @@ function CartScreenInner() {
         signal: controller.signal,
       });
       if (!mountedRef.current || seq !== promoRevalidateSeq.current) return;
-      const data = unwrapApiResponse(await res.json());
+      const data = unwrapApiResponse<{ valid?: boolean; discount?: number; error?: string }>(await res.json());
       if (!mountedRef.current || seq !== promoRevalidateSeq.current) return;
       if (data.valid) {
         setPromoDiscount(data.discount);
@@ -799,7 +800,7 @@ function CartScreenInner() {
       const res = await fetch(`${API_BASE}/orders/validate-promo?code=${encodeURIComponent(code)}&total=${total}&type=${orderType}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const data = unwrapApiResponse(await res.json());
+      const data = unwrapApiResponse<{ valid?: boolean; discount?: number; error?: string }>(await res.json());
       if (data.valid) {
         setPromoCode(code);
         setPromoDiscount(data.discount);
@@ -852,6 +853,9 @@ function CartScreenInner() {
   };
 
   const placeOrder = async (finalPayMethod: PayMethod, uploadedProofUrl?: string, uploadedTxnRef?: string) => {
+    // Prevent duplicate submissions
+    if (isSubmittingOrder) return;
+    
     if (!user) {
       requireAuth(() => {}, { message: "Sign in to place your order", returnTo: "/cart" });
       return;
@@ -860,6 +864,9 @@ function CartScreenInner() {
       requireCustomerRole(() => {});
       return;
     }
+    
+    setIsSubmittingOrder(true);
+    try {
     const MAX_RETRIES = 3;
     let lastError: Error | null = null;
     let order: OrderResponse | null = null;
@@ -882,13 +889,13 @@ function CartScreenInner() {
         };
         const payload: CartCreateOrderPayload = {
           userId: user?.id ?? "",
-          type: (cartType === "mixed" ? "mart" : cartType) as "mart" | "food" | "pharmacy",
+          type: (cartType === "mixed" ? "mart" : cartType) as "mart" | "food" | "pharmacy" | "parcel",
           items: items.map(i => ({
             productId: i.productId, name: i.name,
             price: i.price, quantity: i.quantity, image: i.image,
           })),
           deliveryAddress: deliveryLine,
-          paymentMethod: finalPayMethod,
+          paymentMethod: finalPayMethod as CreateOrderRequestPaymentMethod,
           idempotencyKey: idemKey,
           ...(promoCode ? { promoCode } : {}),
           ...(autoApplyActive && autoApplyOffer && !promoCode ? { autoApplyOfferId: autoApplyOffer.offerId } : {}),
@@ -955,6 +962,18 @@ function CartScreenInner() {
       startAckStuckTimer(socket ? 60000 : 20000);
     } else {
       clearCartOnAck();
+    }
+    } catch (error) {
+      console.error("[Cart] Order placement failed:", error);
+      setPendingAck(false);
+      showToast(
+        typeof error === 'object' && error && 'message' in error 
+          ? String(error.message).substring(0, 100)
+          : "Failed to place order. Please try again.",
+        "error"
+      );
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -1449,19 +1468,19 @@ function CartScreenInner() {
                       const r = await fetch(`${API_BASE}/payments/${encodeURIComponent(oid)}/status`, {
                         headers: token ? { Authorization: `Bearer ${token}` } : {},
                       });
-                      const d = unwrapApiResponse(await r.json()) as any;
+                      const d = unwrapApiResponse<{ status?: string; message?: string }>(await r.json());
                       if (!mountedRef.current) return;
-                      if (d.status === "completed" || d.status === "success") {
+                      if (d?.status === "completed" || d?.status === "success") {
                         const successData = { id: (oid ?? "").slice(-6).toUpperCase(), time: "30-45 min", payMethod };
                         setPendingOrderId(oid, successData);
                         setPendingAck(true);
                         startAckStuckTimer(60000);
                         setGwStep("done");
                         setShowGwModal(false);
-                      } else if (d.status === "failed" || d.status === "expired") {
+                      } else if (d?.status === "failed" || d?.status === "expired") {
                         setGwStep("input");
                         await cancelPendingOrder(oid);
-                        showToast(d.message || T("paymentNotSuccessful"), "error");
+                        showToast(d?.message || T("paymentNotSuccessful"), "error");
                       } else {
                         showToast(T("paymentPending") || "Payment still pending in your app", "info");
                       }
@@ -2108,7 +2127,15 @@ function CartScreenInner() {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity activeOpacity={0.7} style={[styles.checkoutBtn, (loading || addrLoading || promoLoading || deliveryBlocked) && { opacity: 0.5 }]} onPress={() => handleCheckout()} disabled={!!(loading || addrLoading || promoLoading || deliveryBlocked)}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[
+              styles.checkoutBtn,
+              (loading || addrLoading || promoLoading || deliveryBlocked || isSubmittingOrder) && { opacity: 0.5 },
+            ]}
+            onPress={() => handleCheckout()}
+            disabled={!!(loading || addrLoading || promoLoading || deliveryBlocked || isSubmittingOrder)}
+          >
             {loading ? <ActivityIndicator color={C.textInverse} size="small" /> : promoLoading ? (
               <>
                 <ActivityIndicator color={C.textInverse} size="small" />

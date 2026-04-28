@@ -190,7 +190,11 @@ export default function AuthScreen() {
     }
     try {
       const returnTo = await AsyncStorage.getItem("@ajkmart_auth_return_to");
-      if (returnTo) {
+      const isSafeReturnTo = typeof returnTo === "string"
+        && returnTo.startsWith("/")
+        && !returnTo.startsWith("//")
+        && !returnTo.includes("://");
+      if (isSafeReturnTo) {
         await AsyncStorage.removeItem("@ajkmart_auth_return_to");
         router.replace(returnTo as RelativePathString);
         return;

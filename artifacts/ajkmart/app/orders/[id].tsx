@@ -54,6 +54,7 @@ interface OrderItem {
 
 interface OrderDetail {
   id: string;
+  userId?: string;
   type?: string;
   status: string;
   total?: number;
@@ -92,7 +93,7 @@ export default function OrderDetailScreen() {
   const mapHeight = Math.min(Math.max(screenWidth * 0.34, 140), 220);
   const { id: routeId } = useLocalSearchParams<{ id: string; type?: string; action?: string }>();
   const orderId = routeId;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { showToast } = useToast();
   const { config } = usePlatformConfig();
   const { language } = useLanguage();
@@ -159,9 +160,14 @@ export default function OrderDetailScreen() {
       setServerNow(new Date(serverDate).getTime());
     }
     if (!res.ok) throw new Error("Failed to load order data");
-    const data = unwrapApiResponse(await res.json()) as Record<string, unknown>;
-    return (data.order || data.booking || data) as OrderDetail;
-  }, [orderEndpoint, token]);
+    const raw = await res.json();
+    const data = unwrapApiResponse<OrderDetail | { order?: OrderDetail; booking?: OrderDetail }>(raw);
+    const detail = (data.order || data.booking || data) as OrderDetail;
+    if (detail.userId && detail.userId !== user?.id) {
+      throw new Error("Order not found");
+    }
+    return detail;
+  }, [orderEndpoint, token, user?.id]);
 
   const orderLoader = useApiCall(fetchOrderData, {
     showErrorToast: false,
@@ -180,8 +186,8 @@ export default function OrderDetailScreen() {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     });
-    const data = unwrapApiResponse(await res.json()) as Record<string, unknown>;
-    if (!res.ok) throw new Error((data.error as string) || "Refund request failed");
+    const data = unwrapApiResponse<{ error?: string }>(await res.json());
+    if (!res.ok) throw new Error(data.error ?? "Refund request failed");
     return data;
   }, [orderId, token]);
 
@@ -241,7 +247,7 @@ export default function OrderDetailScreen() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const d = unwrapApiResponse(await res.json());
+          const d = unwrapApiResponse<{ riderLat?: number; riderLng?: number }>(await res.json());
           if (mountedRef.current) {
             if (typeof d.riderLat === "number" && typeof d.riderLng === "number") {
               animateToLocation(d.riderLat, d.riderLng);
@@ -405,7 +411,7 @@ export default function OrderDetailScreen() {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const d = unwrapApiResponse(await res.json());
+          const d = unwrapApiResponse<{ status?: string }>(await res.json());
           if (mountedRef.current && d.status) {
             setPaymentStatus(d.status);
           }
@@ -427,7 +433,7 @@ export default function OrderDetailScreen() {
               headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
-              const d = unwrapApiResponse(await res.json());
+              const d = unwrapApiResponse<{ status?: string }>(await res.json());
               if (mountedRef.current && d.status) {
                 setPaymentStatus(d.status);
               }
