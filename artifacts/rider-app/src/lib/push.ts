@@ -27,6 +27,32 @@ export interface PushCleanup {
 /** Called when the rider taps a push notification. Receives the raw data payload. */
 export type NotificationTapHandler = (data: Record<string, string>) => void;
 
+/* ─── Cold-start tap capture ──────────────────────────────────────────────────
+ * When the app is launched from a killed state by tapping a notification,
+ * pushNotificationActionPerformed fires before auth is rehydrated.  We
+ * capture it eagerly at module load time so it can be consumed later, after
+ * the user session is available (see consumePendingNotificationTap in App.tsx).
+ * ────────────────────────────────────────────────────────────────────────── */
+let _pendingTapData: Record<string, string> | null = null;
+
+/** Returns and clears any notification tap data captured before auth loaded. */
+export function consumePendingNotificationTap(): Record<string, string> | null {
+  const d = _pendingTapData;
+  _pendingTapData = null;
+  return d;
+}
+
+if (Capacitor.isNativePlatform()) {
+  import("@capacitor/push-notifications").then(({ PushNotifications }) => {
+    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      const data = (action.notification?.data ?? {}) as Record<string, string>;
+      if (Object.keys(data).length > 0) {
+        _pendingTapData = data;
+      }
+    }).catch(() => {});
+  }).catch(() => {});
+}
+
 export async function registerPush(
   onForegroundMessage?: (title: string, body: string) => void,
   onNotificationTap?: NotificationTapHandler,

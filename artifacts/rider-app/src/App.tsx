@@ -8,7 +8,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { SocketProvider } from "./lib/socket";
 import { registerDrainHandler, setGpsQueueMax, setDismissedRequestTtlSec, type QueuedPing } from "./lib/gpsQueue";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { registerPush } from "./lib/push";
+import { registerPush, consumePendingNotificationTap } from "./lib/push";
 import { Capacitor } from "@capacitor/core";
 import { initSentry, setSentryUser } from "./lib/sentry";
 import { initAnalytics, trackEvent, identifyUser } from "./lib/analytics";
@@ -115,6 +115,19 @@ function AppRoutes() {
       setSentryUser(String(user.id), user.email);
       identifyUser(String(user.id));
       trackEvent("rider_session_start");
+    }
+  }, [user?.id]);
+
+  /* ── Cold-start notification tap: consume any tap captured before auth loaded ──
+     This handles the case where the rider taps a push notification while the app
+     is completely killed.  The pushNotificationActionPerformed listener in push.ts
+     fires at module-load time and stashes the data; here we drain it once the
+     user session is ready and navigate to the correct screen. */
+  useEffect(() => {
+    if (!user) return;
+    const pending = consumePendingNotificationTap();
+    if (pending && (pending.rideId || pending.orderId)) {
+      navigate("/active");
     }
   }, [user?.id]);
 
