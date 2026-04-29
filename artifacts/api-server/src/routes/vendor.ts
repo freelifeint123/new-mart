@@ -840,15 +840,24 @@ router.get("/orders/available-riders", requireRole("vendor"), async (req, res) =
     .leftJoin(riderProfilesTable, eq(usersTable.id, riderProfilesTable.userId))
     .where(and(ilike(usersTable.roles, "%rider%"), eq(usersTable.isOnline, true)));
 
+  const hasLocation = !isNaN(lat) && !isNaN(lng);
+
   const withDist = riders
     .map(r => {
-      const dist = (!isNaN(lat) && !isNaN(lng))
-        ? haversineKm(lat, lng, parseFloat(r.lat), parseFloat(r.lng))
-        : 99999;
-      return { ...r, distKm: Math.round(dist * 10) / 10, lat: parseFloat(r.lat), lng: parseFloat(r.lng) };
+      const rLat = parseFloat(r.lat);
+      const rLng = parseFloat(r.lng);
+      const distKm = (hasLocation && !isNaN(rLat) && !isNaN(rLng))
+        ? Math.round(haversineKm(lat, lng, rLat, rLng) * 10) / 10
+        : null;
+      return { ...r, distanceKm: distKm, lat: rLat, lng: rLng };
     })
-    .filter(r => r.distKm <= maxKm)
-    .sort((a, b) => a.distKm - b.distKm);
+    .filter(r => !hasLocation || r.distanceKm === null || r.distanceKm <= maxKm)
+    .sort((a, b) => {
+      if (a.distanceKm === null && b.distanceKm === null) return 0;
+      if (a.distanceKm === null) return 1;
+      if (b.distanceKm === null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
 
   sendSuccess(res, { riders: withDist });
 });

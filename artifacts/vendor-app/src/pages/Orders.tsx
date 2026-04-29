@@ -85,18 +85,43 @@ export default function Orders() {
   /* Vendor's own lat/lng — prefer backend-persisted location, fall back to browser */
   const [vendorLat, setVendorLat] = useState<number | null>(null);
   const [vendorLng, setVendorLng] = useState<number | null>(null);
+  const [locationPermission, setLocationPermission] = useState<"granted" | "prompt" | "denied" | "unknown">("unknown");
+
+  /* Detect geolocation permission state and listen for changes */
+  useEffect(() => {
+    if (!navigator.permissions) return;
+    navigator.permissions.query({ name: "geolocation" }).then(status => {
+      setLocationPermission(status.state as "granted" | "prompt" | "denied");
+      status.onchange = () => setLocationPermission(status.state as "granted" | "prompt" | "denied");
+    }).catch(() => setLocationPermission("unknown"));
+  }, []);
+
+  /* Re-request location (used by "Try Again" button) */
+  const retryLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setVendorLat(latitude);
+        setVendorLng(longitude);
+        saveVendorLocationToBackend(latitude, longitude);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) setLocationPermission("denied");
+      },
+    );
+  };
 
   const { data: availableRidersData, isLoading: ridersLoading } = useQuery({
     queryKey: ["vendor-available-riders", vendorLat, vendorLng],
     queryFn: async () => {
-      if (vendorLat === null || vendorLng === null) return { riders: [] };
       try {
-        return await api.getAvailableRiders(vendorLat, vendorLng) as { riders: { id: string; name: string; phone: string; distanceKm: number; walletBalance: number }[] };
+        return await api.getAvailableRiders(vendorLat, vendorLng) as { riders: { id: string; name: string; phone: string; distanceKm: number | null; walletBalance: number }[] };
       } catch {
         return { riders: [] };
       }
     },
-    enabled: !!assignModal && vendorLat !== null && vendorLng !== null,
+    enabled: !!assignModal,
     staleTime: 30_000,
   });
 
@@ -538,6 +563,31 @@ export default function Orders() {
               <button onClick={() => setAssignModal(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold">✕</button>
             </div>
 
+            {/* Location guidance banner — shown when vendor location is unavailable */}
+            {vendorLat === null && (
+              <div className={`mx-5 mt-3 rounded-xl p-3 flex gap-2.5 ${locationPermission === "denied" ? "bg-red-50 border border-red-200" : "bg-amber-50 border border-amber-200"}`}>
+                <span className="text-base flex-shrink-0 mt-0.5">{locationPermission === "denied" ? "🚫" : "📍"}</span>
+                <div className="flex-1 min-w-0">
+                  {locationPermission === "denied" ? (
+                    <>
+                      <p className="text-xs font-bold text-red-700">Location permission blocked</p>
+                      <p className="text-[11px] text-red-600 mt-0.5 leading-snug">Your browser has blocked location access. To enable it: open browser settings → Site Settings → Location → allow this site. Then refresh the page.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-amber-700">Location access required for auto-assign</p>
+                      <p className="text-[11px] text-amber-600 mt-0.5 leading-snug">Riders are shown without distance sorting. Allow location for nearest-rider auto-assign.</p>
+                      <button
+                        onClick={retryLocation}
+                        className="mt-1.5 text-[11px] font-bold text-amber-700 underline">
+                        Try Again (re-request location)
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Auto-assign button */}
             <div className="px-5 py-3 border-b border-gray-50">
               <button
@@ -550,14 +600,13 @@ export default function Orders() {
                   <>⚡ Auto-Assign Nearest Rider</>
                 )}
               </button>
-              {vendorLat === null && (
-                <p className="text-xs text-amber-600 text-center mt-1.5">⚠️ Enable location to use auto-assign</p>
-              )}
             </div>
 
             {/* Manual rider list */}
             <div className="px-5 py-3">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Or choose manually</p>
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                {vendorLat === null ? "All Online Riders" : "Or choose manually"}
+              </p>
               {ridersLoading ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}
@@ -565,7 +614,7 @@ export default function Orders() {
               ) : !availableRidersData?.riders?.length ? (
                 <div className="py-8 text-center">
                   <p className="text-3xl mb-2">🏍️</p>
-                  <p className="text-sm font-semibold text-gray-600">No available riders nearby</p>
+                  <p className="text-sm font-semibold text-gray-600">No riders currently online</p>
                   <p className="text-xs text-gray-400 mt-1">Try again in a few minutes</p>
                 </div>
               ) : (
@@ -582,7 +631,11 @@ export default function Orders() {
                         <p className="text-xs text-gray-400">{rider.phone}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-indigo-600">{rider.distanceKm.toFixed(1)} km</p>
+                        {rider.distanceKm !== null ? (
+                          <p className="text-xs font-bold text-indigo-600">{rider.distanceKm.toFixed(1)} km</p>
+                        ) : (
+                          <p className="text-xs text-gray-400">— km</p>
+                        )}
                         <p className="text-[10px] text-green-600 font-semibold">{currencySymbol} {rider.walletBalance.toFixed(0)}</p>
                       </div>
                     </button>

@@ -302,7 +302,11 @@ export const api = {
   updateLocation:    (data: { latitude: number; longitude: number; role: string }) => apiFetch("/locations/update", { method: "POST", body: JSON.stringify(data) }),
 
   /* Rider assignment */
-  getAvailableRiders: (lat: number, lng: number, maxKm = 10) => apiFetch(`/vendor/orders/available-riders?lat=${lat}&lng=${lng}&maxKm=${maxKm}`),
+  getAvailableRiders: (lat: number | null, lng: number | null, maxKm = 10) => {
+    const params = new URLSearchParams({ maxKm: String(maxKm) });
+    if (lat !== null && lng !== null) { params.set("lat", String(lat)); params.set("lng", String(lng)); }
+    return apiFetch(`/vendor/orders/available-riders?${params}`);
+  },
   assignRider:        (orderId: string, riderId: string) => apiFetch(`/vendor/orders/${orderId}/assign-rider`, { method: "POST", body: JSON.stringify({ riderId }) }),
   autoAssignRider:    (orderId: string, vendorLat: number, vendorLng: number) => apiFetch(`/vendor/orders/${orderId}/auto-assign`, { method: "POST", body: JSON.stringify({ vendorLat, vendorLng }) }),
 
