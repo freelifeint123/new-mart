@@ -89,6 +89,19 @@ async function registerFcmPush(
       }).then((h) => cleanups.push(h)).catch(() => {});
     });
 
+    /* Token refresh listener — fires when FCM rotates the device token without
+       the app explicitly calling register() again (e.g. device restore, certain
+       OS upgrades).  The official @capacitor/push-notifications types do not
+       expose this event yet, but the underlying native layer does emit it on
+       some configurations; we handle it defensively alongside the registration
+       event so no rotation is missed. */
+    (PushNotifications as unknown as {
+      addListener(e: "tokenRefresh", fn: (t: { registration?: string; value?: string }) => void): Promise<{ remove: () => void }>;
+    }).addListener("tokenRefresh", async (newToken) => {
+      const token = newToken.registration ?? newToken.value;
+      if (token) await registerTokenWithServer(token).catch(() => {});
+    }).then((h) => cleanups.push(h)).catch(() => {});
+
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         onForegroundMessage(notification.title ?? "", notification.body ?? "");
