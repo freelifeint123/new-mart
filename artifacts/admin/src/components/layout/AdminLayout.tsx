@@ -172,6 +172,38 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     return release;
   }, [isMobileMenuOpen]);
 
+  /* Focus trap for mobile nav drawer — WCAG 2.1.2 / 2.4.3 */
+  useEffect(() => {
+    if (!isMobileMenuOpen || !mobileDrawerRef.current) return;
+    const drawer = mobileDrawerRef.current;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    /* Move focus to first focusable item in drawer */
+    const first = drawer.querySelector<HTMLElement>(FOCUSABLE);
+    first?.focus();
+
+    const trapTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusables = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (focusables.length === 0) return;
+      const firstEl = focusables[0];
+      const lastEl = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+      } else {
+        if (document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+      }
+    };
+
+    document.addEventListener("keydown", trapTab);
+    return () => {
+      document.removeEventListener("keydown", trapTab);
+      /* Restore focus to trigger element on drawer close */
+      previousFocus?.focus?.();
+    };
+  }, [isMobileMenuOpen]);
+
   const handleLogout = async () => {
     await logout();
     setLocation("/login");
@@ -828,7 +860,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </ErrorBoundary>
 
         {/* Page content */}
-        <main id="main-content" className="flex-1 overflow-y-auto pb-20 lg:pb-6" style={{ background: "#F1F5F9" }}>
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto pb-20 lg:pb-6 focus:outline-none" style={{ background: "#F1F5F9" }}>
           <div className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-7 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
             {children}
           </div>
