@@ -24,11 +24,15 @@ export interface PushCleanup {
   remove: () => void;
 }
 
+/** Called when the rider taps a push notification. Receives the raw data payload. */
+export type NotificationTapHandler = (data: Record<string, string>) => void;
+
 export async function registerPush(
   onForegroundMessage?: (title: string, body: string) => void,
+  onNotificationTap?: NotificationTapHandler,
 ): Promise<PushCleanup | void> {
   if (Capacitor.isNativePlatform()) {
-    return registerFcmPush(onForegroundMessage);
+    return registerFcmPush(onForegroundMessage, onNotificationTap);
   }
   return registerVapidPush();
 }
@@ -37,6 +41,7 @@ export async function registerPush(
 
 async function registerFcmPush(
   onForegroundMessage?: (title: string, body: string) => void,
+  onNotificationTap?: NotificationTapHandler,
 ): Promise<PushCleanup | void> {
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
@@ -64,6 +69,16 @@ async function registerFcmPush(
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         onForegroundMessage(notification.title ?? "", notification.body ?? "");
+      }).then((h) => cleanups.push(h)).catch(() => {});
+    }
+
+    /* Handle notification tap — fires when rider taps the notification in the
+       system tray (background / killed app state).  The data payload (set by
+       the server as { rideId }) is available at notification.notification.data. */
+    if (onNotificationTap) {
+      PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+        const data = (action.notification?.data ?? {}) as Record<string, string>;
+        onNotificationTap(data);
       }).then((h) => cleanups.push(h)).catch(() => {});
     }
 

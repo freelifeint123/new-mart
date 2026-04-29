@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
@@ -122,6 +122,7 @@ function AppRoutes() {
   const [fcmNotif, setFcmNotif] = useState<{ title: string; body: string } | null>(null);
   const fcmCleanupRef = useRef<{ remove: () => void } | null>(null);
   const fcmDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [, navigate] = useLocation();
 
   /* P4: Only request notification permission when it's still in the "default"
      state. After the user has explicitly granted or denied it, we never re-ask
@@ -139,8 +140,15 @@ function AppRoutes() {
       if (fcmDismissTimer.current) clearTimeout(fcmDismissTimer.current);
       fcmDismissTimer.current = setTimeout(() => setFcmNotif(null), 5000);
     };
+    /* When the rider taps a push notification (background / killed app), navigate
+       to the Active screen so they can accept the ride immediately. */
+    const onNotificationTap = (data: Record<string, string>) => {
+      if (data.rideId || data.orderId) {
+        navigate("/active");
+      }
+    };
     if (Capacitor.isNativePlatform()) {
-      registerPush(onForeground).then(cleanup => {
+      registerPush(onForeground, onNotificationTap).then(cleanup => {
         if (cleanup) fcmCleanupRef.current = cleanup;
       }).catch(() => {});
       return () => {
