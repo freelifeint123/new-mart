@@ -12,6 +12,7 @@ import {
   Clock, X, SlidersHorizontal, Palette, MapPin, Gauge, Languages, Bell, ImageUp, List, Bus, Sparkles, ShieldAlert,
   Search,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { fetcher } from "@/lib/api";
 import { Card } from "@/components/ui/card";
@@ -202,7 +203,8 @@ const CATEGORY_CONFIG: Record<CatKey, { label: string; icon: any; color: string;
 
 const ALWAYS_VISIBLE = new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]);
 
-/** Resolve a deep-link param (?tab= or ?cat=) — accepts both top-10 keys and legacy names. */
+/** Resolve a deep-link param (?tab= / ?cat= / route :section / route :subsection)
+ *  — accepts both top-10 keys and legacy category names. */
 function resolveTop10(raw: string | null | undefined): Top10Key | null {
   if (!raw) return null;
   if ((TOP10_ORDER as readonly string[]).includes(raw)) return raw as Top10Key;
@@ -210,8 +212,30 @@ function resolveTop10(raw: string | null | undefined): Top10Key | null {
   return null;
 }
 
+/** Parse the wouter-relative path (already base-stripped by wouter's
+ *  router base config) for `/settings/:section/:subsection?`. Settings is
+ *  mounted on three Route paths so we centralise parsing rather than
+ *  threading useParams through each. The input must be the value returned
+ *  by `useLocation()` (which strips the `import.meta.env.BASE_URL` prefix
+ *  the WouterRouter is configured with), so this stays correct under any
+ *  deployment base path (e.g. "/admin"). */
+function parseSettingsPath(routerLocation: string): { section: string | null; subsection: string | null } {
+  const path = routerLocation.replace(/\/+$/, "");
+  const m = path.match(/^\/settings(?:\/([^/]+))?(?:\/([^/]+))?$/);
+  return {
+    section: m?.[1] ? decodeURIComponent(m[1]) : null,
+    subsection: m?.[2] ? decodeURIComponent(m[2]) : null,
+  };
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
+  // Wouter's `useLocation` returns the path with the configured router base
+  // already stripped (see `WouterRouter base={…}` in App.tsx) and provides a
+  // setter that respects the same base. Using it here keeps deep-link
+  // parsing and URL normalisation correct under non-root deployments
+  // such as `/admin`.
+  const [routerLocation, navigate] = useLocation();
   const [settings, setSettings] = useState<Setting[]>([]);
   const [localValues, setLocalValues] = useState<Record<string,string>>({});
   const [savedValues, setSavedValues] = useState<Record<string,string>>({});
@@ -220,8 +244,22 @@ export default function SettingsPage() {
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set());
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [activeTop10, setActiveTop10] = useState<Top10Key>(() => {
+    // Priority: route :section > ?tab= > ?cat= > default ("services").
+    // routerLocation is base-stripped so the regex always matches.
+    const params = parseSettingsPath(routerLocation);
+    const fromRoute = resolveTop10(params.section);
+    if (fromRoute) return fromRoute;
     const p = new URLSearchParams(window.location.search);
     return resolveTop10(p.get("tab")) ?? resolveTop10(p.get("cat")) ?? "services";
+  });
+  // Sub-section deep link — when the path includes /:subsection we scroll to
+  // it on mount. The legacy ?cat= query is also honoured so pre-existing
+  // bookmarks continue to land on the correct child block.
+  const [pendingSubsection, setPendingSubsection] = useState<string | null>(() => {
+    const params = parseSettingsPath(routerLocation);
+    if (params.subsection) return params.subsection;
+    const p = new URLSearchParams(window.location.search);
+    return p.get("cat");
   });
 
   /* ── Global settings search (cross-section) ──────────────────────────── */
@@ -250,13 +288,67 @@ export default function SettingsPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [searchOpen]);
 
-  /* Keep deep links in sync — both ?tab= (canonical) and ?cat= (legacy) work on load. */
+  /* Keep deep links in sync — canonical form is `/settings/:section`. We
+   * normalise away the legacy `?tab=` and `?cat=` query strings on every
+   * section change so newly-shared URLs use the modern shape. Existing
+   * bookmarks with the legacy params are still resolved on load by
+   * `resolveTop10` above. We use wouter's `navigate` (the setter from
+   * useLocation) with `{ replace: true }` so the router base path is
+   * honoured — direct `window.history.replaceState` would bypass the
+   * `<WouterRouter base={…}>` config and break under non-root deploys. */
   useEffect(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", activeTop10);
-    url.searchParams.delete("cat");
-    window.history.replaceState({}, "", url.toString());
+    const params = parseSettingsPath(routerLocation);
+    // Subsection is only meaningful when it belongs to the active section.
+    // When the admin switches the top-level section, drop a stale subsection
+    // so we never produce mismatched URLs like /settings/general/cache after
+    // starting from /settings/system_perf/cache. A subsection is "valid" if
+    // (a) the URL's :section segment resolved to the same activeTop10, and
+    // (b) it maps to a CatKey that lives under that activeTop10's children.
+    const urlSection = resolveTop10(params.section);
+    // TOP10_CONFIG is a module-level constant; safe to read here even though
+    // the convenience `activeCfg` alias is declared further down the file.
+    const childCats = TOP10_CONFIG[activeTop10].children as readonly string[];
+    const subsectionIsValid =
+      !!params.subsection &&
+      urlSection === activeTop10 &&
+      childCats.includes(params.subsection);
+    const targetPath = subsectionIsValid
+      ? `/settings/${activeTop10}/${encodeURIComponent(params.subsection!)}`
+      : `/settings/${activeTop10}`;
+    // Preserve any other query params (e.g. ?notice=…) the page may use,
+    // but always drop the legacy `tab` / `cat` keys.
+    const search = new URLSearchParams(window.location.search);
+    search.delete("tab");
+    search.delete("cat");
+    const qs = search.toString();
+    const targetWithQs = qs ? `${targetPath}?${qs}` : targetPath;
+    // Skip the navigate when we'd land on the same place (avoids infinite
+    // re-render loops if other effects also touch the URL).
+    const currentWithQs = qs
+      ? `${routerLocation.replace(/\/+$/, "")}?${qs}`
+      : routerLocation.replace(/\/+$/, "");
+    if (currentWithQs !== targetWithQs) {
+      navigate(targetWithQs, { replace: true });
+    }
+    // Intentionally only re-run when activeTop10 changes — navigate/
+    // routerLocation update inside the effect would loop otherwise.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTop10]);
+
+  /* Once settings have loaded and the active section is rendered, scroll to
+   * the requested sub-section (e.g. `/settings/system_perf/cache`) and clear
+   * the pending state so we only do this once per navigation. */
+  useEffect(() => {
+    if (!pendingSubsection || loading) return;
+    const id = `sub-${pendingSubsection}`;
+    const el = typeof document !== "undefined" ? document.getElementById(id) : null;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.classList.add("ajkm-section-flash");
+      setTimeout(() => el.classList.remove("ajkm-section-flash"), 1800);
+    }
+    setPendingSubsection(null);
+  }, [pendingSubsection, loading, activeTop10]);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -873,12 +965,18 @@ export default function SettingsPage() {
         {/* RIGHT content */}
         <div className="flex-1 min-w-0 space-y-4">
           <div className="bg-white rounded-2xl border border-border/60 shadow-sm overflow-hidden">
-            {/* Section header */}
+            {/* Section header — breadcrumbs above the title surface the
+                hub → section path so admins always know where they are. */}
             <div className="px-6 py-4 border-b border-border/40 flex items-start gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${activeCfg.bg}`}>
                 <ActiveIcon className={`w-5 h-5 ${activeCfg.color}`} />
               </div>
               <div className="flex-1 min-w-0">
+                <nav aria-label="breadcrumb" className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1 leading-none">
+                  <span className="font-semibold text-foreground/70">Settings</span>
+                  <ChevronRight className="w-3 h-3 opacity-50" />
+                  <span className="font-semibold" style={{ color: "rgb(15 23 42 / 0.85)" }}>{activeCfg.label}</span>
+                </nav>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-bold text-foreground">{activeCfg.label}</h2>
                   {activeChildSettingsCount > 0 && (

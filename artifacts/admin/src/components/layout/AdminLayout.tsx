@@ -1,56 +1,19 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  LayoutDashboard,
   ShoppingBag,
-  Car,
-  Pill,
-  PackageSearch,
-  FolderTree,
-  Receipt,
-  Settings2,
   LogOut,
   Menu,
   X,
   ChevronRight,
-  Zap,
-  Store,
-  Ticket,
-  BellRing,
   Search,
   Globe,
-  Shield,
-  Navigation,
   AlertTriangle,
-  BadgeCheck,
-  Layers,
-  Wallet,
-  CreditCard,
-  FileText,
-  Lock,
-  ToggleLeft,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
-  User,
-  Bus,
-  Truck,
-  Megaphone,
-  MessageCircle,
-  HelpCircle,
-  BarChart2,
-  Bug,
-  Radio,
   Star,
-  Heart,
-  QrCode,
-  CloudSun,
-  FlaskConical,
-  Webhook,
-  Link2,
-  Rocket,
-  KeyRound,
-  Server,
+  StarOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -64,177 +27,19 @@ import { io, type Socket } from "socket.io-client";
 import { fetcher } from "@/lib/api";
 import { getAdminTiming } from "@/lib/adminTiming";
 import { lockBodyScroll } from "@/lib/domSafety";
+import {
+  NAV_GROUPS,
+  NAV_DESCRIPTIONS,
+  BOTTOM_NAV,
+  NAV_ITEMS as navItems,
+  isActivePath,
+  readFavorites,
+  writeFavorites,
+} from "@/lib/navConfig";
 
-type NavGroup = {
-  labelKey: TranslationKey;
-  color: string;
-  items: {
-    nameKey: TranslationKey;
-    href: string;
-    icon: React.ElementType;
-    sosBadge?: boolean;
-    errorBadge?: boolean;
-    /** RBAC permission(s) gating this item; super always sees everything. */
-    requirePermission?: string | string[];
-  }[];
-};
-
-// Professional 3-Category Architecture: System | Finance | Fleet
-const NAV_GROUPS: NavGroup[] = [
-  // ===== SYSTEM CONTROL =====
-  {
-    labelKey: "navSystem" as TranslationKey,
-    color: "#6366F1",
-    items: [
-      { nameKey: "navDashboard",     href: "/dashboard",       icon: LayoutDashboard },
-      { nameKey: "navUserPermissions", href: "/users",         icon: Lock },
-      { nameKey: "navRolesPermissions" as TranslationKey, href: "/roles-permissions", icon: Shield },
-      { nameKey: "navSettings",        href: "/settings",       icon: Settings2 },
-      { nameKey: "navFeatureToggles",  href: "/app-management", icon: ToggleLeft },
-      { nameKey: "navLaunchControl" as TranslationKey, href: "/launch-control", icon: Rocket },
-      { nameKey: "navAuthMethods" as TranslationKey, href: "/auth-methods", icon: KeyRound },
-      { nameKey: "navOtpControl" as TranslationKey, href: "/otp-control", icon: KeyRound },
-      { nameKey: "navSmsGateways" as TranslationKey, href: "/sms-gateways", icon: Server },
-      { nameKey: "navConditionsHub",   href: "/account-conditions", icon: Shield },
-      { nameKey: "navConditionRules",  href: "/condition-rules",    icon: Settings2 },
-    ],
-  },
-
-  // ===== FINANCIAL HUB =====
-  {
-    labelKey: "navFinance" as TranslationKey,
-    color: "#22C55E",
-    items: [
-      { nameKey: "navOrders",        href: "/orders",          icon: ShoppingBag },
-      { nameKey: "navTransactions",    href: "/transactions",     icon: Receipt },
-      { nameKey: "navWithdrawals",     href: "/withdrawals",      icon: Wallet },
-      { nameKey: "navDepositRequests", href: "/deposit-requests", icon: CreditCard },
-      { nameKey: "navWalletTransfers" as TranslationKey, href: "/wallet-transfers", icon: Wallet },
-      { nameKey: "navLoyaltyPoints" as TranslationKey, href: "/loyalty", icon: Star },
-      { nameKey: "navKyc",             href: "/kyc",              icon: BadgeCheck },
-      { nameKey: "navVendors",         href: "/vendors",     icon: Store },
-      { nameKey: "navProducts",        href: "/products",    icon: PackageSearch },
-      { nameKey: "navPromotionsHub",   href: "/promotions",  icon: Megaphone },
-    ],
-  },
-
-  // ===== FLEET & LOGISTICS =====
-  {
-    labelKey: "navFleet" as TranslationKey,
-    color: "#EF4444",
-    items: [
-      { nameKey: "navRides",         href: "/rides",           icon: Car },
-      { nameKey: "navVanService",    href: "/van",             icon: Bus },
-      { nameKey: "navPharmacy",      href: "/pharmacy",        icon: Pill },
-      { nameKey: "navLiveRidersMap", href: "/live-riders-map", icon: Navigation },
-      { nameKey: "navSosAlerts",       href: "/sos-alerts",    icon: AlertTriangle, sosBadge: true },
-      { nameKey: "navErrorMonitor",    href: "/error-monitor", icon: Bug, errorBadge: true },
-      { nameKey: "navAuditLogs",       href: "/security",      icon: FileText },
-      { nameKey: "navDeliveryAccess",  href: "/delivery-access", icon: Truck },
-    ],
-  },
-
-  // ===== SUPPORTING SERVICES =====
-  {
-    labelKey: "navMarketing",
-    color: "#EC4899",
-    items: [
-      { nameKey: "navOffersCoupons" as TranslationKey,   href: "/promotions",                icon: Ticket },
-      { nameKey: "navFlashDeals",                        href: "/flash-deals",               icon: Zap },
-      { nameKey: "navBanners",                           href: "/banners",                   icon: Layers },
-      { nameKey: "navPopups",                            href: "/popups",                    icon: Megaphone },
-      { nameKey: "navCampaignsCalendar" as TranslationKey, href: "/promotions?tab=campaigns", icon: BellRing },
-    ],
-  },
-
-  {
-    labelKey: "navCustomerSupport",
-    color: "#06B6D4",
-    items: [
-      { nameKey: "navInboxChatModeration" as TranslationKey, href: "/support-chat",      icon: MessageCircle },
-      { nameKey: "navFaqMgmt",                               href: "/faq-management",    icon: HelpCircle },
-      { nameKey: "navSendBroadcast" as TranslationKey,       href: "/broadcast",         icon: Radio },
-      { nameKey: "navNotificationsLog" as TranslationKey,    href: "/notifications",     icon: BellRing },
-    ],
-  },
-
-  {
-    labelKey: "navAnalytics" as TranslationKey,
-    color: "#F472B6",
-    items: [
-      { nameKey: "navSearchAnalytics",                     href: "/search-analytics",  icon: BarChart2 },
-      { nameKey: "navMessagingKpis" as TranslationKey,     href: "/communication",     icon: MessageCircle },
-      { nameKey: "navWishlistInsights" as TranslationKey,  href: "/wishlist-insights", icon: Heart },
-      { nameKey: "navQrCodes" as TranslationKey,           href: "/qr-codes",          icon: QrCode },
-      { nameKey: "navExperiments" as TranslationKey,        href: "/experiments",       icon: FlaskConical },
-    ],
-  },
-
-  {
-    labelKey: "navIntegrations" as TranslationKey,
-    color: "#10B981",
-    items: [
-      { nameKey: "navWebhooks" as TranslationKey,   href: "/webhooks",    icon: Webhook },
-      { nameKey: "navDeepLinks" as TranslationKey,   href: "/deep-links",  icon: Link2 },
-    ],
-  },
-];
-
-const BOTTOM_NAV: { nameKey: TranslationKey; href: string; icon: React.ElementType; isSos?: boolean }[] = [
-  { nameKey: "navDashboard", href: "/dashboard",  icon: LayoutDashboard },
-  { nameKey: "navOrders",    href: "/orders",     icon: ShoppingBag },
-  { nameKey: "navRides",     href: "/rides",      icon: Car },
-  { nameKey: "navSosAlerts", href: "/sos-alerts", icon: AlertTriangle, isSos: true },
-  { nameKey: "navMore",      href: "__more__",    icon: Menu },
-];
-
-const navItems = NAV_GROUPS.flatMap(g => g.items);
-
-// One-line descriptions surfaced as tooltips on collapsed nav.
-const NAV_DESCRIPTIONS: Partial<Record<string, string>> = {
-  "/dashboard": "Overview KPIs and live activity",
-  "/users": "Customers, admins and roles",
-  "/settings": "Single source of truth for platform settings",
-  "/app-management": "Feature flags and module switches",
-  "/launch-control": "Pre-launch readiness checklist",
-  "/auth-methods": "Per-role login methods (Phone, Email, OAuth, 2FA, Biometric)",
-  "/otp-control": "OTP delivery providers and policies",
-  "/sms-gateways": "SMS provider routing and credits",
-  "/account-conditions": "Apply or lift restrictions on accounts",
-  "/condition-rules": "Default rules per condition type",
-  "/orders": "All marketplace orders and refunds",
-  "/transactions": "Wallet, payouts and ledger entries",
-  "/withdrawals": "Vendor and rider withdrawal requests",
-  "/deposit-requests": "Customer top-ups awaiting approval",
-  "/wallet-transfers": "Internal wallet movements",
-  "/loyalty": "Loyalty point ledger and rules",
-  "/kyc": "KYC submissions and verification",
-  "/vendors": "Stores, catalogues and payouts",
-  "/products": "Global catalogue and curation",
-  "/promotions": "Offers, coupons and campaigns",
-  "/flash-deals": "Time-bound flash deal calendar",
-  "/banners": "Home and category banner slots",
-  "/popups": "In-app popup campaigns",
-  "/rides": "Ride bookings and disputes",
-  "/van": "Van service requests",
-  "/pharmacy": "Pharmacy orders and pre-orders",
-  "/live-riders-map": "Real-time rider positions",
-  "/sos-alerts": "Active safety alerts",
-  "/error-monitor": "Client and server error stream",
-  "/security": "Audit log of admin actions",
-  "/delivery-access": "Pilot whitelist and access requests",
-  "/support-chat": "Inbox plus chat moderation",
-  "/faq-management": "Help centre and FAQ articles",
-  "/broadcast": "Send notifications to segments",
-  "/notifications": "Outbound notifications log",
-  "/communication": "Messaging KPIs and dashboards",
-  "/search-analytics": "Search queries and zero-result terms",
-  "/wishlist-insights": "Most-wished products and trends",
-  "/qr-codes": "Branded QR codes and campaigns",
-  "/experiments": "A/B tests and rollouts",
-  "/webhooks": "Outgoing webhook endpoints",
-  "/deep-links": "Deep link generator and analytics",
-};
+// NAV_GROUPS, NAV_DESCRIPTIONS, BOTTOM_NAV and navItems are imported from
+// `@/lib/navConfig` so the command palette, breadcrumbs and any future
+// favorites/pinned UI all read from one source of truth.
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -249,8 +54,25 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     const active = NAV_GROUPS.find(g => g.items.some(i => isActivePath(location, i.href)));
-    return new Set(active ? [active.labelKey] : [NAV_GROUPS[0].labelKey]);
+    return new Set(active ? [active.key] : [NAV_GROUPS[0]!.key]);
   });
+
+  // In-sidebar text filter — narrows the visible nav items as the admin types.
+  // Independent from the Cmd+K command palette which still does cross-action search.
+  const [navFilter, setNavFilter] = useState("");
+  const navFilterTrim = navFilter.trim().toLowerCase();
+
+  // Pinned favorites — persisted as comma-joined hrefs in localStorage.
+  // Star icon next to each item toggles membership; pinned items render at the
+  // top of the sidebar above the group list for one-click access.
+  const [favorites, setFavorites] = useState<string[]>(() => readFavorites(safeLocalGet));
+  const toggleFavorite = useCallback((href: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(href) ? prev.filter(h => h !== href) : [...prev, href];
+      writeFavorites(safeLocalSet, next);
+      return next;
+    });
+  }, []);
 
   const [sosCount, setSosCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
@@ -318,9 +140,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     const active = NAV_GROUPS.find(g => g.items.some(i => isActivePath(location, i.href)));
     if (active) {
       setExpandedGroups(prev => {
-        if (prev.has(active.labelKey)) return prev;
+        if (prev.has(active.key)) return prev;
         const next = new Set(prev);
-        next.add(active.labelKey);
+        next.add(active.key);
         return next;
       });
     }
@@ -437,18 +259,113 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </Link>
       )}
 
+      {/* In-sidebar quick filter — narrows the visible nav items live as the
+          admin types. Hidden when the sidebar is collapsed to icons-only. */}
+      {(!mini || isMobile) && (
+        <div className="px-3 pt-3 pb-1">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: "rgba(255,255,255,0.35)" }} />
+            <input
+              type="text"
+              value={navFilter}
+              placeholder="Filter menu…"
+              onChange={(e) => setNavFilter(e.target.value)}
+              className="w-full h-8 pl-8 pr-7 rounded-lg bg-white/[0.04] text-[12px] text-white placeholder:text-white/35 border border-white/[0.06] focus:outline-none focus:border-white/20 focus:bg-white/[0.06] admin-transition"
+              aria-label="Filter sidebar items"
+            />
+            {navFilter && (
+              <button
+                type="button"
+                onClick={() => setNavFilter("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded admin-focus-ring"
+                aria-label="Clear filter"
+                title="Clear filter"
+              >
+                <X className="w-3 h-3" style={{ color: "rgba(255,255,255,0.4)" }} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Pinned favorites — surfaced above group nav for one-click access. Only
+          shown when there's at least one pinned item and not in icons-only mode. */}
+      {(!mini || isMobile) && favorites.length > 0 && !navFilterTrim && (
+        <div className="px-3 pt-2">
+          <p className="px-2.5 text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+            <Star className="w-2.5 h-2.5 inline -mt-0.5 mr-1" style={{ color: "#FBBF24", fill: "#FBBF24" }} />
+            Pinned
+          </p>
+          <div className="space-y-0.5 mb-1">
+            {favorites.map(href => {
+              const item = navItems.find(n => n.href === href);
+              if (!item) return null;
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link key={href} href={item.href} onClick={() => isMobile && setIsMobileMenuOpen(false)}>
+                  <div
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg admin-transition cursor-pointer group"
+                    style={{
+                      background: active ? "rgba(99,102,241,0.14)" : "transparent",
+                      border: active ? "1px solid rgba(99,102,241,0.25)" : "1px solid transparent",
+                    }}
+                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; }}
+                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                  >
+                    <Icon className="w-[16px] h-[16px] shrink-0" style={{ color: active ? "#A5B4FC" : "rgba(255,255,255,0.55)" }} />
+                    <span className="text-[12px] flex-1 truncate" style={{ color: active ? "#E0E7FF" : "rgba(255,255,255,0.55)", fontWeight: active ? 600 : 400 }}>
+                      {T(item.nameKey)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item.href); }}
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 admin-focus-ring rounded shrink-0"
+                      aria-label="Unpin from favorites"
+                      title="Unpin"
+                    >
+                      <Star className="w-3 h-3" style={{ color: "#FBBF24", fill: "#FBBF24" }} />
+                    </button>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Nav groups */}
       <div
         className="flex-1 overflow-y-auto py-2"
         style={{ scrollbarWidth: "none" }}
       >
+        {navFilterTrim && NAV_GROUPS.every(g => g.items.every(i => {
+          const label = T(i.nameKey).toLowerCase();
+          const desc = (NAV_DESCRIPTIONS[i.href] || "").toLowerCase();
+          return !label.includes(navFilterTrim) && !desc.includes(navFilterTrim) && !i.href.toLowerCase().includes(navFilterTrim);
+        })) && (
+          <div className="px-5 py-6 text-center">
+            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>No menu items match "{navFilter}"</p>
+          </div>
+        )}
         {NAV_GROUPS.map(group => {
-          const isExpanded = expandedGroups.has(group.labelKey);
+          const isExpanded = expandedGroups.has(group.key);
           const showMini = mini && !isMobile;
-          const hasActiveItem = group.items.some(i => isActive(i.href));
+          // When the user is filtering, show every group expanded so matches across
+          // groups are visible at once.
+          const filteredItems = navFilterTrim
+            ? group.items.filter(item => {
+                const label = T(item.nameKey).toLowerCase();
+                const desc = (NAV_DESCRIPTIONS[item.href] || "").toLowerCase();
+                return label.includes(navFilterTrim) || desc.includes(navFilterTrim) || item.href.toLowerCase().includes(navFilterTrim);
+              })
+            : group.items;
+          if (navFilterTrim && filteredItems.length === 0) return null;
+          const effectiveExpanded = navFilterTrim ? true : isExpanded;
+          const hasActiveItem = filteredItems.some(i => isActive(i.href));
 
           return (
-            <div key={group.labelKey} className="mb-0.5" style={{ padding: showMini ? "0 8px" : "0 10px" }}>
+            <div key={group.key} className="mb-0.5" style={{ padding: showMini ? "0 8px" : "0 10px" }}>
               {/* Group header */}
               {showMini ? (
                 <div className="flex justify-center py-2">
@@ -456,7 +373,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </div>
               ) : (
                 <button
-                  onClick={() => toggleGroup(group.labelKey)}
+                  onClick={() => toggleGroup(group.key)}
                   className="flex items-center w-full gap-2 px-2.5 py-2 mt-1 rounded-lg transition-colors hover:bg-white/[0.04] group/header"
                 >
                   <span className="w-1.5 h-1.5 rounded-full shrink-0 transition-all" style={{ background: hasActiveItem ? group.color : `${group.color}60` }} />
@@ -470,7 +387,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     className="w-3 h-3 shrink-0 transition-transform duration-200"
                     style={{
                       color: "rgba(255,255,255,0.2)",
-                      transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
+                      transform: effectiveExpanded ? "rotate(0deg)" : "rotate(-90deg)",
                     }}
                   />
                 </button>
@@ -480,17 +397,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <div
                 className="overflow-hidden transition-all duration-200 ease-out"
                 style={{
-                  maxHeight: showMini ? "none" : isExpanded ? `${group.items.length * 44}px` : "0px",
-                  opacity: showMini ? 1 : isExpanded ? 1 : 0,
+                  maxHeight: showMini ? "none" : effectiveExpanded ? `${filteredItems.length * 44}px` : "0px",
+                  opacity: showMini ? 1 : effectiveExpanded ? 1 : 0,
                 }}
               >
                 <div className="space-y-0.5 pb-1">
-                  {group.items.map(item => {
+                  {filteredItems.map(item => {
                     const active = isActive(item.href);
                     const Icon = item.icon;
                     const showSosBadge = item.sosBadge && sosCount > 0;
                     const showErrorBadge = item.errorBadge && errorCount > 0;
                     const hasBadge = showSosBadge || showErrorBadge;
+                    const isFav = favorites.includes(item.href);
 
                     const itemNode = (
                       <Link key={item.href} href={item.href} onClick={() => isMobile && setIsMobileMenuOpen(false)}>
@@ -560,6 +478,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                                   {errorCount > 99 ? "99+" : errorCount}
                                 </span>
                               )}
+                              {/* Favorite star — visible on hover, persisted on click. Hidden when mini. */}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item.href); }}
+                                className={`shrink-0 w-5 h-5 -mr-1 flex items-center justify-center rounded transition-opacity duration-150 ${isFav ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus:opacity-100"} admin-focus-ring`}
+                                title={isFav ? "Remove from favorites" : "Add to favorites"}
+                                aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+                              >
+                                {isFav
+                                  ? <Star className="w-3.5 h-3.5" style={{ color: "#FBBF24", fill: "#FBBF24" }} />
+                                  : <StarOff className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.35)" }} />}
+                              </button>
                               {active && !hasBadge && (
                                 <ChevronRight className="w-3.5 h-3.5 shrink-0" style={{ color: `${group.color}60` }} />
                               )}
@@ -972,11 +902,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       `}</style>
     </div>
   );
-}
-
-function isActivePath(location: string, href: string): boolean {
-  if (href === "/dashboard") return location === "/dashboard" || location === "/";
-  return location.startsWith(href);
 }
 
 function showMiniFooter(mini?: boolean, isMobile?: boolean): boolean {

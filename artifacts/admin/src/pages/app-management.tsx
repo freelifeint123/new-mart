@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import {
   AppWindow, Users, ShoppingBag, Car, Pill, Package,
   Wallet, Shield, Plus, Pencil, Trash2, Save, X,
   ToggleRight, ToggleLeft, RefreshCw, CheckCircle2,
   AlertTriangle, WrenchIcon, Eye, EyeOff, ScrollText, CalendarDays, ChevronLeft, ChevronRight,
   Zap, Activity, Download, Smartphone, FileText, List, LogOut, Globe,
-  ShoppingCart, UtensilsCrossed, Bus, LayoutDashboard, Rocket, type LucideIcon,
+  ShoppingCart, UtensilsCrossed, Bus, LayoutDashboard, Rocket, ArrowUpRight, type LucideIcon,
 } from "lucide-react";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ManageInSettingsLink } from "@/components/shared";
 import { ADMIN_SERVICE_LIST } from "@workspace/service-constants";
 import { safeCopyToClipboard } from "@/lib/safeClipboard";
 import { safeJsonStringifyPretty } from "@/lib/safeJson";
@@ -371,7 +373,6 @@ export default function AppManagement() {
   const [adminDialog, setAdminDialog] = useState(false);
   const [showSecret, setShowSecret] = useState(false);
   const [maintenanceMsg, setMaintenanceMsg] = useState("");
-  const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   /* ── Release Notes state ── */
   const [rnDialog, setRnDialog] = useState(false);
@@ -555,28 +556,13 @@ export default function AppManagement() {
     },
   });
 
-  /* ── Feature toggle ── */
-  const toggleFeature = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: string }) =>
-      fetcher("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: [{ key, value }] }) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
-      qc.invalidateQueries({ queryKey: ["admin-app-overview"] });
-    },
-  });
-
-  /* ── Maintenance mode ── */
-  const handleMaintenanceSave = async () => {
-    setSavingMaintenance(true);
-    try {
-      const newStatus = appStatus === "maintenance" ? "active" : "maintenance";
-      await fetcher("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: [{ key: "app_status", value: newStatus }] }) });
-      qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
-      qc.invalidateQueries({ queryKey: ["admin-app-overview"] });
-      toast({ title: newStatus === "maintenance" ? "Maintenance mode ON" : "App is now Live", description: newStatus === "maintenance" ? "Users will see the maintenance screen." : "App is back to normal." });
-    } catch (e: any) { toast({ title: "Error", description: e.message, variant: "destructive" }); }
-    setSavingMaintenance(false);
-  };
+  /* ── Maintenance mode ──
+   *  Editing of `app_status` is now consolidated under
+   *  /settings/general (single edit surface — see SETTINGS_MAP.md).
+   *  The previous inline mutation handler has been removed; both the
+   *  status banner and the dedicated tab now route to the canonical
+   *  Settings editor instead of writing the setting from this page.
+   */
 
   /* ── Form handlers ── */
   const openNewAdmin = () => {
@@ -654,7 +640,13 @@ export default function AppManagement() {
         </div>
       </div>
 
-      {/* App Status Banner */}
+      {/*
+        App Status Banner — read-only awareness only. Editing of
+        Maintenance Mode lives at /settings/general per SETTINGS_MAP.md;
+        the banner used to expose an inline "Go Live" button which
+        violated the single-edit-surface rule, so it now routes the admin
+        to the canonical editor instead of mutating directly.
+      */}
       {appStatus === "maintenance" && (
         <div className="bg-amber-50 border border-amber-300 rounded-2xl px-5 py-4 flex items-center gap-3">
           <WrenchIcon className="w-6 h-6 text-amber-600 flex-shrink-0"/>
@@ -662,7 +654,13 @@ export default function AppManagement() {
             <p className="font-bold text-amber-800">Maintenance Mode is ON</p>
             <p className="text-sm text-amber-700">The app is currently in maintenance — users cannot access it.</p>
           </div>
-          <Button size="sm" onClick={handleMaintenanceSave} className="bg-green-600 hover:bg-green-700 rounded-xl text-xs">Go Live</Button>
+          <Link
+            href="/settings/general"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 admin-focus-ring shrink-0"
+          >
+            Manage in Settings
+            <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </Link>
         </div>
       )}
 
@@ -835,51 +833,43 @@ export default function AppManagement() {
         </div>
       )}
 
-      {/* ══ Services & Maintenance Tab ══ */}
+      {/*
+        ══ Services & Maintenance Tab ══
+        Editing of Maintenance Mode and per-service feature toggles has been
+        consolidated under the Settings hub so there is exactly one source of
+        truth (see SETTINGS_MAP.md). This tab now shows a read-only status
+        summary and routes the admin to the canonical editor. The banner at
+        the top of the page still surfaces the "Go Live" shortcut when the
+        app is in maintenance — that's a high-urgency action so it stays.
+      */}
       {tab === "maintenance" && (
         <div className="space-y-5">
-          {/* Maintenance Mode */}
-          <Card className="rounded-2xl border-border/50 shadow-sm">
-            <div className="p-5 border-b border-border/50 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center"><WrenchIcon className="w-5 h-5 text-amber-600"/></div>
-              <h2 className="font-bold">Maintenance Mode</h2>
-            </div>
-            <CardContent className="p-5 space-y-4">
-              <div className={`flex items-center justify-between p-4 rounded-xl border ${appStatus === "maintenance" ? "bg-amber-50 border-amber-300" : "bg-green-50 border-green-200"}`}>
-                <div className="flex items-center gap-3">
-                  {appStatus === "maintenance"
-                    ? <WrenchIcon className="w-6 h-6 text-amber-600"/>
-                    : <CheckCircle2 className="w-6 h-6 text-green-600"/>}
-                  <div>
-                    <p className="font-bold">{appStatus === "maintenance" ? "App is in Maintenance" : "App is Live"}</p>
-                    <p className="text-sm text-muted-foreground">{appStatus === "maintenance" ? "Users see the maintenance screen and cannot use the app." : "All services are running normally."}</p>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleMaintenanceSave}
-                  disabled={savingMaintenance}
-                  className={`rounded-xl ${appStatus === "maintenance" ? "bg-green-600 hover:bg-green-700" : "bg-amber-500 hover:bg-amber-600"}`}
-                >
-                  {savingMaintenance ? "..." : appStatus === "maintenance" ? "Go Live" : "Enable Maintenance"}
-                </Button>
-              </div>
-              {appStatus === "maintenance" && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"/>
-                  <p className="text-sm text-amber-700">While in maintenance mode, only admin panel is accessible. Mobile app shows a maintenance screen.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Maintenance Mode — canonical editor lives at /settings/general */}
+          <ManageInSettingsLink
+            label="Maintenance Mode"
+            value={appStatus === "maintenance" ? "In Maintenance — users blocked" : "Live — all systems normal"}
+            description="When enabled, the customer apps show a maintenance screen and cannot place orders, book rides, or send parcels."
+            tone={appStatus === "maintenance" ? "warning" : "success"}
+            to="/settings/general"
+          />
 
-          {/* Service Toggles */}
+          {/* Service toggles — canonical editor lives at /settings/services */}
+          <ManageInSettingsLink
+            label="Live Service Control"
+            value={`${SERVICE_MAP.filter(svc => getSettingValue(settings, svc.setting, "on") === "on").length} of ${SERVICE_MAP.length} services enabled`}
+            description="Toggle individual customer-facing services (Food, Mart, Rides, Pharmacy, Parcel, Van) on or off. Changes apply immediately."
+            tone="info"
+            to="/settings/services"
+          />
+
+          {/* Read-only Service status grid for at-a-glance reference. */}
           <Card className="rounded-2xl border-border/50 shadow-sm">
-            <div className="p-5 border-b border-border/50 flex items-center justify-between">
+            <div className="p-5 border-b border-border/50 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center"><Zap className="w-5 h-5 text-blue-600"/></div>
                 <div>
-                  <h2 className="font-bold">Live Service Control</h2>
-                  <p className="text-xs text-muted-foreground">Toggle services on/off instantly — changes apply immediately</p>
+                  <h2 className="font-bold">Service Status (read-only)</h2>
+                  <p className="text-xs text-muted-foreground">Snapshot — use the link above to toggle</p>
                 </div>
               </div>
               <Badge variant="outline" className="text-xs">
@@ -887,46 +877,28 @@ export default function AppManagement() {
               </Badge>
             </div>
             <CardContent className="p-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {SERVICE_MAP.map(svc => {
                   const featureVal = getSettingValue(settings, svc.setting, "on");
                   const isOn = featureVal === "on";
                   return (
                     <div
                       key={svc.key}
-                      className={`group relative overflow-hidden rounded-2xl border-2 transition-all duration-200 ${isOn ? "border-green-200 bg-white hover:border-green-300 hover:shadow-md" : "border-gray-200 bg-gray-50/50 hover:border-gray-300"}`}
+                      className={`flex items-center gap-3 rounded-xl border p-3 ${isOn ? "border-green-200 bg-green-50/40" : "border-gray-200 bg-gray-50/40"}`}
                     >
-                      <div className={`absolute inset-x-0 top-0 h-1 transition-colors ${isOn ? "bg-green-500" : "bg-gray-300"}`}/>
-                      <div className="p-5">
-                        <div className="flex items-start gap-4">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 transition-all ${isOn ? "bg-gradient-to-br from-green-50 to-emerald-100 shadow-sm" : "bg-gray-100"}`}>
-                            {svc.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-bold text-sm">{svc.label}</p>
-                              <Badge className={`text-[10px] px-1.5 py-0 h-4 ${isOn ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-600 border-red-200"}`} variant="outline">
-                                {isOn ? "Live" : "Off"}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{svc.description}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${isOn ? "bg-green-500 animate-pulse" : "bg-gray-400"}`}/>
-                            <span className={`text-xs font-semibold ${isOn ? "text-green-600" : "text-gray-500"}`}>
-                              {isOn ? "Running" : "Stopped"}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => toggleFeature.mutate({ key: svc.setting, value: isOn ? "off" : "on" })}
-                            className={`relative w-12 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 ${isOn ? "bg-green-500 focus:ring-green-300" : "bg-gray-300 focus:ring-gray-300"}`}
-                          >
-                            <span className={`absolute w-5 h-5 bg-white rounded-full shadow-md top-0.5 transition-transform duration-200 ${isOn ? "translate-x-6" : "translate-x-0.5"}`}/>
-                          </button>
-                        </div>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isOn ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+                        <svc.Icon className="w-5 h-5" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{svc.label}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{svc.description}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] flex-shrink-0 ${isOn ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-600 border-red-200"}`}
+                      >
+                        {isOn ? "Live" : "Off"}
+                      </Badge>
                     </div>
                   );
                 })}

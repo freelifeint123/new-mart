@@ -267,7 +267,15 @@ function Router() {
       <Route path="/products"><ProtectedRoute component={Products} /></Route>
       <Route path="/broadcast"><ProtectedRoute component={Broadcast} /></Route>
       <Route path="/transactions"><ProtectedRoute component={Transactions} /></Route>
+      {/*
+        Settings hub deep links: `/settings/:section` and
+        `/settings/:section/:subsection`. The hub component reads route
+        params via `useParams` from wouter and falls back to the legacy
+        `?tab=` / `?cat=` query strings so existing bookmarks keep working.
+      */}
       <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
+      <Route path="/settings/:section"><ProtectedRoute component={Settings} /></Route>
+      <Route path="/settings/:section/:subsection"><ProtectedRoute component={Settings} /></Route>
       <Route path="/flash-deals"><ProtectedRoute component={FlashDeals} /></Route>
       <Route path="/categories"><ProtectedRoute component={Categories} /></Route>
       <Route path="/banners"><ProtectedRoute component={Banners} /></Route>
