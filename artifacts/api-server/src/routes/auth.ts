@@ -718,7 +718,7 @@ router.post("/send-otp", verifyCaptcha, sharedValidateBody(sendOtpSchema), async
   }
 
   if (process.env.NODE_ENV === "development" && process.env["LOG_OTP"] === "1") {
-    req.log.info({ phone, otp }, "OTP sent");
+    console.log({ phone, otp }, "OTP sent");
   }
 
   const otpUserId = existingUser[0]?.id;
@@ -774,7 +774,7 @@ router.post("/send-otp", verifyCaptcha, sharedValidateBody(sendOtpSchema), async
      * otp_require_when_no_provider = "off" (default) → auto-bypass               */
     const strictMode = settings["otp_require_when_no_provider"] === "on";
     if (strictMode) {
-      req.log.error({ phone }, "[OTP] No provider configured & strict mode ON — blocking login");
+      console.error({ phone }, "[OTP] No provider configured & strict mode ON — blocking login");
       writeAuthAuditLog("otp_send_no_provider", {
         ip,
         userAgent: req.headers["user-agent"] ?? undefined,
@@ -786,7 +786,7 @@ router.post("/send-otp", verifyCaptcha, sharedValidateBody(sendOtpSchema), async
       });
       return;
     }
-    req.log.warn({ phone }, "[OTP] No delivery provider configured — auto-bypassing OTP (bypass mode)");
+    console.warn({ phone }, "[OTP] No delivery provider configured — auto-bypassing OTP (bypass mode)");
     writeAuthAuditLog("otp_send_no_provider", {
       ip,
       userAgent: req.headers["user-agent"] ?? undefined,
@@ -806,16 +806,16 @@ router.post("/send-otp", verifyCaptcha, sharedValidateBody(sendOtpSchema), async
     if (channel === "whatsapp") {
       const waResult = await sendWhatsAppOTP(phone, otp, settings, otpLang);
       if (waResult.sent) { deliveryChannel = "whatsapp"; deliverySuccess = true; deliveryProvider = "whatsapp"; break; }
-      req.log.warn({ err: waResult.error }, "WhatsApp OTP failed, trying next channel");
+      console.warn({ err: waResult.error }, "WhatsApp OTP failed, trying next channel");
     } else if (channel === "sms") {
       const smsResult = await sendOtpSMS(phone, otp, settings, otpLang);
       if (smsResult.sent) { deliveryChannel = "sms"; deliverySuccess = true; deliveryProvider = smsResult.provider ?? "sms"; break; }
-      req.log.warn({ err: smsResult.error }, "SMS OTP failed, trying next channel");
+      console.warn({ err: smsResult.error }, "SMS OTP failed, trying next channel");
     } else if (channel === "email" && userEmail) {
       const emailLang = otpUserId ? await getUserLanguage(otpUserId) : await getPlatformDefaultLanguage();
       const emailResult = await sendPasswordResetEmail(userEmail, otp, existingUser[0]?.name ?? undefined, emailLang);
       if (emailResult.sent) { deliveryChannel = "email"; deliverySuccess = true; deliveryProvider = "email"; break; }
-      req.log.warn({ err: emailResult.reason }, "Email OTP failed");
+      console.warn({ err: emailResult.reason }, "Email OTP failed");
     }
   }
 
@@ -825,9 +825,9 @@ router.post("/send-otp", verifyCaptcha, sharedValidateBody(sendOtpSchema), async
   if (!deliverySuccess) {
     if (isDev) {
       deliveryChannel = "dev";
-      req.log.warn({ phone }, "All OTP delivery channels failed — returning OTP in dev mode");
+      console.warn({ phone }, "All OTP delivery channels failed — returning OTP in dev mode");
     } else {
-      req.log.error({ phone }, "All OTP delivery channels failed");
+      console.error({ phone }, "All OTP delivery channels failed");
       res.status(502).json({ error: "Could not deliver OTP. Please try again or use an alternative login method.", fallbackChannels: availableChannels });
       return;
     }
@@ -1778,7 +1778,7 @@ router.post("/send-email-otp", verifyCaptcha, async (req, res) => {
     .where(eq(usersTable.id, user.id));
 
   const isDev = process.env.NODE_ENV !== "production";
-  req.log.info({ email: normalized, otp: isDev ? otp : "[hidden]" }, "Email OTP generated");
+  console.log({ email: normalized, otp: isDev ? otp : "[hidden]" }, "Email OTP generated");
 
   /* Send OTP via email service. Falls back gracefully when SMTP is not configured.
      In development, the OTP is also exposed in the response for easy testing. */
@@ -2748,7 +2748,7 @@ router.post("/register", verifyCaptcha, sharedValidateBody(registerSchema), asyn
   const smsResult = await sendOtpSMS(normalizedPhone, otp, settings, registerLang);
   if (settings["integration_whatsapp"] === "on") {
     sendWhatsAppOTP(normalizedPhone, otp, settings, registerLang).catch(err =>
-      req.log.warn({ err: err.message }, "WhatsApp OTP send failed (non-fatal)")
+      console.warn({ err: err.message }, "WhatsApp OTP send failed (non-fatal)")
     );
   }
 
@@ -3179,7 +3179,7 @@ router.post("/email-register", verifyCaptcha, async (req, res) => {
 
   const isDevTokenLog = process.env.NODE_ENV === "development" && process.env["LOG_OTP"] === "1";
   if (isDevTokenLog) {
-    req.log.info({ email: normalizedEmail, emailSent: emailResult.sent }, "Email verification token generated");
+    console.log({ email: normalizedEmail, emailSent: emailResult.sent }, "Email verification token generated");
   }
 
   res.status(201).json({
