@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { AlertTriangle, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import {
+  AlertTriangle, Eye, EyeOff, CheckCircle2, XCircle, Clock, Zap,
+  Pause, Play, Pencil, Truck, Navigation, MapPin, Search, MessageSquare,
+  PackageCheck, Settings as Cog, Bike, Car, Circle,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,8 +44,13 @@ export function Toggle({ checked, onChange, label, icon, isDirty, danger, sub }:
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground leading-snug truncate">{label}</p>
           {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
-          <p className={`text-xs font-bold ${checked ? (danger ? "text-red-600" : "text-green-600") : "text-muted-foreground"}`}>
-            {checked ? (danger ? "⚠ ENABLED" : "● Active") : "○ Disabled"}
+          <p className={`text-xs font-bold flex items-center gap-1 ${checked ? (danger ? "text-red-600" : "text-green-600") : "text-muted-foreground"}`}>
+            {checked
+              ? danger
+                ? <><AlertTriangle className="w-3 h-3" /> Enabled</>
+                : <><CheckCircle2 className="w-3 h-3" /> Active</>
+              : <><Circle className="w-3 h-3" /> Disabled</>
+            }
           </p>
         </div>
       </div>
@@ -107,29 +116,49 @@ export function Field({ label, value, onChange, placeholder, isDirty, type = "te
 }
 
 /* ── StatusBadge ── */
+type StatusEntry = { label: string; className: string; icon: typeof Zap };
+const STATUS_MAP: Record<string, StatusEntry> = {
+  // Promotions / offers
+  draft:            { label: "Draft",            icon: Pencil,       className: "bg-gray-100 text-gray-600 border-gray-200" },
+  pending_approval: { label: "Pending Approval", icon: AlertTriangle,className: "bg-orange-100 text-orange-700 border-orange-200" },
+  rejected:         { label: "Rejected",         icon: XCircle,      className: "bg-red-100 text-red-700 border-red-200" },
+  paused:           { label: "Paused",           icon: Pause,        className: "bg-amber-100 text-amber-700 border-amber-200" },
+  live:             { label: "Live",             icon: Zap,          className: "bg-green-100 text-green-700 border-green-200" },
+  scheduled:        { label: "Scheduled",        icon: Clock,        className: "bg-blue-100 text-blue-700 border-blue-200" },
+  expired:          { label: "Expired",          icon: Clock,        className: "bg-gray-100 text-gray-600 border-gray-200" },
+  sold_out:         { label: "Sold Out",         icon: XCircle,      className: "bg-red-100 text-red-600 border-red-200" },
+  inactive:         { label: "Inactive",         icon: Circle,       className: "bg-gray-100 text-gray-500 border-gray-200" },
+  active:           { label: "Active",           icon: CheckCircle2, className: "bg-green-100 text-green-700 border-green-200" },
+  exhausted:        { label: "Exhausted",        icon: XCircle,      className: "bg-orange-100 text-orange-600 border-orange-200" },
+  // Orders / delivery
+  pending:          { label: "Pending",          icon: Clock,        className: "bg-amber-100 text-amber-700 border-amber-200" },
+  confirmed:        { label: "Confirmed",        icon: CheckCircle2, className: "bg-blue-100 text-blue-700 border-blue-200" },
+  preparing:        { label: "Preparing",        icon: Cog,          className: "bg-purple-100 text-purple-700 border-purple-200" },
+  out_for_delivery: { label: "Delivering",       icon: Bike,         className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  delivered:        { label: "Delivered",        icon: PackageCheck, className: "bg-green-100 text-green-700 border-green-200" },
+  cancelled:        { label: "Cancelled",        icon: XCircle,      className: "bg-red-100 text-red-600 border-red-200" },
+  completed:        { label: "Completed",        icon: CheckCircle2, className: "bg-green-100 text-green-700 border-green-200" },
+  // Rides
+  bargaining:       { label: "Bargaining",       icon: MessageSquare,className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  searching:        { label: "Searching",        icon: Search,       className: "bg-blue-100 text-blue-700 border-blue-200" },
+  accepted:         { label: "Accepted",         icon: CheckCircle2, className: "bg-teal-100 text-teal-700 border-teal-200" },
+  arrived:          { label: "Arrived",          icon: MapPin,       className: "bg-purple-100 text-purple-700 border-purple-200" },
+  in_transit:       { label: "In Transit",       icon: Car,          className: "bg-orange-100 text-orange-700 border-orange-200" },
+};
+
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; className: string }> = {
-    live:             { label: "⚡ Live",         className: "bg-green-100 text-green-700 border-green-200" },
-    scheduled:        { label: "🕐 Scheduled",    className: "bg-blue-100 text-blue-700 border-blue-200" },
-    expired:          { label: "⏱ Expired",       className: "bg-gray-100 text-gray-600 border-gray-200" },
-    sold_out:         { label: "✖ Sold Out",      className: "bg-red-100 text-red-600 border-red-200" },
-    inactive:         { label: "○ Inactive",      className: "bg-gray-100 text-gray-500 border-gray-200" },
-    active:           { label: "✓ Active",        className: "bg-green-100 text-green-700 border-green-200" },
-    exhausted:        { label: "✖ Exhausted",     className: "bg-orange-100 text-orange-600 border-orange-200" },
-    pending:          { label: "⏳ Pending",       className: "bg-amber-100 text-amber-700 border-amber-200" },
-    confirmed:        { label: "✓ Confirmed",     className: "bg-blue-100 text-blue-700 border-blue-200" },
-    preparing:        { label: "⚙ Preparing",    className: "bg-purple-100 text-purple-700 border-purple-200" },
-    out_for_delivery: { label: "🚴 Delivering",   className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-    delivered:        { label: "✅ Delivered",    className: "bg-green-100 text-green-700 border-green-200" },
-    cancelled:        { label: "❌ Cancelled",    className: "bg-red-100 text-red-600 border-red-200" },
-    completed:        { label: "✅ Completed",    className: "bg-green-100 text-green-700 border-green-200" },
-    bargaining:       { label: "💬 Bargaining",   className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-    searching:        { label: "🔍 Searching",    className: "bg-blue-100 text-blue-700 border-blue-200" },
-    accepted:         { label: "✓ Accepted",      className: "bg-teal-100 text-teal-700 border-teal-200" },
-    arrived:          { label: "📍 Arrived",      className: "bg-purple-100 text-purple-700 border-purple-200" },
-    in_transit:       { label: "🚗 In Transit",   className: "bg-orange-100 text-orange-700 border-orange-200" },
-  };
-  const cfg = map[status] ?? { label: status, className: "bg-gray-100 text-gray-600 border-gray-200" };
-  return <Badge variant="outline" className={`text-[10px] font-bold rounded-full px-2.5 py-0.5 uppercase tracking-wide border-0 ${cfg.className}`}>{cfg.label}</Badge>;
+  const cfg = STATUS_MAP[status] ?? { label: status, icon: Circle, className: "bg-gray-100 text-gray-600 border-gray-200" };
+  const Icon = cfg.icon;
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] font-bold rounded-full px-2 py-0.5 uppercase tracking-wide border inline-flex items-center gap-1 ${cfg.className}`}
+      role="status"
+      aria-label={cfg.label}
+    >
+      <Icon className="w-3 h-3" aria-hidden="true" />
+      {cfg.label}
+    </Badge>
+  );
 }
 

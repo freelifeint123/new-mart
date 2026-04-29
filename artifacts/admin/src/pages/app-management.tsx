@@ -14,6 +14,7 @@ import { fetcher } from "@/lib/api";
 import { getAdminTiming } from "@/lib/adminTiming";
 import { useAdminAuth } from "@/lib/adminAuthContext";
 import { Mail } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAuditLog } from "@/hooks/use-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,7 @@ const EMPTY_ADMIN = { name: "", email: "", secret: "", role: "manager", permissi
 function SessionsTab() {
   const [sessions, setSessions] = useState<AdminSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
   const { toast } = useToast();
   // qc kept for future invalidation hooks; currently unused but retained
   // to keep the SessionsTab signature aligned with the other tabs.
@@ -133,7 +135,7 @@ function SessionsTab() {
 
   // Revoke all sessions
   const revokeAllSessions = async () => {
-    if (!window.confirm("Are you sure? You will be logged out of all devices.")) return;
+    setConfirmRevokeAll(false);
     try {
       await fetcher("/auth/sessions", { method: "DELETE" });
       setSessions([]);
@@ -180,7 +182,7 @@ function SessionsTab() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={revokeAllSessions}
+              onClick={() => setConfirmRevokeAll(true)}
               className="h-9 rounded-xl gap-2 bg-red-600 hover:bg-red-700"
             >
               <LogOut className="w-4 h-4" /> Sign out everywhere
@@ -234,6 +236,15 @@ function SessionsTab() {
           </div>
         )}
       </Card>
+      <ConfirmDialog
+        open={confirmRevokeAll}
+        onClose={() => setConfirmRevokeAll(false)}
+        onConfirm={revokeAllSessions}
+        title="Revoke all sessions?"
+        description="You will be logged out of all devices."
+        confirmLabel="Revoke all"
+        variant="destructive"
+      />
     </div>
   );
 }
@@ -351,6 +362,8 @@ export default function AppManagement() {
   const [rnDialog, setRnDialog] = useState(false);
   const [editingRn, setEditingRn] = useState<any>(null);
   const [rnForm, setRnForm] = useState({ version: "", releaseDate: new Date().toISOString().split("T")[0], notes: "", sortOrder: "0" });
+  const [deleteRnTarget, setDeleteRnTarget] = useState<{ id: string; version: string } | null>(null);
+  const [resetLinkAdmin, setResetLinkAdmin] = useState<{ id: string; email: string } | null>(null);
 
   /* ── Compliance settings state ── */
   const [complianceSaving, setComplianceSaving] = useState(false);
@@ -780,9 +793,7 @@ export default function AppManagement() {
                                   });
                                   return;
                                 }
-                                if (window.confirm(`Send a password reset link to ${a.email}?`)) {
-                                  sendResetLink.mutate(a.id);
-                                }
+                                setResetLinkAdmin({ id: a.id, email: a.email });
                               }}
                               disabled={sendResetLink.isPending}
                               className="p-2 hover:bg-amber-50 rounded-lg disabled:opacity-50"
@@ -1025,7 +1036,7 @@ export default function AppManagement() {
                             <Pencil className="w-3.5 h-3.5"/>
                           </button>
                           <button
-                            onClick={() => { if (confirm(`Delete release notes for v${rn.version}?`)) deleteRn.mutate(rn.id); }}
+                            onClick={() => setDeleteRnTarget({ id: rn.id, version: rn.version })}
                             className="w-8 h-8 rounded-lg hover:bg-red-50 flex items-center justify-center text-muted-foreground hover:text-red-600 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5"/>
@@ -1204,6 +1215,32 @@ export default function AppManagement() {
 
       {/* ══ Sessions Tab ══ */}
       {tab === "sessions" && <SessionsTab />}
+
+      <ConfirmDialog
+        open={!!resetLinkAdmin}
+        onClose={() => setResetLinkAdmin(null)}
+        onConfirm={() => {
+          if (!resetLinkAdmin) return;
+          sendResetLink.mutate(resetLinkAdmin.id, { onSettled: () => setResetLinkAdmin(null) });
+        }}
+        title={tDual("sendResetLinkTitle", language)}
+        description={resetLinkAdmin ? `Send a password reset link to ${resetLinkAdmin.email}?` : ""}
+        confirmLabel="Send link"
+        busy={sendResetLink.isPending}
+      />
+      <ConfirmDialog
+        open={!!deleteRnTarget}
+        onClose={() => setDeleteRnTarget(null)}
+        onConfirm={() => {
+          if (!deleteRnTarget) return;
+          deleteRn.mutate(deleteRnTarget.id, { onSettled: () => setDeleteRnTarget(null) });
+        }}
+        title="Delete release notes?"
+        description={deleteRnTarget ? `Delete release notes for v${deleteRnTarget.version}?` : ""}
+        confirmLabel="Delete"
+        variant="destructive"
+        busy={deleteRn.isPending}
+      />
     </div>
   );
 }

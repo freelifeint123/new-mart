@@ -1653,13 +1653,25 @@ export default function ErrorMonitor() {
               </h3>
               <button
                 onClick={async () => {
-                  // Routed through the shared safeCopyToClipboard helper
-                  // so clipboard denials surface in the [safeClipboard]
-                  // log channel; on failure we still expose the content
-                  // via prompt() so admins can copy it manually.
+                  // Routed through the shared safeCopyToClipboard helper so
+                  // clipboard denials surface in the [safeClipboard] log
+                  // channel; on failure we fall back to a hidden textarea +
+                  // execCommand("copy") so we never trigger a native prompt.
                   const result = await safeCopyToClipboard(taskPlanContent);
                   if (!result.ok) {
-                    window.prompt("Copy failed — select and copy manually:", taskPlanContent);
+                    try {
+                      const ta = document.createElement("textarea");
+                      ta.value = taskPlanContent;
+                      ta.setAttribute("readonly", "");
+                      ta.style.position = "fixed";
+                      ta.style.opacity = "0";
+                      document.body.appendChild(ta);
+                      ta.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(ta);
+                    } catch {
+                      // Silent: clipboard denial logged via safeClipboard.
+                    }
                   }
                 }}
                 style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, backgroundColor: "#EEF2FF", color: "#4F46E5", border: "1px solid #C7D2FE", cursor: "pointer" }}

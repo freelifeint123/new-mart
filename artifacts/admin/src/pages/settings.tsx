@@ -19,6 +19,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Toggle, Field, SecretInput, SLabel, ModeBtn } from "@/components/AdminShared";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useLanguage } from "@/lib/useLanguage";
+import { tDual } from "@workspace/i18n";
 import { PaymentSection } from "./settings-payment";
 import { IntegrationsSection } from "./settings-integrations";
 import { SecuritySection } from "./settings-security";
@@ -276,6 +279,8 @@ export default function SettingsPage() {
 
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [pendingRestore, setPendingRestore] = useState<File | null>(null);
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackup = async () => {
@@ -299,12 +304,16 @@ export default function SettingsPage() {
     setBackingUp(false);
   };
 
-  const handleRestoreFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!fileInputRef.current) return;
     fileInputRef.current.value = "";
     if (!file) return;
-    if (!window.confirm(`Restore settings from "${file.name}"?\n\nThis will overwrite existing values with the backup. Your current settings will be replaced. Continue?`)) return;
+    setPendingRestore(file);
+  };
+
+  const performRestore = async (file: File) => {
+    setPendingRestore(null);
     setRestoring(true);
     try {
       const text = await file.text();
@@ -761,6 +770,17 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingRestore}
+        onClose={() => setPendingRestore(null)}
+        onConfirm={() => pendingRestore && performRestore(pendingRestore)}
+        title={tDual("restoreSettingsTitle", language)}
+        description={pendingRestore ? `${pendingRestore.name}\n\n${tDual("restoreSettingsBody", language)}` : ""}
+        confirmLabel="Restore"
+        variant="destructive"
+        busy={restoring}
+      />
     </div>
   );
 }

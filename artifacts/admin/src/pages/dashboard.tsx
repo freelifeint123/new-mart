@@ -11,8 +11,12 @@ import { fetcher } from "@/lib/api";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { useToast } from "@/hooks/use-toast";
 
-function exportDashboard(trend: { date: string; revenue: number }[]) {
+function exportDashboard(
+  trend: { date: string; revenue: number }[],
+  onError: (msg: string) => void,
+) {
   fetcher("/dashboard-export").then((data: any) => {
     const enriched = { ...data, trend: data.trend ?? trend };
     const blob = new Blob([JSON.stringify(enriched, null, 2)], { type: "application/json" });
@@ -22,7 +26,7 @@ function exportDashboard(trend: { date: string; revenue: number }[]) {
     a.download = `dashboard-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }).catch(() => alert("Export failed"));
+  }).catch((err: any) => onError(err?.message || "Export failed"));
 }
 
 /* Shimmer skeleton block */
@@ -71,6 +75,7 @@ function updatedAgo(ts: number): string {
 }
 
 export default function Dashboard() {
+  const { toast } = useToast();
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   const qc = useQueryClient();
@@ -164,7 +169,7 @@ export default function Dashboard() {
             )}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => exportDashboard(trend)} className="h-9 rounded-xl gap-2 shrink-0">
+        <Button variant="outline" size="sm" onClick={() => exportDashboard(trend, (msg) => toast({ title: "Export failed", description: msg, variant: "destructive" }))} className="h-9 rounded-xl gap-2 shrink-0">
           <Download className="w-4 h-4" /> {T("export")}
         </Button>
       </div>

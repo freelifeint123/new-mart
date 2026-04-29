@@ -16,6 +16,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/AdminShared";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useLanguage } from "@/lib/useLanguage";
+import { tDual, type TranslationKey } from "@workspace/i18n";
 
 type PopupType = "modal" | "bottom_sheet" | "top_banner" | "floating_card";
 type DisplayFrequency = "once" | "daily" | "every_session";
@@ -192,6 +195,7 @@ function PopupPreview({ campaign }: { campaign: Partial<typeof EMPTY_FORM & { ti
 }
 
 export default function PopupsPage() {
+  const { language } = useLanguage();
   const { toast } = useToast();
   const qc = useQueryClient();
   const { state: authState } = useAdminAuth();
@@ -209,6 +213,7 @@ export default function PopupsPage() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [tplEditorOpen, setTplEditorOpen] = useState(false);
   const [editingTplId, setEditingTplId] = useState<string | null>(null);
+  const [deletePopupId, setDeletePopupId] = useState<string | null>(null);
   const [tplForm, setTplForm] = useState({
     name: "",
     description: "",
@@ -616,7 +621,7 @@ export default function PopupsPage() {
                             <Pencil className="w-4 h-4 text-blue-600" />
                           </button>
                           <button
-                            onClick={() => { if (window.confirm("Delete this campaign?")) deleteMutation.mutate(c.id); }}
+                            onClick={() => setDeletePopupId(c.id)}
                             disabled={deleteMutation.isPending}
                             className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                           >
@@ -1259,6 +1264,20 @@ export default function PopupsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deletePopupId}
+        onClose={() => setDeletePopupId(null)}
+        onConfirm={() => {
+          if (!deletePopupId) return;
+          deleteMutation.mutate(deletePopupId, { onSettled: () => setDeletePopupId(null) });
+        }}
+        title={tDual("deletePopupTitle", language)}
+        description={tDual("actionCannotBeUndone", language)}
+        confirmLabel="Delete"
+        variant="destructive"
+        busy={deleteMutation.isPending}
+      />
     </div>
   );
 }

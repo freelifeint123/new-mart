@@ -53,6 +53,7 @@ import {
   Server,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useLanguage } from "@/lib/useLanguage";
@@ -87,7 +88,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { nameKey: "navDashboard",     href: "/dashboard",       icon: LayoutDashboard },
       { nameKey: "navUserPermissions", href: "/users",         icon: Lock },
-      { nameKey: "navUserPermissions", href: "/roles-permissions", icon: KeyRound, requirePermission: ["system.roles.manage", "system.audit.view"] },
       { nameKey: "navSettings",        href: "/settings",       icon: Settings2 },
       { nameKey: "navFeatureToggles",  href: "/app-management", icon: ToggleLeft },
       { nameKey: "navLaunchControl" as TranslationKey, href: "/launch-control", icon: Rocket },
@@ -137,8 +137,11 @@ const NAV_GROUPS: NavGroup[] = [
     labelKey: "navMarketing",
     color: "#EC4899",
     items: [
-      { nameKey: "navBanners",  href: "/banners", icon: Layers },
-      { nameKey: "navPopups",   href: "/popups",  icon: Megaphone },
+      { nameKey: "navOffersCoupons" as TranslationKey,   href: "/promotions",                icon: Ticket },
+      { nameKey: "navFlashDeals",                        href: "/flash-deals",               icon: Zap },
+      { nameKey: "navBanners",                           href: "/banners",                   icon: Layers },
+      { nameKey: "navPopups",                            href: "/popups",                    icon: Megaphone },
+      { nameKey: "navCampaignsCalendar" as TranslationKey, href: "/promotions?tab=campaigns", icon: BellRing },
     ],
   },
 
@@ -146,11 +149,10 @@ const NAV_GROUPS: NavGroup[] = [
     labelKey: "navCustomerSupport",
     color: "#06B6D4",
     items: [
-      { nameKey: "navSupportChat",     href: "/support-chat",      icon: MessageCircle },
-      { nameKey: "navFaqMgmt",         href: "/faq-management",    icon: HelpCircle },
-      { nameKey: "navSearchAnalytics", href: "/search-analytics",  icon: BarChart2 },
-      { nameKey: "navCommunication" as TranslationKey, href: "/communication", icon: Radio },
-      { nameKey: "navChatMonitor" as TranslationKey,   href: "/chat-monitor",  icon: MessageCircle },
+      { nameKey: "navInboxChatModeration" as TranslationKey, href: "/support-chat",      icon: MessageCircle },
+      { nameKey: "navFaqMgmt",                               href: "/faq-management",    icon: HelpCircle },
+      { nameKey: "navSendBroadcast" as TranslationKey,       href: "/broadcast",         icon: Radio },
+      { nameKey: "navNotificationsLog" as TranslationKey,    href: "/notifications",     icon: BellRing },
     ],
   },
 
@@ -158,9 +160,11 @@ const NAV_GROUPS: NavGroup[] = [
     labelKey: "navAnalytics" as TranslationKey,
     color: "#F472B6",
     items: [
-      { nameKey: "navWishlistInsights" as TranslationKey, href: "/wishlist-insights", icon: Heart },
-      { nameKey: "navQrCodes" as TranslationKey,          href: "/qr-codes",          icon: QrCode },
-      { nameKey: "navExperiments" as TranslationKey,       href: "/experiments",       icon: FlaskConical },
+      { nameKey: "navSearchAnalytics",                     href: "/search-analytics",  icon: BarChart2 },
+      { nameKey: "navMessagingKpis" as TranslationKey,     href: "/communication",     icon: MessageCircle },
+      { nameKey: "navWishlistInsights" as TranslationKey,  href: "/wishlist-insights", icon: Heart },
+      { nameKey: "navQrCodes" as TranslationKey,           href: "/qr-codes",          icon: QrCode },
+      { nameKey: "navExperiments" as TranslationKey,        href: "/experiments",       icon: FlaskConical },
     ],
   },
 
@@ -183,6 +187,51 @@ const BOTTOM_NAV: { nameKey: TranslationKey; href: string; icon: React.ElementTy
 ];
 
 const navItems = NAV_GROUPS.flatMap(g => g.items);
+
+// One-line descriptions surfaced as tooltips on collapsed nav.
+const NAV_DESCRIPTIONS: Partial<Record<string, string>> = {
+  "/dashboard": "Overview KPIs and live activity",
+  "/users": "Customers, admins and roles",
+  "/settings": "Single source of truth for platform settings",
+  "/app-management": "Feature flags and module switches",
+  "/launch-control": "Pre-launch readiness checklist",
+  "/otp-control": "OTP delivery providers and policies",
+  "/sms-gateways": "SMS provider routing and credits",
+  "/account-conditions": "Apply or lift restrictions on accounts",
+  "/condition-rules": "Default rules per condition type",
+  "/orders": "All marketplace orders and refunds",
+  "/transactions": "Wallet, payouts and ledger entries",
+  "/withdrawals": "Vendor and rider withdrawal requests",
+  "/deposit-requests": "Customer top-ups awaiting approval",
+  "/wallet-transfers": "Internal wallet movements",
+  "/loyalty": "Loyalty point ledger and rules",
+  "/kyc": "KYC submissions and verification",
+  "/vendors": "Stores, catalogues and payouts",
+  "/products": "Global catalogue and curation",
+  "/promotions": "Offers, coupons and campaigns",
+  "/flash-deals": "Time-bound flash deal calendar",
+  "/banners": "Home and category banner slots",
+  "/popups": "In-app popup campaigns",
+  "/rides": "Ride bookings and disputes",
+  "/van": "Van service requests",
+  "/pharmacy": "Pharmacy orders and pre-orders",
+  "/live-riders-map": "Real-time rider positions",
+  "/sos-alerts": "Active safety alerts",
+  "/error-monitor": "Client and server error stream",
+  "/security": "Audit log of admin actions",
+  "/delivery-access": "Pilot whitelist and access requests",
+  "/support-chat": "Inbox plus chat moderation",
+  "/faq-management": "Help centre and FAQ articles",
+  "/broadcast": "Send notifications to segments",
+  "/notifications": "Outbound notifications log",
+  "/communication": "Messaging KPIs and dashboards",
+  "/search-analytics": "Search queries and zero-result terms",
+  "/wishlist-insights": "Most-wished products and trends",
+  "/qr-codes": "Branded QR codes and campaigns",
+  "/experiments": "A/B tests and rollouts",
+  "/webhooks": "Outgoing webhook endpoints",
+  "/deep-links": "Deep link generator and analytics",
+};
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -311,6 +360,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const sidebarWidth = collapsed ? 72 : 264;
 
   const SidebarContent = ({ mini, isMobile }: { mini?: boolean; isMobile?: boolean }) => (
+    <TooltipProvider delayDuration={150} skipDelayDuration={300}>
     <div
       className="flex flex-col h-full select-none"
       style={{
@@ -439,10 +489,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     const showErrorBadge = item.errorBadge && errorCount > 0;
                     const hasBadge = showSosBadge || showErrorBadge;
 
-                    return (
+                    const itemNode = (
                       <Link key={item.href} href={item.href} onClick={() => isMobile && setIsMobileMenuOpen(false)}>
                         <div
-                          title={showMini ? T(item.nameKey) : undefined}
                           className="flex items-center transition-all duration-150 cursor-pointer group relative"
                           style={{
                             borderRadius: 10,
@@ -516,6 +565,21 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         </div>
                       </Link>
                     );
+
+                    if (showMini) {
+                      const description = NAV_DESCRIPTIONS[item.href];
+                      return (
+                        <Tooltip key={item.href} delayDuration={150}>
+                          <TooltipTrigger asChild>{itemNode}</TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[220px]">
+                            <div className="text-[10px] font-bold uppercase tracking-wide opacity-60">{T(group.labelKey)}</div>
+                            <div className="text-xs font-semibold leading-tight">{T(item.nameKey)}</div>
+                            {description && <div className="text-[11px] opacity-80 leading-snug mt-0.5">{description}</div>}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    }
+                    return <React.Fragment key={item.href}>{itemNode}</React.Fragment>;
                   })}
                 </div>
               </div>
@@ -578,6 +642,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
     </div>
+    </TooltipProvider>
   );
 
   return (

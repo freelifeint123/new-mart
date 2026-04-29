@@ -9,6 +9,7 @@ import {
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { PromptDialog } from "@/components/ConfirmDialog";
 import { useRiders, useUpdateRiderStatus, useRiderPayout, useRiderBonus, useToggleRiderOnline, useRiderPenalties, useRiderRatings, useRestrictRider, useUnrestrictRider, useOverrideSuspension, useApproveUser, useRejectUser } from "@/hooks/use-admin";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
@@ -19,82 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-/* ── Wallet Modal ── */
-function RiderWalletModal({ rider, onClose }: { rider: any; onClose: () => void }) {
-  const { toast } = useToast();
-  const payoutMutation = useRiderPayout();
-  const bonusMutation  = useRiderBonus();
-  const [mode, setMode]     = useState<"payout" | "bonus">("payout");
-  const [amount, setAmount] = useState("");
-  const [note, setNote]     = useState("");
-
-  const handleSubmit = () => {
-    const amt = Number(amount);
-    if (!amt || amt <= 0) { toast({ title: "Valid amount daalen", variant: "destructive" }); return; }
-    const mutation = mode === "payout" ? payoutMutation : bonusMutation;
-    mutation.mutate({ id: rider.id, amount: amt, description: note || undefined }, {
-      onSuccess: (d: any) => {
-        toast({ title: mode === "payout" ? "Payout processed ✅" : "Bonus added ✅", description: `New balance: ${formatCurrency(d.newBalance)}` });
-        onClose();
-      },
-      onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
-    });
-  };
-
-  return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="w-[95vw] max-w-md rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-green-600" /> Rider Wallet — {rider.name || rider.phone}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 mt-2">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-            <p className="text-xs text-green-600 font-medium mb-1">Current Wallet Balance</p>
-            <p className="text-3xl font-extrabold text-green-700">{formatCurrency(rider.walletBalance)}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {(["payout","bonus"] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)}
-                className={`p-3 rounded-xl border text-sm font-bold transition-all ${mode === m
-                  ? m === "payout" ? "bg-red-50 border-red-400 text-red-700" : "bg-green-50 border-green-400 text-green-700"
-                  : "bg-muted/30 border-border"}`}>
-                {m === "payout" ? <><CircleDollarSign className="w-4 h-4 inline mr-1" />Process Payout</> : <><Gift className="w-4 h-4 inline mr-1" />Add Bonus</>}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide block mb-1.5">Amount</label>
-            <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} className="h-12 rounded-xl text-lg font-bold" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide block mb-1.5">Note (optional)</label>
-            <Input placeholder="e.g. Weekly earnings payout" value={note} onChange={e => setNote(e.target.value)} className="h-11 rounded-xl" />
-          </div>
-
-          {mode === "payout" && rider.walletBalance < Number(amount || 0) && Number(amount) > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">Wallet balance is insufficient for this payout.</p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSubmit}
-              disabled={payoutMutation.isPending || bonusMutation.isPending || !amount || (mode === "payout" && rider.walletBalance < Number(amount || 0) && Number(amount) > 0)}
-              className={`flex-1 rounded-xl text-white ${mode === "payout" ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"}`}>
-              {(payoutMutation.isPending || bonusMutation.isPending) ? "Processing..." : mode === "payout" ? "Process Payout" : "Add Bonus"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { WalletAdjustModal } from "@/components/WalletAdjustModal";
 
 /* ── Suspend Modal ── */
 function RiderSuspendModal({ rider, onClose }: { rider: any; onClose: () => void }) {
@@ -293,6 +219,7 @@ export default function Riders() {
   const [dateFrom, setDateFrom]         = useState("");
   const [dateTo, setDateTo]             = useState("");
   const [walletModal,  setWalletModal]  = useState<any>(null);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
   const [suspendModal, setSuspendModal] = useState<any>(null);
   const [detailModal,  setDetailModal]  = useState<any>(null);
 
@@ -345,8 +272,13 @@ export default function Riders() {
   };
 
   const handleReject = (r: any) => {
-    const note = window.prompt("Rejection reason (optional):");
-    rejectM.mutate({ id: r.id, note: note ?? "" }, {
+    setRejectTarget(r);
+  };
+  const submitReject = (note: string) => {
+    if (!rejectTarget) return;
+    const r = rejectTarget;
+    setRejectTarget(null);
+    rejectM.mutate({ id: r.id, note }, {
       onSuccess: () => { toast({ title: "Rider rejected" }); refetch(); },
       onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
     });
@@ -561,9 +493,18 @@ export default function Riders() {
       )}
 
       {/* Modals */}
-      {walletModal  && <RiderWalletModal  rider={walletModal}  onClose={() => setWalletModal(null)} />}
+      {walletModal  && <WalletAdjustModal mode="rider" subject={walletModal} onClose={() => setWalletModal(null)} />}
       {suspendModal && <RiderSuspendModal rider={suspendModal} onClose={() => setSuspendModal(null)} />}
       {detailModal  && <RiderDetailDrawer rider={detailModal}  onClose={() => setDetailModal(null)} />}
+      <PromptDialog
+        open={!!rejectTarget}
+        title="Reject rider"
+        description="Provide a reason (optional). The rider will be notified."
+        placeholder="Rejection reason"
+        confirmLabel="Reject"
+        onClose={() => setRejectTarget(null)}
+        onSubmit={submitReject}
+      />
     </PullToRefresh>
   );
 }

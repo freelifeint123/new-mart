@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const EMPTY_FORM = {
   code: "", description: "", discountPct: "", discountFlat: "",
@@ -23,6 +24,8 @@ const EMPTY_FORM = {
 
 function PromoModal({ promo, onClose }: { promo?: any; onClose: () => void }) {
   const { toast } = useToast();
+  const { language } = useLanguage();
+  const T = (k: TranslationKey) => tDual(k, language);
   const createMutation = useCreatePromoCode();
   const updateMutation = useUpdatePromoCode();
   const isEdit = !!promo;
@@ -44,7 +47,7 @@ function PromoModal({ promo, onClose }: { promo?: any; onClose: () => void }) {
 
   const handleSubmit = () => {
     if (!form.code) { toast({ title: "Promo code required", variant: "destructive" }); return; }
-    if (!form.discountPct && !form.discountFlat) { toast({ title: "Discount % ya flat amount required hai", variant: "destructive" }); return; }
+    if (!form.discountPct && !form.discountFlat) { toast({ title: T("discountAmountRequired"), variant: "destructive" }); return; }
 
     const payload: any = {
       code:        form.code.toUpperCase().trim(),
@@ -346,20 +349,16 @@ export default function PromoCodes() {
       {editPromo  && <PromoModal promo={editPromo} onClose={() => setEditPromo(null)} />}
 
       {/* Delete Confirm */}
-      {deleteId && (
-        <Dialog open onOpenChange={open => { if (!open) setDeleteId(null); }}>
-          <DialogContent className="w-[95vw] max-w-sm rounded-2xl">
-            <DialogHeader><DialogTitle>Delete Promo Code?</DialogTitle></DialogHeader>
-            <p className="text-sm text-muted-foreground mt-2">Yeh action undo nahi ho sakta.</p>
-            <div className="flex gap-3 mt-4">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setDeleteId(null)}>Cancel</Button>
-              <Button variant="destructive" className="flex-1 rounded-xl" onClick={() => handleDelete(deleteId)} disabled={deleteMutation.isPending}>
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <ConfirmDialog
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        title={tDual("deletePromoCodeTitle", language)}
+        description={tDual("actionCannotBeUndone", language)}
+        confirmLabel="Delete"
+        variant="destructive"
+        busy={deleteMutation.isPending}
+      />
     </div>
   );
 }

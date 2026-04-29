@@ -15,6 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAbortableEffect, isAbortError } from "@/lib/useAbortableEffect";
+import { ConfirmDialog, PromptDialog } from "@/components/ConfirmDialog";
+import { useLanguage } from "@/lib/useLanguage";
+import { tDual } from "@workspace/i18n";
 
 interface PermissionDef {
   id: string;
@@ -57,6 +60,9 @@ export default function RolesPermissionsPage() {
   const [draftPerms, setDraftPerms] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("");
   const [tab, setTab] = useState<"roles" | "admins">("roles");
+  const [newRoleStep, setNewRoleStep] = useState<{ stage: "slug" | "name"; slug: string; name: string } | null>(null);
+  const [confirmRemoveRole, setConfirmRemoveRole] = useState(false);
+  const { language } = useLanguage();
 
   /* ── Admin assignments tab state ────────────────────────────── */
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
@@ -198,17 +204,16 @@ export default function RolesPermissionsPage() {
     }
   };
 
-  const createRole = async () => {
-    const slug = window.prompt("New role slug (letters, digits, underscores):")?.trim();
-    if (!slug) return;
-    const name = window.prompt("Display name:")?.trim() || slug;
+  const createRoleStep1 = () => setNewRoleStep({ stage: "slug", slug: "", name: "" });
+  const submitNewRole = async (slug: string, name: string) => {
+    setNewRoleStep(null);
     try {
       const res = await fetchAdmin("/system/rbac/roles", {
         method: "POST",
-        body: JSON.stringify({ slug, name }),
+        body: JSON.stringify({ slug, name: name || slug }),
       });
       const role = (res?.data?.role ?? res?.role) as RbacRole | undefined;
-      toast({ title: "Role created", description: name });
+      toast({ title: "Role created", description: name || slug });
       await reload();
       if (role) setActiveRoleId(role.id);
     } catch (err) {
@@ -216,9 +221,9 @@ export default function RolesPermissionsPage() {
     }
   };
 
-  const removeRole = async () => {
+  const performRemoveRole = async () => {
     if (!activeRole || activeRole.isBuiltIn) return;
-    if (!window.confirm(`Delete role "${activeRole.name}"?`)) return;
+    setConfirmRemoveRole(false);
     try {
       await fetchAdmin(`/system/rbac/roles/${activeRole.id}`, { method: "DELETE" });
       toast({ title: "Role deleted" });
@@ -267,7 +272,7 @@ export default function RolesPermissionsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${(loading || adminsLoading) ? "animate-spin" : ""}`} /> Reload
           </Button>
           {canManage && tab === "roles" && (
-            <Button onClick={createRole}>
+            <Button onClick={createRoleStep1}>
               <Plus className="h-4 w-4 mr-2" /> New role
             </Button>
           )}
@@ -361,7 +366,7 @@ export default function RolesPermissionsPage() {
                     />
                   </div>
                   {canManage && !activeRole.isBuiltIn && (
-                    <Button variant="ghost" onClick={removeRole}>
+                    <Button variant="ghost" onClick={() => setConfirmRemoveRole(true)}>
                       <Trash2 className="h-4 w-4 mr-2" /> Delete
                     </Button>
                   )}
@@ -418,6 +423,42 @@ export default function RolesPermissionsPage() {
         </section>
       </div>
       )}
+
+      <PromptDialog
+        open={!!newRoleStep && newRoleStep.stage === "slug"}
+        title={tDual("newRoleSlugTitle", language)}
+        description={tDual("newRoleSlugLabel", language)}
+        placeholder={tDual("newRoleSlugPlaceholder", language)}
+        required
+        defaultValue={newRoleStep?.slug ?? ""}
+        onClose={() => setNewRoleStep(null)}
+        onSubmit={(slug) => {
+          const trimmed = slug.trim();
+          if (!trimmed) return;
+          setNewRoleStep({ stage: "name", slug: trimmed, name: trimmed });
+        }}
+      />
+      <PromptDialog
+        open={!!newRoleStep && newRoleStep.stage === "name"}
+        title={tDual("newRoleSlugTitle", language)}
+        description={tDual("newRoleNameLabel", language)}
+        placeholder={tDual("newRoleNameLabel", language)}
+        defaultValue={newRoleStep?.name ?? ""}
+        onClose={() => setNewRoleStep(null)}
+        onSubmit={(name) => {
+          if (!newRoleStep) return;
+          void submitNewRole(newRoleStep.slug, name.trim());
+        }}
+      />
+      <ConfirmDialog
+        open={confirmRemoveRole}
+        onClose={() => setConfirmRemoveRole(false)}
+        onConfirm={performRemoveRole}
+        title={tDual("deleteRoleTitle", language)}
+        description={activeRole ? `Delete role "${activeRole.name}"?` : ""}
+        confirmLabel="Delete"
+        variant="destructive"
+      />
     </div>
   );
 }
@@ -536,6 +577,7 @@ function AdminAssignments({
           </>
         )}
       </section>
+
     </div>
   );
 }

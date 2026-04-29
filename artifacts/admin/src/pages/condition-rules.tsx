@@ -18,32 +18,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-
-const CONDITION_TYPES = [
-  { value: "warning_l1", label: "Warning L1" },
-  { value: "warning_l2", label: "Warning L2" },
-  { value: "warning_l3", label: "Warning L3" },
-  { value: "restriction_service_block", label: "Service Block" },
-  { value: "restriction_wallet_freeze", label: "Wallet Freeze" },
-  { value: "restriction_promo_block", label: "Promo Block" },
-  { value: "restriction_order_cap", label: "Order Cap" },
-  { value: "restriction_new_order_block", label: "New Order Block" },
-  { value: "restriction_rate_limit", label: "Rate Limit" },
-  { value: "suspension_temporary", label: "Temporary Suspension" },
-  { value: "suspension_extended", label: "Extended Suspension" },
-  { value: "suspension_pending_review", label: "Pending Review Suspension" },
-  { value: "ban_soft", label: "Soft Ban" },
-  { value: "ban_hard", label: "Hard Ban" },
-  { value: "ban_fraud", label: "Fraud Ban" },
-];
-
-const SEVERITIES = [
-  { value: "warning", label: "Warning" },
-  { value: "restriction_normal", label: "Restriction (Normal)" },
-  { value: "restriction_strict", label: "Restriction (Strict)" },
-  { value: "suspension", label: "Suspension" },
-  { value: "ban", label: "Ban" },
-];
+import {
+  CONDITION_TYPES,
+  SEVERITY_COLORS,
+  SEVERITY_OPTIONS as SEVERITIES,
+} from "@/lib/conditions";
 
 const OPERATORS = [">", "<", ">=", "<=", "==", "!="];
 
@@ -65,14 +44,6 @@ const METRICS = [
   { value: "van_noshow_count", label: "Van No-Shows (boarded=false)" },
   { value: "van_driver_missed_start", label: "Van Driver Missed Start Trip" },
 ];
-
-const SEVERITY_COLORS: Record<string, string> = {
-  warning: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  restriction_normal: "bg-orange-100 text-orange-700 border-orange-200",
-  restriction_strict: "bg-red-100 text-red-700 border-red-200",
-  suspension: "bg-purple-100 text-purple-700 border-purple-200",
-  ban: "bg-red-200 text-red-900 border-red-300",
-};
 
 const MODE_CONFIG = [
   {

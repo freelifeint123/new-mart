@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
 import { StatusBadge } from "@/components/AdminShared";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface Banner {
   id: string;
@@ -92,6 +93,7 @@ export default function BannersPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewBanner, setPreviewBanner] = useState<Banner | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [deleteBannerId, setDeleteBannerId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,9 +370,7 @@ export default function BannersPage() {
                                   <Pencil className="w-4 h-4 text-blue-600" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    if (window.confirm("Delete this banner?")) deleteBanner.mutate(banner.id);
-                                  }}
+                                  onClick={() => setDeleteBannerId(banner.id)}
                                   disabled={deleteBanner.isPending}
                                   className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60"
                                 >
@@ -651,6 +651,20 @@ export default function BannersPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteBannerId}
+        onClose={() => setDeleteBannerId(null)}
+        onConfirm={() => {
+          if (!deleteBannerId) return;
+          deleteBanner.mutate(deleteBannerId, { onSettled: () => setDeleteBannerId(null) });
+        }}
+        title={tDual("deleteBannerTitle", language)}
+        description={tDual("actionCannotBeUndone", language)}
+        confirmLabel="Delete"
+        variant="destructive"
+        busy={deleteBanner.isPending}
+      />
     </div>
   );
 }

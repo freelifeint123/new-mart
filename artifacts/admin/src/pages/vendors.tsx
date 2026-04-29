@@ -20,82 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-
-/* ── Wallet Modal ── */
-function WalletModal({ vendor, onClose }: { vendor: any; onClose: () => void }) {
-  const { toast } = useToast();
-  const payoutMutation = useVendorPayout();
-  const creditMutation = useVendorCredit();
-  const [mode, setMode]         = useState<"payout" | "credit">("payout");
-  const [amount, setAmount]     = useState("");
-  const [note, setNote]         = useState("");
-
-  const handleSubmit = () => {
-    const amt = Number(amount);
-    if (!amt || amt <= 0) { toast({ title: "Valid amount daalen", variant: "destructive" }); return; }
-    const mutation = mode === "payout" ? payoutMutation : creditMutation;
-    mutation.mutate({ id: vendor.id, amount: amt, description: note || undefined }, {
-      onSuccess: (d: any) => {
-        toast({ title: mode === "payout" ? "Payout processed ✅" : "Amount credited ✅", description: `New balance: ${formatCurrency(d.newBalance)}` });
-        onClose();
-      },
-      onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
-    });
-  };
-
-  return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="w-[95vw] max-w-md rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-orange-500" /> Vendor Wallet — {vendor.storeName || vendor.name}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 mt-2">
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
-            <p className="text-xs text-orange-600 font-medium mb-1">Current Wallet Balance</p>
-            <p className="text-3xl font-extrabold text-orange-700">{formatCurrency(vendor.walletBalance)}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {(["payout","credit"] as const).map(m => (
-              <button key={m} onClick={() => setMode(m)}
-                className={`p-3 rounded-xl border text-sm font-bold transition-all ${mode === m ? (m === "payout" ? "bg-red-50 border-red-400 text-red-700" : "bg-green-50 border-green-400 text-green-700") : "bg-muted/30 border-border"}`}>
-                {m === "payout" ? <><CircleDollarSign className="w-4 h-4 inline mr-1" />Process Payout</> : <><CreditCard className="w-4 h-4 inline mr-1" />Credit Amount</>}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide block mb-1.5">Amount (Rs.)</label>
-            <Input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)}
-              className="h-12 rounded-xl text-lg font-bold" />
-          </div>
-          <div>
-            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide block mb-1.5">Note (optional)</label>
-            <Input placeholder="e.g. Weekly settlement" value={note} onChange={e => setNote(e.target.value)} className="h-11 rounded-xl" />
-          </div>
-
-          {mode === "payout" && vendor.walletBalance < Number(amount || 0) && Number(amount) > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700">Wallet balance is insufficient for this payout.</p>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSubmit}
-              disabled={payoutMutation.isPending || creditMutation.isPending || !amount}
-              className={`flex-1 rounded-xl ${mode === "payout" ? "bg-red-500 hover:bg-red-600" : "bg-green-600 hover:bg-green-700"} text-white`}>
-              {(payoutMutation.isPending || creditMutation.isPending) ? "Processing..." : mode === "payout" ? "Process Payout" : "Credit Amount"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { WalletAdjustModal } from "@/components/WalletAdjustModal";
 
 /* ── Suspend Modal ── */
 function SuspendModal({ vendor, onClose }: { vendor: any; onClose: () => void }) {
@@ -530,7 +455,7 @@ export default function Vendors() {
       )}
 
       {/* Modals */}
-      {walletModal  && <WalletModal  vendor={walletModal}  onClose={() => setWalletModal(null)} />}
+      {walletModal  && <WalletAdjustModal mode="vendor" subject={walletModal} onClose={() => setWalletModal(null)} />}
       {suspendModal && <SuspendModal vendor={suspendModal} onClose={() => setSuspendModal(null)} />}
       {commModal    && <CommissionModal vendor={commModal} defaultPct={vendorCommissionPct} onClose={() => setCommModal(null)} />}
     </PullToRefresh>

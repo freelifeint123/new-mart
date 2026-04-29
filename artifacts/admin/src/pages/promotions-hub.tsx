@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StatusBadge } from "@/components/AdminShared";
 import { formatDate } from "@/lib/format";
 
 /* ── Types ── */
@@ -55,26 +56,6 @@ const OFFER_TYPES: { value: string; label: string; icon: React.ElementType; colo
   { value: "category",       label: "Category Discount",    icon: Target,    color: "text-red-600 bg-red-100",        description: "Service-specific discounts" },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  draft:            { label: "Draft",            color: "bg-gray-100 text-gray-600 border-gray-200",     icon: Pencil },
-  pending_approval: { label: "Pending Approval", color: "bg-orange-100 text-orange-700 border-orange-200", icon: AlertCircle },
-  scheduled:        { label: "Scheduled",        color: "bg-blue-100 text-blue-700 border-blue-200",     icon: Clock },
-  live:             { label: "Live",             color: "bg-green-100 text-green-700 border-green-200",  icon: CheckCircle2 },
-  paused:           { label: "Paused",           color: "bg-amber-100 text-amber-700 border-amber-200",  icon: Pause },
-  expired:          { label: "Expired",          color: "bg-red-100 text-red-700 border-red-200",        icon: XCircle },
-  exhausted:        { label: "Exhausted",        color: "bg-purple-100 text-purple-700 border-purple-200", icon: Zap },
-  rejected:         { label: "Rejected",         color: "bg-red-100 text-red-700 border-red-200",        icon: XCircle },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG["draft"]!;
-  const Icon = cfg.icon;
-  return (
-    <Badge className={`${cfg.color} text-[10px] gap-1 border`}>
-      <Icon className="w-3 h-3" />{cfg.label}
-    </Badge>
-  );
-}
 
 /* ── Campaign Form Modal ── */
 const EMPTY_CAMPAIGN = {
