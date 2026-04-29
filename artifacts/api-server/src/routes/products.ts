@@ -251,7 +251,9 @@ router.get("/search", async (req, res) => {
       if (payload?.sub) searchUserId = payload.sub;
     }
   } catch { /* ignore invalid/missing tokens */ }
-  db.insert(searchLogsTable).values({ query: trimmed, resultCount: total, userId: searchUserId }).catch(() => {});
+  // Normalize query to lowercase for consistent aggregation (e.g. "Milk" == "milk")
+  const normalizedQuery = trimmed.toLowerCase().replace(/\s+/g, " ");
+  db.insert(searchLogsTable).values({ query: normalizedQuery, resultCount: total, userId: searchUserId }).catch(() => {});
 
   const slimSearch = req.query.slim === "true";
 
