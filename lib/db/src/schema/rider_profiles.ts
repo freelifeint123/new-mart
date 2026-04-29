@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -11,6 +11,7 @@ export const riderProfilesTable = pgTable("rider_profiles", {
   drivingLicense: text("driving_license"),
   vehiclePhoto:   text("vehicle_photo"),
   documents:      text("documents"),
+  dailyGoal:      numeric("daily_goal", { precision: 10, scale: 2 }),
   createdAt:      timestamp("created_at").notNull().defaultNow(),
   updatedAt:      timestamp("updated_at").notNull().defaultNow(),
 });

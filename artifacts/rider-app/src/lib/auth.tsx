@@ -35,6 +35,8 @@ export interface AuthUser {
   licenseDocUrl?: string | null;
   /** Registration document photo URL */
   regDocUrl?: string | null;
+  /** Personal daily earnings goal set by the rider; null means use admin default */
+  dailyGoal?: number | null;
 }
 
 interface AuthCtx {

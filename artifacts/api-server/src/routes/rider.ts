@@ -126,6 +126,7 @@ const profileSchema = z.object({
   licenseDocUrl: z.string().optional(),
   regDocUrl: z.string().optional(),
   vehiclePhoto: z.string().optional(),
+  dailyGoal: z.number().positive().nullable().optional(),
 }).transform((data) => {
   if (data.vehicleRegistration && !data.vehicleRegNo) {
     data.vehicleRegNo = data.vehicleRegistration;
@@ -314,6 +315,7 @@ router.get("/me", async (req, res) => {
     accountLevel: user.accountLevel, kycStatus: user.kycStatus,
     lastLoginAt: user.lastLoginAt, createdAt: user.createdAt,
     vehiclePhoto: user.vehiclePhoto,
+    dailyGoal: user.dailyGoal ? parseFloat(String(user.dailyGoal)) : null,
     ...(() => {
       try {
         const docs = JSON.parse(user.documents || "{}");
@@ -438,7 +440,7 @@ router.patch("/profile", async (req, res) => {
   if (!parsed.success) { sendValidationError(res, parsed.error.issues[0]?.message || "Invalid input"); return; }
   const riderId = req.riderId!;
   const currentUser = req.riderUser!;
-  const { name, email, cnic, address, city, emergencyContact, vehicleType, vehiclePlate, vehicleRegNo, drivingLicense, bankName, bankAccount, bankAccountTitle, avatar, cnicDocUrl, licenseDocUrl, regDocUrl, vehiclePhoto } = parsed.data;
+  const { name, email, cnic, address, city, emergencyContact, vehicleType, vehiclePlate, vehicleRegNo, drivingLicense, bankName, bankAccount, bankAccountTitle, avatar, cnicDocUrl, licenseDocUrl, regDocUrl, vehiclePhoto, dailyGoal } = parsed.data;
   const updates: Record<string, unknown> = { updatedAt: new Date() };
   const profileUpdates: Record<string, unknown> = { updatedAt: new Date() };
   if (name             !== undefined) updates.name             = name;
@@ -451,6 +453,7 @@ router.patch("/profile", async (req, res) => {
   if (vehiclePlate     !== undefined) profileUpdates.vehiclePlate     = vehiclePlate;
   if (vehicleRegNo     !== undefined) profileUpdates.vehicleRegNo     = vehicleRegNo;
   if (drivingLicense   !== undefined) profileUpdates.drivingLicense   = drivingLicense;
+  if (dailyGoal        !== undefined) profileUpdates.dailyGoal        = dailyGoal !== null ? String(dailyGoal) : null;
   if (bankName         !== undefined) updates.bankName         = bankName;
   if (bankAccount      !== undefined) updates.bankAccount      = bankAccount;
   if (bankAccountTitle !== undefined) updates.bankAccountTitle = bankAccountTitle;
@@ -1892,6 +1895,7 @@ router.get("/earnings", async (req, res) => {
     todayOrders, weekOrders, monthOrders,
     todayRides,  weekRides,  monthRides,
     todayBonus,  weekBonus,  monthBonus,
+    profileRow,
   ] = await Promise.all([
     db.select({ s: sum(ordersTable.total), c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), eq(ordersTable.status, "delivered"), gte(ordersTable.updatedAt, today))),
     db.select({ s: sum(ordersTable.total), c: count() }).from(ordersTable).where(and(eq(ordersTable.riderId, riderId), eq(ordersTable.status, "delivered"), gte(ordersTable.updatedAt, weekAgo))),
@@ -1903,16 +1907,20 @@ router.get("/earnings", async (req, res) => {
     db.select({ s: sum(walletTransactionsTable.amount) }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.userId, riderId), eq(walletTransactionsTable.type, "bonus"), gte(walletTransactionsTable.createdAt, today))),
     db.select({ s: sum(walletTransactionsTable.amount) }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.userId, riderId), eq(walletTransactionsTable.type, "bonus"), gte(walletTransactionsTable.createdAt, weekAgo))),
     db.select({ s: sum(walletTransactionsTable.amount) }).from(walletTransactionsTable).where(and(eq(walletTransactionsTable.userId, riderId), eq(walletTransactionsTable.type, "bonus"), gte(walletTransactionsTable.createdAt, monthAgo))),
+    db.select({ dailyGoal: riderProfilesTable.dailyGoal }).from(riderProfilesTable).where(eq(riderProfilesTable.userId, riderId)).limit(1),
   ]);
 
   const todayTotal = (safeNum(todayOrders[0]?.s) + safeNum(todayRides[0]?.s)) * riderKeepPct + safeNum(todayBonus[0]?.s);
   const weekTotal  = (safeNum(weekOrders[0]?.s)  + safeNum(weekRides[0]?.s))  * riderKeepPct + safeNum(weekBonus[0]?.s);
   const monthTotal = (safeNum(monthOrders[0]?.s) + safeNum(monthRides[0]?.s)) * riderKeepPct + safeNum(monthBonus[0]?.s);
 
+  const personalDailyGoal = profileRow[0]?.dailyGoal ? parseFloat(String(profileRow[0].dailyGoal)) : null;
+
   sendSuccess(res, {
     today:  { earnings: parseFloat(todayTotal.toFixed(2)), deliveries: (todayOrders[0]?.c ?? 0) + (todayRides[0]?.c ?? 0) },
     week:   { earnings: parseFloat(weekTotal.toFixed(2)),  deliveries: (weekOrders[0]?.c  ?? 0) + (weekRides[0]?.c  ?? 0) },
     month:  { earnings: parseFloat(monthTotal.toFixed(2)), deliveries: (monthOrders[0]?.c ?? 0) + (monthRides[0]?.c ?? 0) },
+    dailyGoal: personalDailyGoal,
   });
 });
 

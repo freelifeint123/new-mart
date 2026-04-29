@@ -460,7 +460,7 @@ export const api = {
   getIgnoreStats: () => apiFetch("/rider/ignore-stats"),
   getPenaltyHistory: () => apiFetch("/rider/penalty-history"),
   getHistory:   () => apiFetch("/rider/history"),
-  getEarnings:  () => apiFetch("/rider/earnings"),
+  getEarnings:  (): Promise<{ today: { earnings: number; deliveries: number }; week: { earnings: number; deliveries: number }; month: { earnings: number; deliveries: number }; dailyGoal: number | null }> => apiFetch("/rider/earnings"),
   getMyReviews: () => apiFetch("/rider/reviews"),
 
   /* Location */
