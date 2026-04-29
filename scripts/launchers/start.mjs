@@ -285,11 +285,12 @@ async function profileCodespace() {
     warn("gh CLI not found — set port visibility manually in the Codespaces ports panel");
   }
 
+  const apiTarget = `http://127.0.0.1:${apiPort}`;
   const services = [
     { name: "api", filter: "@workspace/api-server", script: "dev", env: { PORT: apiPort, HOST: "0.0.0.0", NODE_ENV: "development" } },
-    { name: "admin", filter: "@workspace/admin", script: "dev", env: { PORT: adminPort, HOST: "0.0.0.0", BASE_PATH: "/admin/", VITE_API_PROXY_TARGET: apiBase } },
-    { name: "vendor", filter: "@workspace/vendor-app", script: "dev", env: { PORT: vendorPort, HOST: "0.0.0.0", BASE_PATH: "/vendor/", VITE_API_PROXY_TARGET: apiBase } },
-    { name: "rider", filter: "@workspace/rider-app", script: "dev", env: { PORT: riderPort, HOST: "0.0.0.0", BASE_PATH: "/rider/", VITE_API_PROXY_TARGET: apiBase } },
+    { name: "admin", filter: "@workspace/admin", script: "dev", env: { PORT: adminPort, HOST: "0.0.0.0", BASE_PATH: "/admin/", VITE_API_PROXY_TARGET: apiTarget } },
+    { name: "vendor", filter: "@workspace/vendor-app", script: "dev", env: { PORT: vendorPort, HOST: "0.0.0.0", BASE_PATH: "/vendor/", VITE_API_PROXY_TARGET: apiTarget } },
+    { name: "rider", filter: "@workspace/rider-app", script: "dev", env: { PORT: riderPort, HOST: "0.0.0.0", BASE_PATH: "/rider/", VITE_API_PROXY_TARGET: apiTarget } },
     {
       name: "ajkmart",
       filter: "@workspace/ajkmart",
