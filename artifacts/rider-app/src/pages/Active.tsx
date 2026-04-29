@@ -643,6 +643,48 @@ function EstimatedArrivalBadge({ riderPos, pickupLat, pickupLng, vehicleType }: 
   );
 }
 
+/**
+ * Compress an image File to JPEG, scaled so its width ≤ maxWidthPx and the
+ * resulting blob is ≤ maxSizeBytes. Returns a new File ready for multipart
+ * upload. Throws if compression fails or the result still exceeds maxSizeBytes.
+ */
+async function compressImage(
+  file: File,
+  maxWidthPx = 1920,
+  maxSizeBytes = 1.5 * 1024 * 1024,
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Photo too large, please try again."));
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (!dataUrl) { reject(new Error("Photo too large, please try again.")); return; }
+      const img = new Image();
+      img.onerror = () => reject(new Error("Photo too large, please try again."));
+      img.onload = () => {
+        const scale = Math.min(1, maxWidthPx / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Photo too large, please try again.")); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error("Photo too large, please try again.")); return; }
+          if (blob.size > maxSizeBytes) {
+            reject(new Error("Photo too large, please try again."));
+            return;
+          }
+          const baseName = (file.name || "proof").replace(/\.[^.]+$/, "");
+          resolve(new File([blob], `${baseName}.jpg`, { type: "image/jpeg" }));
+        }, "image/jpeg", 0.85);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Active() {
   const qc = useQueryClient();
   const { config } = usePlatformConfig();
@@ -909,20 +951,26 @@ export default function Active() {
     return unregister;
   }, [user?.id]);
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setProofFileName(file.name);
 
-    /* Enforce 5 MB client-side size limit before any compression */
-    if (file.size > 5 * 1024 * 1024) {
-      showToast("Photo is too large (max 5 MB). Please take a smaller photo.", true);
+    /* Compress to ≤ 1.5 MB / max 1920 px wide for the actual upload file */
+    let compressed: File;
+    try {
+      compressed = await compressImage(file, 1920, 1.5 * 1024 * 1024);
+    } catch {
+      showToast("Photo too large, please try again.", true);
       setProofFileName("");
+      setProofFile(null);
+      setProofPhoto(null);
       if (e.target) e.target.value = "";
       return;
     }
+    setProofFile(compressed);
 
-    /* Compress for preview dataURL (display only — NOT used for upload) */
+    /* Compress for preview dataURL (display only — lower quality thumbnail) */
     const compressForPreview = (dataUrl: string): Promise<string> =>
       new Promise((resolve) => {
         const img = new Image();
@@ -939,9 +987,6 @@ export default function Active() {
         img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;
       });
-
-    /* Store the original File object for multipart upload */
-    setProofFile(file);
 
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -972,7 +1017,12 @@ export default function Active() {
         const uploadRes = await api.uploadProof(proofFile);
         photoUrl = uploadRes.url;
       } catch (e: unknown) {
-        showToast(e instanceof Error ? e.message : "Photo upload failed. Please try again.", true);
+        const status = (e as { status?: number })?.status;
+        if (status === 400 || status === 413) {
+          showToast("Photo too large, please try again.", true);
+        } else {
+          showToast(e instanceof Error ? e.message : "Photo upload failed. Please try again.", true);
+        }
         setProofUploading(false);
         return;
       }
