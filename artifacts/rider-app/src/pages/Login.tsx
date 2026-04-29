@@ -9,7 +9,7 @@ import { tDual, type TranslationKey } from "@workspace/i18n";
 import { TwoFactorVerify, MagicLinkSender, executeCaptcha, loadGoogleGSIToken, loadFacebookAccessToken, formatPhoneForApi, canonicalizePhone, useAuthConfig } from "@workspace/auth-utils";
 import {
   Phone, Mail, User, Bike, Clock, Lightbulb, Eye, EyeOff,
-  ArrowLeft, Loader2, Shield,
+  ArrowLeft, Loader2, Shield, Wrench, AlertCircle,
 } from "lucide-react";
 
 type LoginMethod = "phone" | "email" | "username" | "google" | "facebook" | "magicLink";
@@ -611,6 +611,33 @@ export default function Login() {
     return `${sec} ${T("seconds")}`;
   };
 
+  if (config.platform.appStatus === "maintenance") {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
+        <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-amber-500/[0.04]" />
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Wrench size={36} className="text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Under Maintenance</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-5">{config.content.maintenanceMsg || "We're performing scheduled maintenance. Back soon!"}</p>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-left">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Need Help?</p>
+              {config.platform.supportPhone && (
+                <p className="text-sm font-bold text-gray-700 flex items-center gap-2"><Phone size={13} className="text-gray-400" /> {config.platform.supportPhone}</p>
+              )}
+              {config.platform.supportEmail && (
+                <p className="text-xs text-gray-500 mt-0.5 ml-5">{config.platform.supportEmail}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (step === "2fa") {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -705,6 +732,12 @@ export default function Login() {
         </div>
 
         <div className="bg-white rounded-3xl p-6 shadow-2xl">
+          {config.content.riderNotice && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-start gap-2">
+              <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-amber-700 text-xs font-medium leading-relaxed">{config.content.riderNotice}</p>
+            </div>
+          )}
           {isLockedOut && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
               <Shield size={24} className="text-red-500 mx-auto mb-2" />
@@ -773,6 +806,23 @@ export default function Login() {
                   New rider?{" "}
                   <span className="text-gray-900 font-bold hover:underline">Register here</span>
                 </Link>
+                {(config.content.tncUrl || config.content.privacyUrl) && (
+                  <div className="mt-3 flex items-center justify-center gap-3 flex-wrap">
+                    {config.content.tncUrl && (
+                      <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2">
+                        Terms &amp; Conditions
+                      </a>
+                    )}
+                    {config.content.tncUrl && config.content.privacyUrl && <span className="text-gray-300 text-xs">·</span>}
+                    {config.content.privacyUrl && (
+                      <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2">
+                        Privacy Policy
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -1020,7 +1070,30 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-white/30 text-xs mt-6">{T("onlyVerifiedRiders")}</p>
+        <div className="mt-6 text-center space-y-2">
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <p className="text-white/40 text-xs">
+              Support:{" "}
+              {config.platform.supportPhone && <span className="text-white/60 font-semibold">{config.platform.supportPhone}</span>}
+              {config.platform.supportPhone && config.platform.supportEmail && " · "}
+              {config.platform.supportEmail && <span className="text-white/60">{config.platform.supportEmail}</span>}
+            </p>
+          )}
+          {(config.content.tncUrl || config.content.privacyUrl) && (
+            <div className="flex items-center justify-center gap-3">
+              {config.content.tncUrl && (
+                <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-white/30 text-[11px] hover:text-white/50 underline underline-offset-2">Terms</a>
+              )}
+              {config.content.tncUrl && config.content.privacyUrl && <span className="text-white/20 text-[11px]">·</span>}
+              {config.content.privacyUrl && (
+                <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-white/30 text-[11px] hover:text-white/50 underline underline-offset-2">Privacy</a>
+              )}
+            </div>
+          )}
+          <p className="text-white/20 text-[11px]">{T("onlyVerifiedRiders")}</p>
+        </div>
       </div>
     </div>
   );   

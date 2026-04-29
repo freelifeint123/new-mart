@@ -9,7 +9,7 @@ import { useAuth, type AuthUser } from "../lib/auth";
 import {
   Bike, ArrowLeft, ArrowRight, Loader2, Eye, EyeOff,
   Clock, User, Phone, Mail, FileText, Car, Shield, Lightbulb,
-  MapPin, AlertCircle, Camera, Upload, X, CheckCircle2, Image,
+  MapPin, AlertCircle, Camera, Upload, X, CheckCircle2, Image, Wrench, Lock,
 } from "lucide-react";
 
 function formatPhoneForRegister(localDigits: string): string {
@@ -446,6 +446,58 @@ export default function Register() {
 
   const stepLabels: TranslationKey[] = ["step1PersonalInfo", "step2VehicleInfo", "step3Security", "step4Verification"];
 
+  if (config.platform.appStatus === "maintenance") {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
+        <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-amber-500/[0.04]" />
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Wrench size={36} className="text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Under Maintenance</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-5">{config.content.maintenanceMsg || "We're performing scheduled maintenance. Back soon!"}</p>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-left mb-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Need Help?</p>
+              {config.platform.supportPhone && <p className="text-sm font-bold text-gray-700 flex items-center gap-2"><Phone size={13} className="text-gray-400" /> {config.platform.supportPhone}</p>}
+              {config.platform.supportEmail && <p className="text-xs text-gray-500 mt-0.5 ml-5">{config.platform.supportEmail}</p>}
+            </div>
+          )}
+          <Link href="/" className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+            <ArrowLeft size={15} /> Back to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!config.features.newUsers) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute top-[-20%] right-[-10%] w-72 h-72 rounded-full bg-white/[0.02]" />
+        <div className="absolute bottom-[-15%] left-[-10%] w-64 h-64 rounded-full bg-red-500/[0.04]" />
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Lock size={36} className="text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Registration Closed</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-5">New rider registrations are currently not available. Please try again later or contact support.</p>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-left mb-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Contact Support</p>
+              {config.platform.supportPhone && <p className="text-sm font-bold text-gray-700 flex items-center gap-2"><Phone size={13} className="text-gray-400" /> {config.platform.supportPhone}</p>}
+              {config.platform.supportEmail && <p className="text-xs text-gray-500 mt-0.5 ml-5">{config.platform.supportEmail}</p>}
+            </div>
+          )}
+          <Link href="/" className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+            <ArrowLeft size={15} /> Back to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (completed) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
@@ -491,6 +543,12 @@ export default function Register() {
         </div>
 
         <div className="bg-white rounded-3xl p-6 shadow-2xl">
+          {config.content.riderNotice && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-start gap-2">
+              <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-amber-700 text-xs font-medium leading-relaxed">{config.content.riderNotice}</p>
+            </div>
+          )}
           <div className="flex items-center gap-1 mb-6">
             {[1, 2, 3, 4].map(s => (
               <button key={s} type="button"

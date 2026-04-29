@@ -104,6 +104,7 @@ export interface PlatformConfig {
     allowedImageFormats?: string[];
     allowedVideoFormats?: string[];
   };
+  cities?: string[];
   auth?: {
     phoneOtpEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     emailOtpEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
@@ -112,6 +113,7 @@ export interface PlatformConfig {
     facebookEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     magicLinkEnabled?: boolean | { customer?: boolean; rider?: boolean; vendor?: boolean };
     captchaEnabled?: boolean;
+    captchaSiteKey?: string;
     googleClientId?: string;
     facebookAppId?: string;
     lockoutEnabled?: boolean;
@@ -199,6 +201,8 @@ export interface VendorAuthConfig {
   google: boolean;
   facebook: boolean;
   magicLink: boolean;
+  captchaEnabled: boolean;
+  captchaSiteKey: string;
   lockoutEnabled: boolean;
   lockoutMaxAttempts: number;
   lockoutDurationSec: number;
@@ -206,7 +210,7 @@ export interface VendorAuthConfig {
 
 export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
   const a = config.auth;
-  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, lockoutEnabled: false, lockoutMaxAttempts: 5, lockoutDurationSec: 300 };
+  if (!a) return { phoneOtp: false, emailOtp: false, usernamePassword: false, google: false, facebook: false, magicLink: false, captchaEnabled: false, captchaSiteKey: "", lockoutEnabled: false, lockoutMaxAttempts: 5, lockoutDurationSec: 300 };
   return {
     phoneOtp: resolveVendorFlag(a.phoneOtpEnabled),
     emailOtp: resolveVendorFlag(a.emailOtpEnabled),
@@ -214,6 +218,8 @@ export function getVendorAuthConfig(config: PlatformConfig): VendorAuthConfig {
     google: resolveVendorFlag(a.googleEnabled),
     facebook: resolveVendorFlag(a.facebookEnabled),
     magicLink: resolveVendorFlag(a.magicLinkEnabled),
+    captchaEnabled: a.captchaEnabled ?? false,
+    captchaSiteKey: a.captchaSiteKey ?? "",
     lockoutEnabled: a.lockoutEnabled ?? false,
     lockoutMaxAttempts: a.lockoutMaxAttempts ?? 5,
     lockoutDurationSec: a.lockoutDurationSec ?? 300,

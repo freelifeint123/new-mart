@@ -456,6 +456,55 @@ export default function RegisterScreen() {
   const accountLevel = authUser?.accountLevel || "bronze";
   const levelInfo = LEVEL_CONFIG[accountLevel] || LEVEL_CONFIG.bronze;
 
+  if (config.appStatus === "maintenance") {
+    return (
+      <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 360, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 20 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+            <Ionicons name="construct-outline" size={40} color="#D97706" />
+          </View>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 22, color: "#1F2937", marginBottom: 12, textAlign: "center" }}>Under Maintenance</Text>
+          <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 22, textAlign: "center", marginBottom: 20 }}>
+            {config.content.maintenanceMsg || "We're performing scheduled maintenance. Back soon!"}
+          </Text>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <View style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, width: "100%", borderWidth: 1, borderColor: "#E5E7EB" }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 11, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Need Help?</Text>
+              {config.platform.supportPhone ? <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: "#374151" }}>{config.platform.supportPhone}</Text> : null}
+              {config.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{config.platform.supportEmail}</Text> : null}
+            </View>
+          )}
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  if (!config.features.newUsers) {
+    return (
+      <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+        <View style={{ backgroundColor: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 360, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 20 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
+            <Ionicons name="lock-closed-outline" size={40} color="#DC2626" />
+          </View>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 22, color: "#1F2937", marginBottom: 12, textAlign: "center" }}>Registration Closed</Text>
+          <Text style={{ fontSize: 14, color: "#6B7280", lineHeight: 22, textAlign: "center", marginBottom: 20 }}>
+            New account registrations are currently not available. Please try again later.
+          </Text>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <View style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, width: "100%", borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 20 }}>
+              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 11, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Contact Support</Text>
+              {config.platform.supportPhone ? <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: "#374151" }}>{config.platform.supportPhone}</Text> : null}
+              {config.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{config.platform.supportEmail}</Text> : null}
+            </View>
+          )}
+          <TouchableOpacity onPress={() => router.replace("/auth")} style={{ width: "100%", backgroundColor: "#1F2937", borderRadius: 14, paddingVertical: 14, alignItems: "center" }}>
+            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>← Back to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   if (step === 5) {
     return (
       <LinearGradient colors={[C.primaryDark, C.primary, C.primaryLight]} style={s.gradient}>
@@ -545,6 +594,12 @@ export default function RegisterScreen() {
         </View>
 
         <ScrollView style={s.card} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          {config.content.announcement ? (
+            <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderColor: "#FDE68A" }}>
+              <Ionicons name="information-circle-outline" size={16} color="#D97706" style={{ marginTop: 1 }} />
+              <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>{config.content.announcement}</Text>
+            </View>
+          ) : null}
           {step === 1 && (
             <>
               {!otpSent ? (

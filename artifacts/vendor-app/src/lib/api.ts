@@ -170,11 +170,11 @@ export async function apiFetch(path: string, opts: RequestInit & { _timeoutMs?: 
 
 export const api = {
   /* Auth */
-  sendOtp:      (phone: string, preferredChannel?: string) => apiFetch("/auth/send-otp", { method: "POST", body: JSON.stringify({ phone, ...(preferredChannel ? { preferredChannel } : {}) }) }),
+  sendOtp:      (phone: string, preferredChannel?: string, captchaToken?: string) => apiFetch("/auth/send-otp", { method: "POST", body: JSON.stringify({ phone, ...(preferredChannel ? { preferredChannel } : {}), ...(captchaToken ? { captchaToken } : {}) }) }),
   verifyOtp:    (phone: string, otp: string, deviceFingerprint?: string, role?: string) => apiFetch("/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp, ...(role ? { role } : {}), ...(deviceFingerprint ? { deviceFingerprint } : {}) }) }),
-  sendEmailOtp: (email: string) => apiFetch("/auth/send-email-otp", { method: "POST", body: JSON.stringify({ email }) }),
+  sendEmailOtp: (email: string, captchaToken?: string) => apiFetch("/auth/send-email-otp", { method: "POST", body: JSON.stringify({ email, ...(captchaToken ? { captchaToken } : {}) }) }),
   verifyEmailOtp:(email: string, otp: string, deviceFingerprint?: string) => apiFetch("/auth/verify-email-otp", { method: "POST", body: JSON.stringify({ email, otp, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}) }) }),
-  loginUsername:(identifier: string, password: string, deviceFingerprint?: string) => apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}) }) }),
+  loginUsername:(identifier: string, password: string, deviceFingerprint?: string, captchaToken?: string) => apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ identifier, password, role: "vendor", ...(deviceFingerprint ? { deviceFingerprint } : {}), ...(captchaToken ? { captchaToken } : {}) }) }),
   forgotPassword:(data: { phone?: string; email?: string; identifier?: string }) => apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify(data) }),
   resetPassword:(data: { phone?: string; email?: string; identifier?: string; otp: string; newPassword: string; totpCode?: string }) => apiFetch("/auth/reset-password", { method: "POST", body: JSON.stringify(data) }),
   logout:       (refreshToken?: string) => apiFetch("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }).finally(clearTokens),

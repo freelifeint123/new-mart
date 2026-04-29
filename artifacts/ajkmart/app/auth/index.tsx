@@ -667,6 +667,31 @@ export default function AuthScreen() {
     });
   };
 
+  if (platformCfg.appStatus === "maintenance") {
+    return (
+      <LinearGradient colors={[C.primaryDark, C.primary, C.primaryLight]} style={styles.flex}>
+        <View style={[styles.centeredContainer, { paddingTop: topPad + 40 }]}>
+          <View style={styles.pendingCard}>
+            <View style={[styles.pendingIconWrap, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="construct-outline" size={48} color="#D97706" />
+            </View>
+            <Text style={[styles.pendingTitle, { color: "#92400E" }]}>Under Maintenance</Text>
+            <Text style={styles.pendingSubtitle}>
+              {platformCfg.content.maintenanceMsg || "We're performing scheduled maintenance. Back soon!"}
+            </Text>
+            {(platformCfg.platform.supportPhone || platformCfg.platform.supportEmail) && (
+              <View style={{ backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, marginTop: 16, width: "100%", borderWidth: 1, borderColor: "#E5E7EB" }}>
+                <Text style={{ fontFamily: "Inter_700Bold", fontSize: 11, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>Need Help?</Text>
+                {platformCfg.platform.supportPhone ? <Text style={{ fontFamily: "Inter_700Bold", fontSize: 14, color: "#374151" }}>{platformCfg.platform.supportPhone}</Text> : null}
+                {platformCfg.platform.supportEmail ? <Text style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{platformCfg.platform.supportEmail}</Text> : null}
+              </View>
+            )}
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  }
+
   if (step === "totp") {
     return (
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
@@ -1037,6 +1062,13 @@ export default function AuthScreen() {
             </>
           )}
 
+          {platformCfg.content.announcement ? (
+            <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: "row", alignItems: "flex-start", gap: 8, borderWidth: 1, borderColor: "#FDE68A" }}>
+              <Ionicons name="information-circle-outline" size={16} color="#D97706" style={{ marginTop: 1 }} />
+              <Text style={{ fontSize: 12, color: "#92400E", fontFamily: "Inter_500Medium", lineHeight: 18, flex: 1 }}>{platformCfg.content.announcement}</Text>
+            </View>
+          ) : null}
+
           <Animated.View style={{ opacity: fadeAnim, transform: [{ translateX: slideXAnim }] }}>
             {method === "phone" && step === "method" && (
               <>
@@ -1278,7 +1310,25 @@ export default function AuthScreen() {
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
-          <Text style={styles.footerText}>{T("termsAgreement")}</Text>
+          {(platformCfg.content.tncUrl || platformCfg.content.privacyUrl) ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+              {platformCfg.content.tncUrl ? (
+                <TouchableOpacity activeOpacity={0.7} onPress={() => Linking.openURL(platformCfg.content.tncUrl)} accessibilityRole="link">
+                  <Text style={[styles.footerText, { textDecorationLine: "underline", color: C.primary }]}>Terms &amp; Conditions</Text>
+                </TouchableOpacity>
+              ) : null}
+              {platformCfg.content.tncUrl && platformCfg.content.privacyUrl ? (
+                <Text style={styles.footerText}> · </Text>
+              ) : null}
+              {platformCfg.content.privacyUrl ? (
+                <TouchableOpacity activeOpacity={0.7} onPress={() => Linking.openURL(platformCfg.content.privacyUrl)} accessibilityRole="link">
+                  <Text style={[styles.footerText, { textDecorationLine: "underline", color: C.primary }]}>Privacy Policy</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={styles.footerText}>{T("termsAgreement")}</Text>
+          )}
         </View>
       </LinearGradient>
     </KeyboardAvoidingView>

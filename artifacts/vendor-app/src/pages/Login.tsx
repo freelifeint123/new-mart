@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
-import { Phone, Mail, User } from "lucide-react";
+import { Phone, Mail, User, Wrench, AlertCircle } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig, getVendorAuthConfig } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
-import { loadGoogleGSIToken, loadFacebookAccessToken, MagicLinkSender, canonicalizePhone, useAuthConfig } from "@workspace/auth-utils";
+import { loadGoogleGSIToken, loadFacebookAccessToken, MagicLinkSender, canonicalizePhone, useAuthConfig, executeCaptcha, formatPhoneForApi } from "@workspace/auth-utils";
 
 type LoginMethod = "phone" | "email" | "username" | "google" | "facebook";
 type Step = "continue" | "input" | "otp" | "pending" | "2fa" | "register" | "register-otp" | "register-info" | "register-submitted" | "forgot" | "forgot-otp" | "forgot-reset" | "forgot-done";
@@ -461,11 +461,17 @@ export default function Login() {
     setLoading(false);
   };
 
+  const getCaptchaToken = async (action: string): Promise<string | undefined> => {
+    if (!vendorAuth.captchaEnabled) return undefined;
+    try { return await executeCaptcha(action, vendorAuth.captchaSiteKey); } catch { return undefined; }
+  };
+
   const sendPhoneOtp = async (channel?: string) => {
     if (!phone || !isValidPhone(phone)) { setError(T("enterPhoneNumber")); return; }
     setLoading(true); clearError();
     try {
-      const res = await api.sendOtp(phone, channel);
+      const captchaToken = await getCaptchaToken("login_phone_otp");
+      const res = await api.sendOtp(phone, channel, captchaToken);
       if (res.otpRequired === false) {
         if (res.token) { await doLogin(res as AuthResponse); setLoading(false); return; }
         const bypass = await api.verifyOtp(phone, "000000", getDeviceFingerprint(), "vendor");
@@ -492,7 +498,8 @@ export default function Login() {
     if (!email || !email.includes("@")) { setError(T("enterEmail")); return; }
     setLoading(true); clearError();
     try {
-      const res = await api.sendEmailOtp(email);
+      const captchaToken = await getCaptchaToken("login_email_otp");
+      const res = await api.sendEmailOtp(email, captchaToken);
       setEmailDevOtp(res.otp || "");
       setOtpChannel("email");
       setFallbackChannels([]);
@@ -513,7 +520,10 @@ export default function Login() {
     if (!username || username.length < 3) { setError(T("enterUsername")); return; }
     if (!password || password.length < 6) { setError(T("enterPassword")); return; }
     setLoading(true); clearError();
-    try { await doLogin(await api.loginUsername(username, password, getDeviceFingerprint())); } catch (e) { handleAuthError(e); }
+    try {
+      const captchaToken = await getCaptchaToken("login_username");
+      await doLogin(await api.loginUsername(username, password, getDeviceFingerprint(), captchaToken));
+    } catch (e) { handleAuthError(e); }
     setLoading(false);
   };
 
@@ -557,7 +567,8 @@ export default function Login() {
     if (!regPhone || !isValidPhone(regPhone)) { setError(`Enter a valid phone number (${phoneHint})`); return; }
     setLoading(true); clearError();
     try {
-      const res = await api.sendOtp(regPhone);
+      const captchaToken = await getCaptchaToken("register_phone_otp");
+      const res = await api.sendOtp(regPhone, undefined, captchaToken);
       if (res.otpRequired === false) {
         /* OTP globally disabled — skip OTP step entirely.
            If no token was returned (new user bypass), call verify-otp immediately
@@ -618,6 +629,31 @@ export default function Login() {
   const INPUT_CLS = "w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all";
   const SELECT_CLS = "w-full h-12 px-3 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all appearance-none";
   const LABEL_CLS = "text-xs font-extrabold text-gray-400 mb-1.5 block uppercase tracking-wider";
+
+  if (config.platform.appStatus === "maintenance") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 to-amber-600 p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <Wrench size={36} className="text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Under Maintenance</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-5">{config.content.maintenanceMsg || "We're performing scheduled maintenance. Back soon!"}</p>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-left">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Need Help?</p>
+              {config.platform.supportPhone && (
+                <p className="text-sm font-bold text-gray-700 flex items-center gap-2"><Phone size={13} className="text-gray-400" /> {config.platform.supportPhone}</p>
+              )}
+              {config.platform.supportEmail && (
+                <p className="text-xs text-gray-500 mt-0.5 ml-5">{config.platform.supportEmail}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (step === "pending") {
     return (
@@ -700,6 +736,30 @@ export default function Login() {
           </div>
           <button onClick={() => { setStep("continue"); setRegPhone(""); setRegOtp(""); setRegDevOtp(""); setRegForm({ storeName:"", storeCategory:"", name:"", cnic:"", address:"", city:"", bankName:"", bankAccount:"", bankAccountTitle:"" }); }}
             className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors text-sm">
+            ← Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if ((step === "register" || step === "register-otp" || step === "register-info") && !config.features.newUsers) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 to-amber-600 p-4">
+        <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <span className="text-4xl">🔒</span>
+          </div>
+          <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Registration Closed</h2>
+          <p className="text-gray-500 text-sm leading-relaxed mb-5">New vendor registrations are currently not available. Please try again later or contact support.</p>
+          {(config.platform.supportPhone || config.platform.supportEmail) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-left mb-5">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Contact Support</p>
+              {config.platform.supportPhone && <p className="text-sm font-bold text-gray-700">{config.platform.supportPhone}</p>}
+              {config.platform.supportEmail && <p className="text-xs text-gray-500 mt-0.5">{config.platform.supportEmail}</p>}
+            </div>
+          )}
+          <button onClick={() => setStep("continue")} className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors text-sm">
             ← Back to Login
           </button>
         </div>
@@ -849,7 +909,7 @@ export default function Login() {
                         <label className={LABEL_CLS}>City</label>
                         <select value={regForm.city} onChange={e => rf("city", e.target.value)} className={SELECT_CLS}>
                           <option value="">Select...</option>
-                          {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          {(config.cities?.length ? config.cities : CITIES).map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                       </div>
                     </div>
@@ -998,6 +1058,12 @@ export default function Login() {
           </div>
 
           <div className="bg-white rounded-3xl p-6 shadow-2xl">
+            {config.content.vendorNotice && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-start gap-2">
+                <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-amber-700 text-xs font-medium leading-relaxed">{config.content.vendorNotice}</p>
+              </div>
+            )}
             {step === "continue" && (
               <>
                 <h2 className="text-xl font-extrabold text-gray-800 mb-1">Welcome Back 👋</h2>
@@ -1306,6 +1372,31 @@ export default function Login() {
               </div>
             )}
 
+            {(config.platform.supportPhone || config.platform.supportEmail || config.content.tncUrl || config.content.privacyUrl) && (
+              <div className="border-t border-gray-100 mt-5 pt-4 space-y-2">
+                {(config.platform.supportPhone || config.platform.supportEmail) && (
+                  <p className="text-center text-xs text-gray-400">
+                    Support:{" "}
+                    {config.platform.supportPhone && <span className="font-semibold text-gray-500">{config.platform.supportPhone}</span>}
+                    {config.platform.supportPhone && config.platform.supportEmail && " · "}
+                    {config.platform.supportEmail && <span className="text-gray-500">{config.platform.supportEmail}</span>}
+                  </p>
+                )}
+                {(config.content.tncUrl || config.content.privacyUrl) && (
+                  <div className="flex items-center justify-center gap-3">
+                    {config.content.tncUrl && (
+                      <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-gray-400 hover:text-orange-500 underline underline-offset-2">Terms</a>
+                    )}
+                    {config.content.tncUrl && config.content.privacyUrl && <span className="text-gray-300 text-xs">·</span>}
+                    {config.content.privacyUrl && (
+                      <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-xs text-gray-400 hover:text-orange-500 underline underline-offset-2">Privacy Policy</a>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <p className="text-center text-xs text-gray-400 mt-4">{T("onlyVendorsAccess")}</p>
           </div>
         </div>
