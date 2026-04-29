@@ -918,8 +918,79 @@ function VendorRatingsTab() {
         </Button>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile card list — shown below md breakpoint */}
+      <section className="md:hidden space-y-3" aria-label="Vendor reviews">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-xl border shadow-sm p-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+                <div className="h-5 w-12 bg-muted rounded-full" />
+              </div>
+            </Card>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+            <Store className="w-10 h-10 mx-auto mb-2 opacity-20" aria-hidden="true" />
+            <p className="text-sm">{vendors.length === 0 ? "No vendor reviews yet." : "No vendors match your search."}</p>
+          </div>
+        ) : (
+          filtered.map((v, idx) => {
+            const rating = parseFloat(v.avgRating ?? "5");
+            const isCritical = rating < 2 && v.totalReviews >= 5;
+            const isAtRisk = rating < 3 && v.totalReviews >= 5;
+            return (
+              <Card
+                key={v.vendorId ?? idx}
+                className={`rounded-xl border shadow-sm overflow-hidden ${
+                  isCritical ? "border-red-200 bg-red-50/30" : isAtRisk ? "border-amber-200 bg-amber-50/20" : ""
+                }`}
+              >
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{v.storeName}</p>
+                      {v.storeType && (
+                        <p className="text-xs text-muted-foreground capitalize">{v.storeType.replace(/_/g, " ")}</p>
+                      )}
+                    </div>
+                    {v.isActive ? (
+                      <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 shrink-0">Active</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200 shrink-0">Suspended</Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-muted/40 rounded-lg p-2">
+                      <p className="font-bold">{rating.toFixed(1)}★</p>
+                      <p className="text-muted-foreground">Rating</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-2">
+                      <p className="font-bold">{v.totalReviews}</p>
+                      <p className="text-muted-foreground">Reviews</p>
+                    </div>
+                    <div className={`rounded-lg p-2 ${v.pendingCount > 0 ? "bg-amber-50" : "bg-muted/40"}`}>
+                      <p className={`font-bold ${v.pendingCount > 0 ? "text-amber-700" : ""}`}>{v.pendingCount}</p>
+                      <p className="text-muted-foreground">Pending</p>
+                    </div>
+                  </div>
+                  {v.latestReviewAt && (
+                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
+                      Last review: {formatDate(v.latestReviewAt)}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </section>
+
+      {/* Desktop table — hidden below md breakpoint */}
+      <Card className="hidden md:block">
         {isLoading ? (
           <div className="p-12 text-center">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground/20" />

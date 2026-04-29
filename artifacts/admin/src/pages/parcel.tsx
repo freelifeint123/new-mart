@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParcelBookings, useUpdateParcelBooking } from "@/hooks/use-admin";
 import { formatCurrency, formatDate, getStatusColor } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -164,8 +164,75 @@ export default function Parcel() {
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+      {/* Mobile card list — shown below md breakpoint */}
+      <section className="md:hidden space-y-3" aria-label="Parcel bookings">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-2xl border-border/50 shadow-sm p-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-4 w-28 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+                <div className="h-5 w-16 bg-muted rounded-full" />
+              </div>
+            </Card>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Box className="w-10 h-10 text-muted-foreground/25 mb-3" aria-hidden="true" />
+            <p className="font-semibold text-muted-foreground">No bookings found.</p>
+          </div>
+        ) : (
+          filtered.map((b: any) => (
+            <Card
+              key={b.id}
+              className="rounded-2xl border-border/50 shadow-sm overflow-hidden cursor-pointer"
+              onClick={() => { setSelectedBooking(b); setShowCancelConfirm(false); }}
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono font-semibold text-sm">{b.id.slice(-8).toUpperCase()}</p>
+                    <Badge variant="outline" className="mt-1 text-[10px] uppercase">{b.parcelType}</Badge>
+                  </div>
+                  <Badge className={`text-[10px] font-bold uppercase shrink-0 ${getStatusColor(b.status)}`}>
+                    {STATUS_LABELS[b.status] ?? b.status}
+                  </Badge>
+                </div>
+                {b.userName && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0" aria-hidden="true">
+                      <User className="w-3.5 h-3.5 text-orange-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{b.userName}</p>
+                      <p className="text-xs text-muted-foreground">{b.userPhone}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="text-xs space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{b.senderName} — {b.pickupAddress}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{b.receiverName} — {b.dropAddress}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <span className="font-bold text-foreground">{formatCurrency(b.fare)}</span>
+                  <span className="text-xs text-muted-foreground">{formatDate(b.createdAt)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      {/* Desktop table — hidden below md breakpoint */}
+      <Card className="hidden md:block rounded-2xl border-border/50 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[640px]">
             <TableHeader className="bg-muted/50">

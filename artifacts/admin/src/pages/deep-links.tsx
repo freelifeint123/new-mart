@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetcher } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -141,64 +141,101 @@ export default function DeepLinksPage() {
             <p className="text-muted-foreground">No deep links created yet.</p>
           </Card>
         ) : (
-          <Card className="rounded-2xl overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Label / Code</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Params</TableHead>
-                  <TableHead>Clicks</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {links.map(link => (
-                  <TableRow key={link.id}>
-                    <TableCell>
-                      <div className="font-medium">{link.label || link.shortCode}</div>
-                      <div className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">{getFullUrl(link.shortCode)}</div>
-                    </TableCell>
-                    <TableCell>
+          <>
+            {/* Mobile card list */}
+            <section className="md:hidden space-y-3" aria-label="Deep links">
+              {links.map(link => (
+                <Card key={link.id} className="rounded-2xl overflow-hidden">
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{link.label || link.shortCode}</p>
+                        <p className="text-xs font-mono text-muted-foreground truncate">{getFullUrl(link.shortCode)}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyLink(link.shortCode)} aria-label="Copy link">
+                          <Copy className="w-3.5 h-3.5" aria-hidden="true" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                          onClick={() => { if (confirm("Delete this deep link?")) deleteMutation.mutate(link.id); }}
+                          aria-label="Delete link">
+                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline">{link.targetScreen}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {Object.keys(link.params as Record<string, string>).length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {Object.entries(link.params as Record<string, string>).map(([k, v]) => (
-                            <Badge key={k} variant="secondary" className="text-xs">{k}={v}</Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">none</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <MousePointerClick className="w-3.5 h-3.5 text-muted-foreground" />
+                      <div className="flex items-center gap-1 text-sm">
+                        <MousePointerClick className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
                         <span className="font-medium">{link.clickCount}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(link.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => copyLink(link.shortCode)} title="Copy Link">
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700"
-                          onClick={() => { if (confirm("Delete this deep link?")) deleteMutation.mutate(link.id); }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                      <span className="text-xs text-muted-foreground ml-auto">{new Date(link.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </section>
+            {/* Desktop table */}
+            <Card className="hidden md:block rounded-2xl overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label / Code</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Params</TableHead>
+                    <TableHead>Clicks</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
+                </TableHeader>
+                <TableBody>
+                  {links.map(link => (
+                    <TableRow key={link.id}>
+                      <TableCell>
+                        <div className="font-medium">{link.label || link.shortCode}</div>
+                        <div className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">{getFullUrl(link.shortCode)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{link.targetScreen}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {Object.keys(link.params as Record<string, string>).length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {Object.entries(link.params as Record<string, string>).map(([k, v]) => (
+                              <Badge key={k} variant="secondary" className="text-xs">{k}={v}</Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">none</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MousePointerClick className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+                          <span className="font-medium">{link.clickCount}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(link.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => copyLink(link.shortCode)} aria-label="Copy link">
+                            <Copy className="w-4 h-4" aria-hidden="true" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700"
+                            onClick={() => { if (confirm("Delete this deep link?")) deleteMutation.mutate(link.id); }}
+                            aria-label="Delete link">
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          </>
         )}
 
         <Dialog open={showCreate} onOpenChange={v => { if (!v) resetForm(); }}>

@@ -108,43 +108,59 @@ export default function ConsentLogPage() {
           />
         )}
         {log.data && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-gray-500 border-b">
-                  <th className="py-2 pr-3">User</th>
-                  <th className="py-2 pr-3">Policy</th>
-                  <th className="py-2 pr-3">Version</th>
-                  <th className="py-2 pr-3">Accepted</th>
-                  <th className="py-2 pr-3">Source</th>
-                  <th className="py-2 pr-3">IP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {log.data.items.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-gray-500">
-                      No consent events recorded yet.
-                    </td>
+          <>
+            {/* Mobile card list */}
+            <section className="md:hidden space-y-2 mb-2" aria-label="Consent log">
+              {log.data.items.length === 0 ? (
+                <p className="text-sm text-gray-500 py-4">No consent events recorded yet.</p>
+              ) : log.data.items.map(entry => (
+                <div key={entry.id} className="rounded-xl border border-border/50 p-3 text-xs space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono font-medium truncate">{entry.userId}</span>
+                    <span className="text-muted-foreground whitespace-nowrap">{new Date(entry.acceptedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{entry.policy}</span>
+                    <span className="text-muted-foreground">v{entry.version}</span>
+                    {entry.source && <span className="text-muted-foreground">· {entry.source}</span>}
+                  </div>
+                  {entry.ipAddress && <span className="font-mono text-muted-foreground">{entry.ipAddress}</span>}
+                </div>
+              ))}
+            </section>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs uppercase text-gray-500 border-b">
+                    <th className="py-2 pr-3">User</th>
+                    <th className="py-2 pr-3">Policy</th>
+                    <th className="py-2 pr-3">Version</th>
+                    <th className="py-2 pr-3">Accepted</th>
+                    <th className="py-2 pr-3">Source</th>
+                    <th className="py-2 pr-3">IP</th>
                   </tr>
-                )}
-                {log.data.items.map(entry => (
-                  <tr key={entry.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3 font-mono text-xs">{entry.userId}</td>
-                    <td className="py-2 pr-3">{entry.policy}</td>
-                    <td className="py-2 pr-3">{entry.version}</td>
-                    <td className="py-2 pr-3 text-xs">
-                      {new Date(entry.acceptedAt).toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-3 text-xs">{entry.source ?? "—"}</td>
-                    <td className="py-2 pr-3 font-mono text-xs">
-                      {entry.ipAddress ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {log.data.items.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-4 text-gray-500">No consent events recorded yet.</td>
+                    </tr>
+                  )}
+                  {log.data.items.map(entry => (
+                    <tr key={entry.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3 font-mono text-xs">{entry.userId}</td>
+                      <td className="py-2 pr-3">{entry.policy}</td>
+                      <td className="py-2 pr-3">{entry.version}</td>
+                      <td className="py-2 pr-3 text-xs">{new Date(entry.acceptedAt).toLocaleString()}</td>
+                      <td className="py-2 pr-3 text-xs">{entry.source ?? "—"}</td>
+                      <td className="py-2 pr-3 font-mono text-xs">{entry.ipAddress ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>

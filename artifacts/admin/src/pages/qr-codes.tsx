@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetcher } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -105,7 +105,51 @@ export default function QrCodesPage() {
           </Card>
         </div>
 
-        <Card className="overflow-hidden rounded-2xl">
+        {/* Mobile card list */}
+        <section className="md:hidden space-y-3" aria-label="QR codes">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="rounded-2xl border p-4 animate-pulse">
+                <div className="h-4 w-32 bg-muted rounded mb-2" /><div className="h-3 w-20 bg-muted rounded" />
+              </Card>
+            ))
+          ) : codes.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <QrCodeIcon className="w-10 h-10 mx-auto mb-3 opacity-30" aria-hidden="true" /><p>No QR codes yet</p>
+            </div>
+          ) : codes.map(c => (
+            <Card key={c.id} className="rounded-2xl border overflow-hidden">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm">{c.label}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">{c.code}</code>
+                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyCode(c.code)} aria-label="Copy code">
+                        <Copy className="w-3 h-3" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={c.isActive}
+                    onCheckedChange={(checked) => toggleMutation.mutate({ id: c.id, activate: checked })}
+                    aria-label={`${c.isActive ? "Deactivate" : "Activate"} ${c.label}`}
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/50">
+                  <Badge variant="secondary" className="text-xs capitalize">{c.type}</Badge>
+                  <Badge variant="outline" className={c.isActive ? "text-green-600 border-green-200 bg-green-50" : "text-red-600 border-red-200 bg-red-50"}>
+                    {c.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground ml-auto">{new Date(c.createdAt).toLocaleDateString()}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+
+        {/* Desktop table */}
+        <Card className="hidden md:block overflow-hidden rounded-2xl">
           {isLoading ? (
             <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
           ) : codes.length === 0 ? (

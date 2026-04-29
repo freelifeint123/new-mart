@@ -5,7 +5,7 @@ import { fetcher } from "@/lib/api";
 import { usePlatformSettings, useUpdatePlatformSettings } from "@/hooks/use-admin";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -316,7 +316,72 @@ export default function LoyaltyPage() {
           />
         </div>
 
-        <Card className="rounded-xl border shadow-sm overflow-hidden">
+        {/* Mobile card list — shown below md breakpoint */}
+        <section className="md:hidden space-y-3" aria-label="Loyalty customers">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="rounded-xl border shadow-sm p-4 animate-pulse">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-2">
+                    <div className="h-4 w-28 bg-muted rounded" />
+                    <div className="h-3 w-20 bg-muted rounded" />
+                  </div>
+                  <div className="h-5 w-14 bg-muted rounded-full" />
+                </div>
+              </Card>
+            ))
+          ) : users.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-sm text-muted-foreground">No customers found</p>
+            </div>
+          ) : (
+            users.map(u => (
+              <Card key={u.id} className="rounded-xl border shadow-sm overflow-hidden">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-xs shrink-0" aria-hidden="true">
+                      {(u.name || u.phone || "U")[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{u.name || "—"}</p>
+                      {u.email && <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>}
+                      <p className="text-xs text-muted-foreground">{u.phone || "—"}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="bg-amber-50 rounded-lg p-2">
+                      <p className="font-bold text-amber-700">{u.loyaltyPoints.available.toLocaleString()}</p>
+                      <p className="text-muted-foreground">Available</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-2">
+                      <p className="font-bold text-emerald-600">{u.loyaltyPoints.totalEarned.toLocaleString()}</p>
+                      <p className="text-muted-foreground">Earned</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-lg p-2">
+                      <p className="font-bold text-blue-600">{u.loyaltyPoints.totalRedeemed.toLocaleString()}</p>
+                      <p className="text-muted-foreground">Redeemed</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <span className="text-sm font-semibold">{formatCurrency(u.walletBalance)}</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAdjustUser(u)}
+                      className="h-8 rounded-lg text-xs gap-1.5 border-amber-200 text-amber-700 hover:bg-amber-50"
+                    >
+                      <Star className="w-3.5 h-3.5" aria-hidden="true" />
+                      Adjust
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </section>
+
+        {/* Desktop table — hidden below md breakpoint */}
+        <Card className="hidden md:block rounded-xl border shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="h-40 flex items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin" />

@@ -746,10 +746,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setCmdOpen(true)}
+              aria-label="Open search"
+              aria-expanded={cmdOpen}
               className="sm:hidden w-8 h-8 flex items-center justify-center rounded-xl border hover:bg-slate-50 transition-colors"
               style={{ borderColor: "rgba(0,0,0,0.08)" }}
             >
-              <Search className="w-4 h-4 text-slate-400" />
+              <Search className="w-4 h-4 text-slate-400" aria-hidden="true" />
             </button>
 
             {/* Live indicator */}
