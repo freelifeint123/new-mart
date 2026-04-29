@@ -34,6 +34,7 @@ import {
   ChevronRight,
   CheckCircle,
   AlertTriangle,
+  Target,
 } from "lucide-react";
 
 import {
@@ -193,7 +194,7 @@ export default function Home() {
     queryKey: ["rider-earnings"],
     queryFn: () => api.getEarnings(),
     refetchInterval: tabVisible ? 60000 : false,
-    enabled: effectiveOnline && tabVisible,
+    enabled: tabVisible,
   });
 
   const { data: activeData } = useQuery({
@@ -918,6 +919,45 @@ export default function Home() {
           minBalance={config.rider?.minBalance ?? 0}
           walletBalance={Number(user?.walletBalance) || 0}
         />
+
+        {(() => {
+          const dailyGoal = config.rider?.dailyGoal ?? 5000;
+          const todayEarnings = earningsData?.today?.earnings ?? user?.stats?.earningsToday ?? 0;
+          const todayPct = dailyGoal > 0 ? Math.min(100, Math.round((todayEarnings / dailyGoal) * 100)) : 0;
+          const reached = todayPct >= 100;
+          return (
+            <Link
+              href="/earnings"
+              aria-label="View daily earnings goal"
+              className="block bg-white rounded-2xl shadow-sm border border-gray-100 px-4 py-3 active:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                  <Target size={12} className={reached ? "text-green-500" : "text-gray-400"} />
+                  {T("dailyGoal")}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-extrabold ${reached ? "text-green-600" : "text-gray-900"}`}>
+                    {todayPct}%
+                  </span>
+                  {reached && <CheckCircle size={12} className="text-green-500" />}
+                  <ChevronRight size={12} className="text-gray-300" />
+                </div>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-2 rounded-full transition-all duration-700 ${reached ? "bg-green-500" : todayPct >= 60 ? "bg-gray-700" : "bg-gray-400"}`}
+                  style={{ width: `${todayPct}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5 font-medium">
+                {reached
+                  ? T("dailyGoalReached")
+                  : `${formatCurrency(todayEarnings, currency)} / ${formatCurrency(dailyGoal, currency)}`}
+              </p>
+            </Link>
+          );
+        })()}
 
         {config.content.trackerBannerEnabled &&
           hasActiveTask &&
