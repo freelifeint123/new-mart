@@ -906,9 +906,9 @@ function RideSettings() {
     { key: "ride_rickshaw_base_fare", label: "Rickshaw Base Fare (Rs.)" },
     { key: "ride_rickshaw_per_km", label: "Rickshaw Per KM (Rs.)" },
     { key: "ride_rickshaw_min_fare", label: "Rickshaw Min Fare (Rs.)" },
-    { key: "ride_daba_base_fare", label: "Daba Base Fare (Rs.)" },
-    { key: "ride_daba_per_km", label: "Daba Per KM (Rs.)" },
-    { key: "ride_daba_min_fare", label: "Daba Min Fare (Rs.)" },
+    { key: "ride_daba_base_fare", label: "Daba On-Demand Base Fare (Rs.)" },
+    { key: "ride_daba_per_km", label: "Daba On-Demand Per KM (Rs.)" },
+    { key: "ride_daba_min_fare", label: "Daba On-Demand Min Fare (Rs.)" },
   ];
 
   useEffect(() => {

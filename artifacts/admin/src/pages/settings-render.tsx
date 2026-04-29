@@ -1088,9 +1088,9 @@ export function renderSection(
       ride_rickshaw_base_fare:       "Fixed starting fare charged on every rickshaw ride, regardless of distance",
       ride_rickshaw_per_km:          "Additional charge per kilometre for rickshaw rides, added on top of base fare",
       ride_rickshaw_min_fare:        "Floor fare for rickshaw rides — short trips will never cost less than this",
-      ride_daba_base_fare:           "Fixed starting fare charged on every daba/van ride, regardless of distance",
-      ride_daba_per_km:              "Additional charge per kilometre for daba/van rides, added on top of base fare",
-      ride_daba_min_fare:            "Floor fare for daba/van rides — short trips will never cost less than this",
+      ride_daba_base_fare:           "Fixed starting fare for on-demand point-to-point Daba rides only. Does NOT apply to Van intercity/route bookings.",
+      ride_daba_per_km:              "Per-kilometre charge for on-demand Daba rides, added on top of base fare. Not used for Van route bookings.",
+      ride_daba_min_fare:            "Floor fare for on-demand Daba rides — short trips will never cost less than this. Not used for Van route bookings.",
       ride_surge_enabled:            "When ON, all ride fares are multiplied by the surge multiplier below. Use during peak hours or high demand",
       ride_surge_multiplier:         "Multiplier applied to the calculated fare when surge is active. 1.5 = 50% premium",
       ride_cancellation_fee:         "Fee charged to the customer if they cancel a ride after a driver has already accepted it",
@@ -1228,10 +1228,10 @@ export function renderSection(
           )}
         </div>
 
-        {/* ── Group 4: Daba / Van Pricing ── */}
+        {/* ── Group 4: On-Demand Daba Ride Pricing ── */}
         <div className="space-y-3 border-t border-border/40 pt-6">
-          <SLabel>🚐 Daba / Van Pricing</SLabel>
-          <p className="text-xs text-muted-foreground -mt-1">Multi-passenger van/daba fares — school trips, group rides and cargo. Bargaining is allowed. Higher minimum fare than individual rides.</p>
+          <SLabel>🚐 On-Demand Daba Ride Pricing</SLabel>
+          <p className="text-xs text-muted-foreground -mt-1">Fares for <strong>on-demand, point-to-point Daba rides only</strong> — same metered model as Bike/Car/Rickshaw. These settings do <strong>not</strong> affect Van intercity or route-based bookings.</p>
           {dabaFields.length > 0 ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1240,12 +1240,20 @@ export function renderSection(
               <div className="bg-purple-50 border border-purple-100 rounded-xl p-3.5 flex gap-2.5">
                 <Info className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-purple-700 leading-relaxed">
-                  <strong>Daba fare example:</strong>{" "}
+                  <strong>Daba fare example (on-demand only):</strong>{" "}
                   3 km trip → Rs.{exampleFare(dbBase, dbKm, dbMin, 3)} &nbsp;|&nbsp;
                   5 km → Rs.{exampleFare(dbBase, dbKm, dbMin, 5)} &nbsp;|&nbsp;
                   10 km → Rs.{exampleFare(dbBase, dbKm, dbMin, 10)}
                   {surgeOn && <strong className="text-orange-600"> (surge ×{surge} active)</strong>}
                   &nbsp;· Rider earns {riderKeep}% of each fare
+                </p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex gap-2.5">
+                <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <strong>Van / Intercity Pricing is separate.</strong>{" "}
+                  Van bookings use a fixed per-route fare model, not the metered fares above. Van routes and their fares are managed in the{" "}
+                  <a href="/van" className="underline font-semibold hover:text-amber-900">Van Management page</a>.
                 </p>
               </div>
             </>
