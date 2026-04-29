@@ -42,6 +42,11 @@ type WalletStats = {
   totalFlagged: number;
 };
 
+type PlatformSettingsResponse = {
+  settings: Array<{ key: string; value: string; label: string; category: string; updatedAt: string }>;
+  grouped: Record<string, Array<{ key: string; value: string; label: string }>>;
+};
+
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 export default function WalletTransfersPage() {
   return (
@@ -496,7 +501,7 @@ function FlagModal({ tx, onClose, onSubmit, loading }: {
 
 /* ─── Settings Panel ─────────────────────────────────────────────────────── */
 function SettingsPanel() {
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, refetch } = useQuery<PlatformSettingsResponse>({
     queryKey: ["admin-platform-settings"],
     queryFn: () => fetcher("/platform-settings"),
     staleTime: 30_000,
@@ -504,10 +509,10 @@ function SettingsPanel() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  /* The platform-settings endpoint returns { settings: Array<{key, value, ...}>, grouped: {...} }.
-     Convert the array to a Record<key, value> for easy lookup. */
-  const settingsArr: Array<{ key: string; value: string }> = (data as any)?.settings ?? [];
-  const settings: Record<string, string> = Object.fromEntries(settingsArr.map(s => [s.key, s.value]));
+  /* Convert the settings array to a Record<key, value> for easy lookup. */
+  const settings: Record<string, string> = Object.fromEntries(
+    (data?.settings ?? []).map(s => [s.key, s.value])
+  );
 
   const [fields, setFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
