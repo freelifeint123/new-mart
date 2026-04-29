@@ -59,7 +59,8 @@ export default function WebhookManagerPage() {
 
   interface CreateWebhookBody {
     url: string;
-    event: string;
+    event: string[];
+    description?: string;
     secret?: string;
     isActive?: boolean;
   }
@@ -241,7 +242,7 @@ export default function WebhookManagerPage() {
                 </div>
               </div>
               <Button className="w-full" disabled={!url || selectedEvents.length === 0 || createMutation.isPending}
-                onClick={() => createMutation.mutate({ url, events: selectedEvents, description })}>
+                onClick={() => createMutation.mutate({ url, event: selectedEvents, description })}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Register Webhook
               </Button>

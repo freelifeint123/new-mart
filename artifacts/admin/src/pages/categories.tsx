@@ -324,7 +324,6 @@ export default function CategoriesPage() {
                   onDelete={(id: string) => { setDeleteConfirm({ id, name: cat.name, msg: `Delete "${cat.name}"?` }); }}
                   onToggle={(id: string) => toggleMutation.mutate({ id, isActive: !cat.isActive })}
                   onAddChild={() => openNew(cat.id)}
-                  onMove={moveCategory}
                   onToggleExpand={toggleExpand}
                   expanded={expandedIds.has(cat.id)}
                   categories={categories}
@@ -642,15 +641,16 @@ interface CategoryCardProps {
   expanded: boolean;
   onToggleExpand: (id: string) => void;
   categories?: Category[];
-  toggleMutation?: unknown;
-  deleteMutation?: unknown;
-  openEdit?: (c: Category) => void;
-  moveCategory?: (id: string, dir: "up" | "down") => void;
+  toggleMutation: unknown;
+  deleteMutation: unknown;
+  openEdit: (c: Category) => void;
+  moveCategory: (id: string, dir: "up" | "down", parentId?: string | null) => void;
   isDragging?: boolean;
   isSearching?: boolean;
 }
 function CategoryCard({
   cat, onEdit, onDelete, onToggle, onAddChild, expanded, onToggleExpand,
+  toggleMutation, deleteMutation, openEdit, moveCategory,
 }: CategoryCardProps) {
   const hasChildren = (cat.children?.length ?? 0) > 0;
   return (
@@ -677,7 +677,7 @@ function CategoryCard({
               }`}>{cat.type.toUpperCase()}</span>
               {!cat.isActive && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">INACTIVE</span>}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{cat.icon.replace("-outline", "")} · {hasChildren && `${cat.children.length} sub-categories`}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{cat.icon.replace("-outline", "")} · {hasChildren && `${cat.children!.length} sub-categories`}</p>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button onClick={() => onAddChild(cat.id)} className="p-2 hover:bg-muted rounded-lg" title="Add sub-category"><Plus className="w-4 h-4 text-indigo-600" /></button>
@@ -701,13 +701,13 @@ function CategoryCard({
                     <p className="text-[11px] text-muted-foreground">{child.icon.replace("-outline", "")}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => toggleMutation.mutate({ id: child.id, isActive: !child.isActive })} className="p-1.5 hover:bg-muted rounded-lg">
+                    <button onClick={() => (toggleMutation as any).mutate({ id: child.id, isActive: !child.isActive })} className="p-1.5 hover:bg-muted rounded-lg">
                       {child.isActive ? <ToggleRight className="w-4 h-4 text-green-600" /> : <ToggleLeft className="w-4 h-4 text-muted-foreground" />}
                     </button>
                     <button onClick={() => moveCategory(child.id, "up", cat.id)} className="p-1.5 hover:bg-muted rounded-lg"><ArrowUp className="w-3.5 h-3.5 text-muted-foreground" /></button>
                     <button onClick={() => moveCategory(child.id, "down", cat.id)} className="p-1.5 hover:bg-muted rounded-lg"><ArrowDown className="w-3.5 h-3.5 text-muted-foreground" /></button>
                     <button onClick={() => openEdit(child)} className="p-1.5 hover:bg-muted rounded-lg"><Pencil className="w-3.5 h-3.5 text-blue-600" /></button>
-                    <button onClick={() => { if (confirm(`Delete "${child.name}"?`)) deleteMutation.mutate(child.id); }} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-red-500" /></button>
+                    <button onClick={() => { if (confirm(`Delete "${child.name}"?`)) (deleteMutation as any).mutate(child.id); }} className="p-1.5 hover:bg-red-50 rounded-lg"><Trash2 className="w-3.5 h-3.5 text-red-500" /></button>
                   </div>
                 </div>
               </CardContent>

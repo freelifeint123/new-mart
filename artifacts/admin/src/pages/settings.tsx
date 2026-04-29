@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Settings2, Save, RefreshCw, Truck, Car, BarChart3,
   ShoppingCart, Globe, Users, Bike, Store, Zap, Info,
@@ -8,7 +8,7 @@ import {
   Building2, Banknote, Wallet, Phone, FileText, Lock,
   ToggleRight, Settings, RotateCcw, Package,
   Gift, Star, Percent, ShieldCheck, UserPlus, Server,
-  Database, Download, Upload, Trash2, HardDrive, RefreshCcw, FlaskConical,
+  Database, Download, Upload, Trash2, HardDrive, FlaskConical,
   Clock, X, SlidersHorizontal, Palette, MapPin, Gauge, Languages, Bell, ImageUp, List, Bus, Sparkles, ShieldAlert,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -196,6 +196,8 @@ const CATEGORY_CONFIG: Record<CatKey, { label: string; icon: any; color: string;
   network:      { label: "Network & Retry",     icon: Wifi,         color: "text-cyan-600",    bg: "bg-cyan-50",    activeBg: "bg-cyan-600",    description: "API timeout, retry attempts, backoff delay, GPS queue size and dismissed-request TTL" },
 };
 
+const ALWAYS_VISIBLE = new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]);
+
 /** Resolve a deep-link param (?tab= or ?cat=) — accepts both top-10 keys and legacy names. */
 function resolveTop10(raw: string | null | undefined): Top10Key | null {
   if (!raw) return null;
@@ -320,11 +322,14 @@ export default function SettingsPage() {
     setRestoring(false);
   };
 
-  const grouped: Record<string,Setting[]> = {};
-  for (const s of settings) {
-    if (!grouped[s.category]) grouped[s.category] = [];
-    grouped[s.category].push(s);
-  }
+  const grouped = useMemo(() => {
+    const byCategory: Record<string, Setting[]> = {};
+    for (const s of settings) {
+      if (!byCategory[s.category]) byCategory[s.category] = [];
+      byCategory[s.category].push(s);
+    }
+    return byCategory;
+  }, [settings]);
 
   const getInputType = (key: string) => TEXT_KEYS.has(key) ? "text" : "number";
   const getInputSuffix = (key: string) => {
@@ -356,21 +361,43 @@ export default function SettingsPage() {
   const activeCfg = TOP10_CONFIG[activeTop10];
   const ActiveIcon = activeCfg.icon;
 
-  /* keys that appear in a different sub-section than their raw DB category */
   const DISPLAY_CAT_OVERRIDE: Record<string,string> = {
     vendor_min_payout:        "finance",
     customer_referral_bonus:  "payment",
     customer_signup_bonus:    "payment",
   };
-  /* Roll dirty keys up into Top-10 buckets. */
-  const dirtyCounts: Record<string,number> = {};
-  for (const k of dirtyKeys) {
-    const s = settings.find(x => x.key === k);
-    if (!s) continue;
-    const displayCat = DISPLAY_CAT_OVERRIDE[k] ?? s.category;
-    const top10 = LEGACY_TO_TOP10[displayCat] ?? LEGACY_TO_TOP10[s.category];
-    if (top10) dirtyCounts[top10] = (dirtyCounts[top10] || 0) + 1;
-  }
+
+  /* The 5 sections that always render even with zero DB settings. */
+  const ALWAYS_VISIBLE = new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]);
+
+  const childHasContent = useCallback((cat: CatKey) => {
+    return ALWAYS_VISIBLE.has(cat) || (grouped[cat]?.length ?? 0) > 0;
+  }, [grouped]);
+
+  const activeChildrenWithContent = useMemo(
+    () => activeCfg.children.filter(childHasContent),
+    [activeCfg.children, childHasContent],
+  );
+
+  const activeChildSettingsCount = useMemo(
+    () => activeChildrenWithContent.reduce(
+      (count, child) => count + ((grouped[child]?.length ?? 0) || (ALWAYS_VISIBLE.has(child) ? 1 : 0)),
+      0,
+    ),
+    [activeChildrenWithContent, grouped],
+  );
+
+  const dirtyCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const k of dirtyKeys) {
+      const s = settings.find(x => x.key === k);
+      if (!s) continue;
+      const displayCat = DISPLAY_CAT_OVERRIDE[k] ?? s.category;
+      const top10 = LEGACY_TO_TOP10[displayCat] ?? LEGACY_TO_TOP10[s.category];
+      if (top10) counts[top10] = (counts[top10] || 0) + 1;
+    }
+    return counts;
+  }, [dirtyKeys, settings]);
 
   if (loading) {
     return (
@@ -390,7 +417,7 @@ export default function SettingsPage() {
 
   /* Children of the active top-10 group + total settings rendered in this view. */
   const activeChildren = activeCfg.children;
-  const activeChildSettingsCount = activeChildren.reduce(
+  const totalChildSettingsCount = activeChildren.reduce(
     (n, c) => n + (grouped[c]?.length ?? 0),
     0,
   );
@@ -437,11 +464,6 @@ export default function SettingsPage() {
       handleChange, handleToggle, getInputType, getInputSuffix, getPlaceholder,
     );
   };
-
-  /* The 5 sections that always render even with zero DB settings. */
-  const ALWAYS_VISIBLE = new Set<CatKey>(["payment", "integrations", "security", "system", "weather"]);
-  const childHasContent = (cat: CatKey) =>
-    ALWAYS_VISIBLE.has(cat) || (grouped[cat]?.length ?? 0) > 0;
 
   return (
     <div className="space-y-4 max-w-5xl">
@@ -683,12 +705,12 @@ export default function SettingsPage() {
             </div>
             {/* Section body — renders every legacy child sub-section in order */}
             <div className="p-4 sm:p-6 space-y-8">
-              {activeChildren.filter(childHasContent).length === 0 ? (
+              {activeChildrenWithContent.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Settings2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No settings in this section</p>
                 </div>
-              ) : activeChildren.filter(childHasContent).map((child, idx) => {
+              ) : activeChildrenWithContent.map((child, idx) => {
                 const subCfg = CATEGORY_CONFIG[child];
                 const SubIcon = subCfg.icon;
                 const childSettings = grouped[child] ?? [];

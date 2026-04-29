@@ -17,6 +17,7 @@
 import { createTimingRegistry } from "@workspace/admin-timing-shared";
 
 export interface AdminTimingConfig {
+  [key: string]: number;
   commandPaletteDebounceMs: number;
   pullToRefreshIntervalMs: number;
   errorReporterFlushDelayMs: number;

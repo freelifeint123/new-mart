@@ -153,7 +153,7 @@ export default function Products() {
       originalPrice: prod.originalPrice ? String(prod.originalPrice) : "",
       category: prod.category || "", type: prod.type || "mart",
       unit: prod.unit || "", vendorName: prod.vendorName || "",
-      inStock: prod.inStock, deliveryTime: prod.deliveryTime || "30-45 min",
+      inStock: prod.inStock ?? false, deliveryTime: prod.deliveryTime || "30-45 min",
       image: prod.image || "",
     });
     setImagePreview(prod.image || "");

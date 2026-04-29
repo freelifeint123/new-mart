@@ -87,6 +87,8 @@ export interface ProductRow {
   image?: string;
   /** Approval status: "pending" | "approved" | "rejected". */
   status?: string;
+  /** Creation timestamp. */
+  createdAt?: string;
 }
 
 export interface PaymentSettingRow {

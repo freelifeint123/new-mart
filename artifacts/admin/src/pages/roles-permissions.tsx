@@ -81,8 +81,8 @@ export default function RolesPermissionsPage() {
     setLoading(true);
     try {
       const [catRes, rolesRes] = await Promise.all([
-        fetchAdmin("/api/admin/system/rbac/permissions", { signal }),
-        fetchAdmin("/api/admin/system/rbac/roles", { signal }),
+        fetchAdmin("/system/rbac/permissions", { signal }),
+        fetchAdmin("/system/rbac/roles", { signal }),
       ]);
       if (signal?.aborted) return;
       const cat: PermissionDef[] = catRes?.data?.permissions ?? catRes?.permissions ?? [];
@@ -108,7 +108,7 @@ export default function RolesPermissionsPage() {
   const loadAdmins = async () => {
     setAdminsLoading(true);
     try {
-      const res = await fetchAdmin("/api/admin/admin-accounts");
+      const res = await fetchAdmin("/admin-accounts");
       // The admin-accounts endpoint returns `{ accounts: [...] }`, but be
       // defensive for variants we've seen elsewhere in this codebase.
       const list: AdminAccount[] =
@@ -124,7 +124,7 @@ export default function RolesPermissionsPage() {
       const map: Record<string, string[]> = {};
       await Promise.all((Array.isArray(list) ? list : []).map(async a => {
         try {
-          const r = await fetchAdmin(`/api/admin/system/rbac/admins/${a.id}/roles`);
+          const r = await fetchAdmin(`/system/rbac/admins/${a.id}/roles`);
           const rs: RbacRole[] = r?.data?.roles ?? r?.roles ?? [];
           map[a.id] = rs.map(x => x.id);
         } catch { map[a.id] = []; }
@@ -143,7 +143,7 @@ export default function RolesPermissionsPage() {
     setActiveAdminId(a.id);
     setActiveAdminEffective([]);
     try {
-      const r = await fetchAdmin(`/api/admin/system/rbac/admins/${a.id}/effective-permissions`);
+      const r = await fetchAdmin(`/system/rbac/admins/${a.id}/effective-permissions`);
       setActiveAdminEffective(r?.data?.permissions ?? r?.permissions ?? []);
     } catch { /* non-fatal */ }
   };
@@ -155,7 +155,7 @@ export default function RolesPermissionsPage() {
     const next = [...current];
     setAdminRoleMap(prev => ({ ...prev, [adminId]: next }));
     try {
-      await fetchAdmin(`/api/admin/system/rbac/admins/${adminId}/roles`, {
+      await fetchAdmin(`/system/rbac/admins/${adminId}/roles`, {
         method: "PUT", body: JSON.stringify({ roleIds: next }),
       });
       toast({ title: "Roles updated" });
@@ -185,7 +185,7 @@ export default function RolesPermissionsPage() {
     if (!activeRole || !canManage) return;
     setSaving(true);
     try {
-      await fetchAdmin(`/api/admin/system/rbac/roles/${activeRole.id}/permissions`, {
+      await fetchAdmin(`/system/rbac/roles/${activeRole.id}/permissions`, {
         method: "PUT",
         body: JSON.stringify({ permissions: [...draftPerms] }),
       });
@@ -203,7 +203,7 @@ export default function RolesPermissionsPage() {
     if (!slug) return;
     const name = window.prompt("Display name:")?.trim() || slug;
     try {
-      const res = await fetchAdmin("/api/admin/system/rbac/roles", {
+      const res = await fetchAdmin("/system/rbac/roles", {
         method: "POST",
         body: JSON.stringify({ slug, name }),
       });
@@ -220,7 +220,7 @@ export default function RolesPermissionsPage() {
     if (!activeRole || activeRole.isBuiltIn) return;
     if (!window.confirm(`Delete role "${activeRole.name}"?`)) return;
     try {
-      await fetchAdmin(`/api/admin/system/rbac/roles/${activeRole.id}`, { method: "DELETE" });
+      await fetchAdmin(`/system/rbac/roles/${activeRole.id}`, { method: "DELETE" });
       toast({ title: "Role deleted" });
       setActiveRoleId(null);
       await reload();

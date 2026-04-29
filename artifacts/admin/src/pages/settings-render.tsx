@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import {
   Info, Shield, Gift, Globe, MessageSquare, Package, ShoppingCart,
   AlertTriangle, CheckCircle2, ShieldCheck, UserPlus, Zap,
@@ -184,6 +184,32 @@ const CONTENT_HINTS: Record<string, { hint: string; apps: string }> = {
   content_about_url:        { hint: "About Us page. Leave empty to hide the row", apps: "📱 Customer  •  🏪 Vendor  •  🏍️ Rider" },
 };
 
+type CardFrameVariant = "default" | "danger" | "note";
+function CardFrame({
+  isDirty,
+  variant = "default",
+  className = "",
+  children,
+}: {
+  isDirty?: boolean;
+  variant?: CardFrameVariant;
+  className?: string;
+  children: ReactNode;
+}) {
+  const variantClasses = isDirty
+    ? "border-amber-300 bg-amber-50/30"
+    : variant === "danger"
+      ? "border-orange-300 bg-orange-50"
+      : variant === "note"
+        ? "border-slate-200 bg-white"
+        : "border-border bg-white";
+  return (
+    <div className={`rounded-xl border p-4 transition-all ${variantClasses} ${className}`.trim()}>
+      {children}
+    </div>
+  );
+}
+
 /* ─── Other section renderers ────────────────────────────────────────────── */
 export function renderSection(
   cat: CatKey, catSettings: Setting[], settings: Setting[],
@@ -201,7 +227,7 @@ export function renderSection(
     const isDirty = dirtyKeys.has(s.key);
     const suffix = getInputSuffix(s.key);
     return (
-      <div className="space-y-2">
+      <CardFrame isDirty={isDirty} className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-sm font-semibold text-foreground">{s.label}</label>
           {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -215,7 +241,7 @@ export function renderSection(
           {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
         </div>
         <p className="text-[11px] text-muted-foreground font-mono">{s.key}</p>
-      </div>
+      </CardFrame>
     );
   };
 
@@ -480,7 +506,7 @@ export function renderSection(
       const meta      = CONTENT_HINTS[s.key];
       const overLimit = limit ? val.length > limit : false;
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               {isUrl
@@ -518,7 +544,7 @@ export function renderSection(
             </div>
           )}
           <p className="text-[10px] text-muted-foreground/60 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -545,7 +571,7 @@ export function renderSection(
         {/* ── Tracker Banner Position ── */}
         <div className="border-t border-border/40 pt-5">
           <SLabel icon={ToggleRight}>Tracker Banner Position</SLabel>
-          <div className="rounded-xl border p-4 space-y-2.5 transition-all border-border bg-white">
+          <CardFrame variant="note" className="space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Banner Position</p>
@@ -561,7 +587,7 @@ export function renderSection(
               </select>
             </div>
             <p className="text-[10px] text-muted-foreground/60 font-mono">content_tracker_banner_position</p>
-          </div>
+          </CardFrame>
         </div>
 
         {/* ── App Messaging ── */}
@@ -754,7 +780,7 @@ export function renderSection(
       const sfx = SUFFIX[s.key] ?? "";
       const isPrefix = sfx === "Rs.";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">{s.label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -769,7 +795,7 @@ export function renderSection(
             {!isPrefix && sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -830,7 +856,7 @@ export function renderSection(
           <p className="text-xs text-muted-foreground -mt-1">Minimum payout thresholds prevent micro-withdrawals. Settlement cycle is configured in Vendor settings.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {/* vendor_min_payout is stored in vendor category — read directly from localValues */}
-            <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${dirtyKeys.has("vendor_min_payout") ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+            <CardFrame isDirty={dirtyKeys.has("vendor_min_payout")} className="space-y-2.5">
               <div className="flex items-start justify-between gap-2">
                 <label className="text-sm font-semibold text-foreground leading-snug flex-1">Vendor Min Payout (Rs.)</label>
                 {dirtyKeys.has("vendor_min_payout") && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -844,7 +870,7 @@ export function renderSection(
                 />
               </div>
               <p className="text-[10px] text-muted-foreground/50 font-mono">vendor_min_payout</p>
-            </div>
+            </CardFrame>
             <RefInfoCard label="Rider Min Payout" value={`Rs. ${minRiderVal}`} detail="Minimum rider withdrawal request threshold" linkCat="Rider" />
             <RefInfoCard label="Vendor Settlement Cycle" value={`${settleDaysVal} days`} detail="Days after order completion before vendor can settle" linkCat="Vendor" />
           </div>
@@ -902,7 +928,7 @@ export function renderSection(
     const DeliveryNumField = ({ s }: { s: Setting }) => {
       const isDirty = dirtyKeys.has(s.key);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">
               {EMOJI[s.key] && <span className="mr-1">{EMOJI[s.key]}</span>}{s.label}
@@ -919,10 +945,9 @@ export function renderSection(
             />
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
-
     const DeliveryToggle = ({ s }: { s: Setting }) => (
       <Toggle checked={(localValues[s.key] ?? s.value) === "on"}
         onChange={v => handleToggle(s.key, v)} label={s.label} isDirty={dirtyKeys.has(s.key)} />
@@ -1105,7 +1130,7 @@ export function renderSection(
       const sfx = SUFFIX[s.key] ?? "";
       const isPrefix = sfx === "Rs.";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <label className="text-sm font-semibold text-foreground leading-snug flex-1">{s.label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold flex-shrink-0">CHANGED</Badge>}
@@ -1121,7 +1146,7 @@ export function renderSection(
             {!isPrefix && sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground/50 font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1341,7 +1366,7 @@ export function renderSection(
       const isDirty = dirtyKeys.has(s.key);
       const sfx = SUFFIX[s.key] ?? "";
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <label className="text-sm font-semibold text-foreground leading-snug">{s.label}</label>
@@ -1357,7 +1382,7 @@ export function renderSection(
             {sfx && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{sfx}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{s.key}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1643,7 +1668,7 @@ export function renderSection(
     const RField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
       const isDirty = d(k);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-foreground">{label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -1656,7 +1681,7 @@ export function renderSection(
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{k}</p>
-        </div>
+        </CardFrame>
       );
     };
 
@@ -1901,7 +1926,7 @@ export function renderSection(
     const VField = ({ k, label, suffix, hint }: { k: string; label: string; suffix?: string; hint?: string }) => {
       const isDirty = d(k);
       return (
-        <div className={`rounded-xl border p-4 space-y-2.5 transition-all ${isDirty ? "border-amber-300 bg-amber-50/30" : "border-border bg-white"}`}>
+        <CardFrame isDirty={isDirty} className="space-y-2.5">
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-foreground">{label}</label>
             {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold">CHANGED</Badge>}
@@ -1914,7 +1939,7 @@ export function renderSection(
             {suffix && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">{suffix}</span>}
           </div>
           <p className="text-[10px] text-muted-foreground font-mono">{k}</p>
-        </div>
+        </CardFrame>
       );
     };
 
