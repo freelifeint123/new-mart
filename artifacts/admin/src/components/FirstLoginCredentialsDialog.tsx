@@ -8,14 +8,13 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,6 +39,52 @@ function validateStrength(pw: string): string | null {
   if (!/[0-9]/.test(pw)) return "Password must contain at least 1 number.";
   return null;
 }
+
+type StrengthLevel = 0 | 1 | 2 | 3 | 4;
+
+/**
+ * Scores password strength using exactly the same 3 criteria that
+ * validateStrength enforces, so the meter can never reach "Strong"
+ * for a password that would fail server validation.
+ *
+ * Bar mapping:
+ *  0 – nothing typed
+ *  1 – something typed but < 8 chars         → Weak
+ *  2 – ≥ 8 chars                              → Fair  (length rule ✓)
+ *  3 – ≥ 8 chars + uppercase                  → Good  (+ uppercase rule ✓)
+ *  4 – ≥ 8 chars + uppercase + number         → Strong (all server rules ✓)
+ */
+function computeStrength(pw: string): StrengthLevel {
+  if (!pw) return 0;
+  if (pw.length < 8) return 1;
+  if (!/[A-Z]/.test(pw)) return 2;
+  if (!/[0-9]/.test(pw)) return 3;
+  return 4;
+}
+
+const STRENGTH_LABELS: Record<StrengthLevel, string> = {
+  0: "",
+  1: "Weak",
+  2: "Fair",
+  3: "Good",
+  4: "Strong",
+};
+
+const STRENGTH_COLORS: Record<StrengthLevel, string> = {
+  0: "",
+  1: "bg-red-500",
+  2: "bg-orange-400",
+  3: "bg-yellow-400",
+  4: "bg-emerald-500",
+};
+
+const STRENGTH_TEXT_COLORS: Record<StrengthLevel, string> = {
+  0: "",
+  1: "text-red-500",
+  2: "text-orange-400",
+  3: "text-yellow-500",
+  4: "text-emerald-600 dark:text-emerald-400",
+};
 
 export function FirstLoginCredentialsDialog() {
   const [, setLocation] = useLocation();
@@ -152,11 +197,10 @@ export function FirstLoginCredentialsDialog() {
               ? `Password was updated, but username change failed: ${baseMsg}`
               : baseMsg,
           );
-          return; // keep dialog open, username field still active
+          return;
         }
       }
 
-      // All requested operations succeeded.
       toast({
         title: "Credentials updated",
         description:
@@ -173,39 +217,46 @@ export function FirstLoginCredentialsDialog() {
     }
   };
 
+  const strengthLevel = computeStrength(newPassword);
+
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        // Treat any close attempt (Esc, outside-click, X button) as
-        // "Skip for now" — defaults stay valid. Suppress while we are
-        // mid-submit so a stray click can't drop the dialog before the
-        // server round-trips finish.
         if (!next && !submitting) handleSkip();
       }}
     >
-      <DialogContent className="sm:max-w-lg" data-testid="dialog-first-login-credentials">
-        <DialogHeader>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-              <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+      <DialogContent
+        className="sm:max-w-lg overflow-hidden p-0"
+        data-testid="dialog-first-login-credentials"
+      >
+        {/* Accent header band */}
+        <div className="relative bg-gradient-to-br from-amber-500 via-amber-400 to-orange-400 dark:from-amber-600 dark:via-amber-500 dark:to-orange-500 px-6 pt-7 pb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/20 ring-2 ring-white/30 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-lg">
+              <KeyRound className="h-6 w-6 text-white" />
             </div>
-            <div className="flex-1">
-              <DialogTitle className="text-lg">Customise your admin credentials</DialogTitle>
-              <DialogDescription className="mt-1">
-                You're signed in with the default credentials. Pick a new
-                username and/or password, or skip for now to keep using
-                the defaults.
+            <div>
+              <DialogTitle className="text-lg font-semibold text-white leading-tight">
+                Secure your admin account
+              </DialogTitle>
+              <DialogDescription className="text-sm text-amber-100/90 mt-0.5 leading-snug">
+                You're using default credentials. Set a unique username and password to protect your panel.
               </DialogDescription>
             </div>
           </div>
-        </DialogHeader>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="flcd-username">
-              New username
-            </label>
+        {/* Form body */}
+        <form onSubmit={handleSubmit} className="px-6 pb-4 pt-5 space-y-4">
+
+          {/* Username section */}
+          <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-2">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Username
+              </span>
+            </div>
             <Input
               id="flcd-username"
               type="text"
@@ -221,23 +272,34 @@ export function FirstLoginCredentialsDialog() {
             </p>
           </div>
 
+          {/* Password section */}
           {passwordSavedThisSession ? (
             <div
-              className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300 flex items-start gap-2"
+              className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 flex items-start gap-3"
               data-testid="text-password-saved"
             >
-              <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
               <div>
-                <p className="font-medium">Password updated.</p>
-                <p className="text-xs opacity-80">
-                  Finish by saving the new username, or click Skip for now.
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                  Password updated successfully
+                </p>
+                <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
+                  Finish by saving a new username, or click Skip for now.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="border-t pt-4 space-y-3">
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 space-y-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  New Password
+                </span>
+              </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="flcd-new">
+                <label className="text-sm font-medium sr-only" htmlFor="flcd-new">
                   New password
                 </label>
                 <div className="relative">
@@ -254,13 +316,39 @@ export function FirstLoginCredentialsDialog() {
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+                    className="absolute inset-y-0 right-0 w-9 flex items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     onClick={() => setShowPasswords((v) => !v)}
-                    tabIndex={-1}
+                    aria-label={showPasswords ? "Hide password" : "Show password"}
+                    aria-pressed={showPasswords}
                   >
-                    {showPasswords ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPasswords
+                      ? <EyeOff className="h-4 w-4" />
+                      : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+
+                {/* Password strength indicator */}
+                {newPassword.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-1">
+                      {([1, 2, 3, 4] as const).map((bar) => (
+                        <div
+                          key={bar}
+                          className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                            strengthLevel >= bar
+                              ? STRENGTH_COLORS[strengthLevel]
+                              : "bg-border"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {strengthLevel > 0 && (
+                      <p className={`text-xs font-medium ${STRENGTH_TEXT_COLORS[strengthLevel]}`}>
+                        {STRENGTH_LABELS[strengthLevel]}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -281,16 +369,19 @@ export function FirstLoginCredentialsDialog() {
             </div>
           )}
 
+          {/* Error banner */}
           {formError && (
             <div
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 flex items-start gap-2.5"
               data-testid="text-credentials-error"
             >
-              {formError}
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <p className="text-sm text-destructive leading-snug">{formError}</p>
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-2 flex-col sm:flex-row">
+          {/* Footer */}
+          <DialogFooter className="pt-1 flex-col sm:flex-row gap-2 sm:gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -299,7 +390,7 @@ export function FirstLoginCredentialsDialog() {
                 setLocation("/set-new-password");
               }}
               disabled={submitting}
-              className="sm:mr-auto"
+              className="sm:mr-auto text-muted-foreground hover:text-foreground text-sm"
               data-testid="button-open-full-screen"
             >
               Open the full password screen
@@ -316,7 +407,7 @@ export function FirstLoginCredentialsDialog() {
             <Button type="submit" disabled={submitting} data-testid="button-save-credentials">
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Saving…
                 </>
               ) : (
