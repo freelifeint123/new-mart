@@ -19,7 +19,10 @@ export function SLabel({ children, icon: Icon }: { children: React.ReactNode; ic
 /* ── ModeBtn — pill-style toggle button for settings modes ── */
 export function ModeBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
       className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold border transition-all ${
         active ? "bg-primary text-white border-primary shadow-sm" : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/60"
       }`}
@@ -33,18 +36,24 @@ export function Toggle({ checked, onChange, label, icon, isDirty, danger, sub }:
   label: string; icon?: string; isDirty: boolean; danger?: boolean; sub?: string;
 }) {
   return (
-    <div onClick={() => onChange(!checked)}
-      className={`flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all select-none
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); onChange(!checked); } }}
+      className={`w-full flex items-center justify-between p-3.5 rounded-xl border cursor-pointer transition-all select-none text-left
         ${checked ? danger ? "bg-red-50 border-red-300" : "bg-green-50 border-green-200" : "bg-white border-border hover:bg-muted/30"}
         ${isDirty ? "ring-2 ring-amber-300" : ""}`}
     >
       <div className="flex items-center gap-2.5 flex-1 min-w-0">
-        {icon && <span className="text-xl flex-shrink-0">{icon}</span>}
-        {danger && !icon && <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+        {icon && <span className="text-xl flex-shrink-0" aria-hidden="true">{icon}</span>}
+        {danger && !icon && <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" aria-hidden="true" />}
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground leading-snug truncate">{label}</p>
           {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
-          <p className={`text-xs font-bold flex items-center gap-1 ${checked ? (danger ? "text-red-600" : "text-green-600") : "text-muted-foreground"}`}>
+          <p className={`text-xs font-bold flex items-center gap-1 ${checked ? (danger ? "text-red-600" : "text-green-600") : "text-muted-foreground"}`} aria-hidden="true">
             {checked
               ? danger
                 ? <><AlertTriangle className="w-3 h-3" /> Enabled</>
@@ -54,13 +63,13 @@ export function Toggle({ checked, onChange, label, icon, isDirty, danger, sub }:
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+      <div className="flex items-center gap-2 flex-shrink-0 ml-2" aria-hidden="true">
         {isDirty && <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 font-bold hidden sm:flex">CHANGED</Badge>}
         <div className={`w-11 h-6 rounded-full relative transition-colors ${checked ? (danger ? "bg-red-500" : "bg-green-500") : "bg-gray-300"}`}>
           <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`} />
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 

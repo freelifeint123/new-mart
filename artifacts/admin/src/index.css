@@ -302,6 +302,65 @@ table thead th {
     outline-offset: 2px;
     border-radius: 6px;
   }
+
+  /* ── Universal focus-visible: applies to ALL native interactive elements
+   * so no element needs the explicit .admin-focus-ring class.
+   * Radix / shadcn-ui components override this with their own styles.      */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="switch"]:focus-visible,
+  [role="menuitem"]:focus-visible,
+  [role="option"]:focus-visible,
+  [role="checkbox"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* ── Skip-to-main navigation link (keyboard / screen-reader only) ── */
+  .admin-skip-link {
+    position: absolute;
+    top: -9999px;
+    left: 8px;
+    z-index: 9999;
+    padding: 8px 16px;
+    background: hsl(var(--primary));
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 0 0 8px 8px;
+    text-decoration: none;
+  }
+  .admin-skip-link:focus {
+    top: 0;
+  }
+
+  /* ── Responsive table wrapper — add class to any table's parent ── */
+  .admin-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: inherit;
+  }
+
+  /* ── Screen-reader only utility ── */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border-width: 0;
+  }
   /* ─────────────────────────────────────────────────────────────────
    * Shared motion utilities
    * Used by OnlineStatusBanner, UploadProgress, UniversalMap fallback,

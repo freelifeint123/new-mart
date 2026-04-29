@@ -151,10 +151,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); setCmdOpen(o => !o); }
+      if (e.key === "Escape" && isMobileMenuOpen) setIsMobileMenuOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -580,6 +581,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#F1F5F9" }}>
+      {/* Skip-to-main navigation link — visible only on keyboard focus */}
+      <a href="#main-content" className="admin-skip-link">Skip to main content</a>
       {/* Desktop sidebar */}
       <div
         className="hidden lg:block h-full z-20 shrink-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
@@ -590,10 +593,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile drawer overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div
+          id="mobile-nav-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+          className="fixed inset-0 z-50 lg:hidden"
+        >
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-[6px] transition-opacity duration-300"
             onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
             style={{ animation: "fadeIn 200ms ease-out" }}
           />
           <div
@@ -647,6 +657,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={toggleCollapsed}
               className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg transition-all duration-150 hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -655,6 +667,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors text-slate-500"
+              aria-label="Open navigation menu"
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="mobile-nav-drawer"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -673,6 +688,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           {/* Center: command palette */}
           <button
             onClick={() => setCmdOpen(true)}
+            aria-label="Open command palette (⌘K)"
             className="hidden sm:flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all duration-150 group"
             style={{
               background: "rgba(248,250,252,0.9)",
@@ -812,7 +828,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         </ErrorBoundary>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-6" style={{ background: "#F1F5F9" }}>
+        <main id="main-content" className="flex-1 overflow-y-auto pb-20 lg:pb-6" style={{ background: "#F1F5F9" }}>
           <div className="max-w-7xl mx-auto p-3 sm:p-5 lg:p-7 animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out">
             {children}
           </div>

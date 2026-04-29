@@ -87,10 +87,10 @@ function ApproveModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="approve-withdrawal-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">Approve Withdrawal</h2>
+          <h2 id="approve-withdrawal-title" className="text-lg font-extrabold text-white">Approve Withdrawal</h2>
           <p className="text-green-200 text-sm mt-0.5">Mark as paid and enter proof of transfer</p>
         </div>
         <div className="p-5 space-y-4">
@@ -152,10 +152,10 @@ function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="reject-withdrawal-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 className="text-lg font-extrabold text-white">Reject Withdrawal</h2>
+          <h2 id="reject-withdrawal-title" className="text-lg font-extrabold text-white">Reject Withdrawal</h2>
           <p className="text-red-200 text-sm mt-0.5">Amount will be automatically refunded to rider's wallet</p>
         </div>
         <div className="p-5 space-y-4">
