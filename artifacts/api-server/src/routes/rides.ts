@@ -289,6 +289,9 @@ async function broadcastRideAttempt(rideId: string) {
       logger.warn({ rideId, riderId: r.userId, err: (emitErr as Error).message }, "[broadcast] socket emit to rider failed on first attempt");
     }
 
+    /* FCM / VAPID push — fires for background/killed-app riders.
+       data.rideId is included so the rider app's pushNotificationActionPerformed
+       listener can deep-link straight to the Active screen on tap. */
     try {
       await sendPushToUser(r.userId, {
         title: "🚗 New Ride Request",
