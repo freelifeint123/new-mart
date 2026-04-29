@@ -9,26 +9,25 @@
 
 ## Executive Summary
 
-| Category | Issues Found | Fixed | Deferred |
-|----------|-------------|-------|----------|
-| Focus visibility (focus rings) | 352 buttons | ✅ Global CSS rule | — |
-| Clickable non-button elements | 40 divs/spans | ✅ Toggle converted | 39 low-impact |
-| Responsive table overflow | 36 tables | ✅ Already wrapped | — |
-| Custom div-modals (ARIA) | 6 modals | ✅ All fixed | — |
-| Dialog focus traps (Radix) | 313 Sheets/Dialogs | ✅ Radix handles | — |
-| `outline-none` without replacement | 7 usages | ✅ Global override | — |
-| Skip navigation link | Missing | ✅ Fixed | — |
-| Mobile drawer keyboard | ESC not handled | ✅ Fixed | — |
-| Toggle switch semantics | div/onClick | ✅ Converted to button | — |
-
-Overall: **All critical WCAG 2.1 AA issues resolved.** Minor low-impact items documented in section 5.
+| Category | Issues Found | Status |
+|----------|-------------|--------|
+| Focus visibility (focus rings) | 352 buttons/links | ✅ Fixed — global CSS rule |
+| Clickable non-button elements | 40 divs/spans | ✅ Toggle converted; 39 low-impact items noted |
+| Responsive table overflow | 36 tables | ✅ All wrapped (overflow-x-auto or card list) |
+| Custom div-modals (ARIA + focus trap) | 6 modals | ✅ Replaced with Radix Dialog |
+| Dialog focus traps (Radix) | 313 Sheets/Dialogs | ✅ Radix handles natively |
+| `outline-none` without replacement | 7 usages | ✅ Overridden by global focus-visible rule |
+| Skip navigation link | Missing | ✅ Fixed |
+| Mobile drawer keyboard/ARIA | Incomplete | ✅ Fixed |
+| Toggle switch semantics | div/onClick | ✅ Converted to button[role=switch] |
+| Mobile card view (transactions) | Missing | ✅ Added |
 
 ---
 
 ## 1. Focus Visibility (WCAG 2.4.7 / 2.4.11)
 
 ### Issue
-352 interactive buttons across 63 pages had no visible focus ring. 7 elements used `outline-none` with no replacement, making keyboard-only navigation invisible.
+352 interactive buttons across 63 pages had no visible focus ring. 7 elements used `outline-none` with no replacement.
 
 ### Fix Applied — `artifacts/admin/src/index.css`
 ```css
@@ -42,7 +41,7 @@ textarea:focus-visible {
   border-radius: 4px;
 }
 ```
-This universal rule applies to every interactive element site-wide without requiring per-component edits. `:focus-visible` is used (not `:focus`) so mouse users are unaffected.
+Uses `:focus-visible` (not `:focus`) so mouse users are unaffected.
 
 **Status: ✅ Fixed**
 
@@ -58,30 +57,11 @@ No skip-to-main-content link. Keyboard users had to tab through the entire sideb
 <a href="#main-content" className="admin-skip-link">
   Skip to main content
 </a>
-```
-And on the main element:
-```tsx
+// ...
 <main id="main-content" tabIndex={-1} ...>
 ```
 
-CSS (off-screen until focused):
-```css
-.admin-skip-link {
-  position: absolute;
-  top: -100%;
-  left: 0.5rem;
-  background: hsl(var(--primary));
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0 0 0.5rem 0.5rem;
-  z-index: 9999;
-  text-decoration: none;
-  font-weight: 600;
-}
-.admin-skip-link:focus {
-  top: 0;
-}
-```
+CSS in `index.css` positions the link off-screen until focused, then reveals it at the top of the viewport.
 
 **Status: ✅ Fixed**
 
@@ -90,9 +70,9 @@ CSS (off-screen until focused):
 ## 3. Mobile Navigation Accessibility (WCAG 1.3.6 / 4.1.2)
 
 ### Issues Found
-- Mobile drawer opened via hamburger had no `role`, `aria-modal`, or `aria-label`
-- Hamburger button lacked `aria-label`, `aria-expanded`, and `aria-controls`
-- ESC key did not close the mobile drawer (keyboard trap risk)
+- Mobile drawer had no `role`, `aria-modal`, or `aria-label`
+- Hamburger button lacked `aria-label`, `aria-expanded`, `aria-controls`
+- ESC key did not close the mobile drawer
 - Backdrop lacked `aria-hidden`
 
 ### Fix Applied — `artifacts/admin/src/components/layout/AdminLayout.tsx`
@@ -109,65 +89,62 @@ CSS (off-screen until focused):
   role="dialog"
   aria-modal="true"
   aria-label="Navigation menu"
-  ...
 >
 
 // Backdrop:
-<div aria-hidden="true" onClick={() => setMobileOpen(false)} ... />
+<div aria-hidden="true" onClick={() => setMobileOpen(false)} />
 
-// ESC handler:
-useEffect(() => {
-  const handler = (e: KeyboardEvent) => {
-    if (e.key === "Escape") setMobileOpen(false);
-  };
-  window.addEventListener("keydown", handler);
-  return () => window.removeEventListener("keydown", handler);
-}, []);
+// ESC handler via useEffect on window.keydown
 ```
 
 **Status: ✅ Fixed**
 
 ---
 
-## 4. Custom Div-Modal Dialogs (WCAG 4.1.2 / 1.3.6)
+## 4. Custom Div-Modal Dialogs (WCAG 4.1.2 / 1.3.6 / 2.1.2)
 
 ### Issue
-6 hand-rolled modal components used bare `<div>` elements with no ARIA roles, missing dialog semantics. Screen readers would not announce them as dialogs, and ESC key had no effect.
+6 hand-rolled modals used bare `<div>` elements with no ARIA roles, no focus trap, no focus restoration, and no ESC handling:
 
-Files affected:
 - `src/pages/DepositRequests.tsx` — 4 modals (ApproveModal, RejectModal, BulkApproveModal, BulkRejectModal)
 - `src/pages/Withdrawals.tsx` — 2 modals (ApproveModal, RejectModal)
 
-### Fix Applied (all 6 modals)
-For each modal, the inner panel div was updated:
+### Fix Applied
+All 6 modals were replaced with Radix UI `Dialog` + `DialogContent`. Radix handles everything natively:
+
+- `role="dialog"` and `aria-modal="true"` on the content panel
+- **Full focus trap** — Tab/Shift-Tab cycles only within the open dialog
+- **Focus restoration** — focus returns to the trigger element on close
+- **ESC key** closes the dialog
+- **Backdrop click** closes via `onOpenChange`
+- `DialogTitle` maps to `aria-labelledby` automatically
+
 ```tsx
-<div
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="[unique-modal-id]"
-  tabIndex={-1}
-  onClick={e => e.stopPropagation()}
->
-  <h2 id="[unique-modal-id]">Modal Title</h2>
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+
+function ApproveModal({ d, onClose }) {
+  return (
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
+        <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
+          <DialogTitle className="text-lg font-extrabold text-white">Approve Deposit</DialogTitle>
+          ...
+        </div>
+        ...
+      </DialogContent>
+    </Dialog>
+  );
+}
 ```
-And the backdrop div received:
-```tsx
-onKeyDown={e => e.key === "Escape" && onClose()}
-aria-hidden="true"
-```
 
-IDs used: `approve-deposit-title`, `reject-deposit-title`, `bulk-approve-title`, `bulk-reject-title`, `approve-withdrawal-title`, `reject-withdrawal-title`
-
-> **Note:** Full focus-trap (first-element auto-focus on open, Tab cycle containment) is recommended as a future enhancement. The 313 Radix-based Sheet/Dialog components already include full focus trap natively.
-
-**Status: ✅ Fixed (partial — ESC + ARIA roles; full focus trap deferred)**
+**Status: ✅ Fully Fixed** — focus trap, focus restoration, ESC, ARIA all provided by Radix
 
 ---
 
 ## 5. Toggle Switch Semantics (WCAG 4.1.2)
 
 ### Issue
-The global `Toggle` component in `AdminShared.tsx` used a `<div>` with `onClick` handler. Not keyboard-reachable, not announced by screen readers.
+`Toggle` component used `<div onClick>` — not keyboard-reachable, not announced by screen readers.
 
 ### Fix Applied — `artifacts/admin/src/components/AdminShared.tsx`
 ```tsx
@@ -180,57 +157,41 @@ The global `Toggle` component in `AdminShared.tsx` used a `<div>` with `onClick`
   onClick={() => onChange(!checked)}
 >
 ```
-Decorative icons inside the toggle received `aria-hidden="true"`.
-
-`ModeBtn` also received `aria-pressed={active}` and `type="button"`.
+Decorative icons marked `aria-hidden="true"`. `ModeBtn` received `aria-pressed={active}` and `type="button"`.
 
 **Status: ✅ Fixed**
 
 ---
 
-## 6. Responsive Tables (WCAG 1.4.10 Reflow)
+## 6. Responsive Tables & Mobile Card Views (WCAG 1.4.10 Reflow)
 
 ### Audit Finding
-36 tables across the admin panel needed to scroll horizontally on small viewports to avoid content overflow at 400% zoom.
+All 36 data tables must render usably at 400% zoom (320px viewport width). Tables too wide to reflow must either scroll horizontally or switch to a card layout.
 
-### Status: ✅ Already Handled
-All data tables already use `<div className="overflow-x-auto">` wrappers with `min-w-[...]` on the table element, ensuring horizontal scroll at any viewport width. This satisfies WCAG 1.4.10 Reflow.
+### Status by page
 
-A global `.admin-table-wrap` utility class was also added to `index.css` for future use:
-```css
-.admin-table-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border-radius: 0.75rem;
-  box-shadow: 0 0 0 1px hsl(var(--border));
-}
-```
+| Page | Mobile solution |
+|------|----------------|
+| `orders/OrdersTable.tsx` | `hidden md:block` table + `OrdersMobileList.tsx` (`md:hidden` cards) |
+| `users.tsx` | `hidden md:block` table + `md:hidden` card list (line 1688) |
+| `rides.tsx` | `hidden md:block` table + `block md:hidden` cards (lines 786, 1686) |
+| `products.tsx` | `hidden md:block` table + `md:hidden` cards (lines 498, 692) |
+| `transactions.tsx` | **Added** `md:hidden` card list + `hidden md:block` table ✅ |
+
+All key data tables now show accessible card layouts on screens below 768px. Cards include all data fields without horizontal scrolling.
 
 ---
 
 ## 7. Screen-Reader Utility (sr-only)
 
-A `.sr-only` utility class was added to `index.css` for visually-hidden accessible text:
-```css
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-```
+A `.sr-only` utility class was added to `index.css` for visually-hidden accessible text, matching the Tailwind convention.
 
 ---
 
 ## 8. Radix UI Dialogs / Sheets (313 instances)
 
-All 313 Sheet, Dialog, AlertDialog, Select, DropdownMenu, Popover, and Tooltip components use Radix UI primitives. Radix handles:
-- Focus trap when open (Tab/Shift-Tab cycles within modal)
+All 313 Sheet, Dialog, AlertDialog, Select, DropdownMenu, Popover, and Tooltip components use Radix UI primitives which natively provide:
+- Full focus trap (Tab/Shift-Tab cycle within modal)
 - ESC to close
 - `aria-modal="true"` on overlay
 - `aria-labelledby` / `aria-describedby` via Radix composition
@@ -244,21 +205,17 @@ All 313 Sheet, Dialog, AlertDialog, Select, DropdownMenu, Popover, and Tooltip c
 
 The admin panel uses Tailwind CSS with CSS variables (`--primary`, `--foreground`, `--muted-foreground`, etc.) matching Shadcn/UI defaults. Shadcn/UI design tokens are designed to meet WCAG AA 4.5:1 contrast ratio for text.
 
-Critical text (labels, table headers, form labels) uses `text-gray-500` or darker — 4.6:1 on white.
-
-**Status: Passed** (design system level)
+**Status: Passed at design-system level** — automated per-page scan deferred (see section 10).
 
 ---
 
-## 10. Deferred / Future Recommendations
+## 10. Remaining / Future Recommendations
 
 | Item | Priority | Notes |
 |------|----------|-------|
-| Full focus trap for custom modals | Medium | Use `focus-trap-react` or `@radix-ui/react-focus-scope` in DepositRequests & Withdrawals |
-| 39 remaining `div onClick` | Low | Non-critical UI cards; not in tab order |
-| `aria-live` regions for toast notifications | Medium | Currently `useToast()` renders off-screen; add `role="status"` |
-| Keyboard-navigable data tables | Low | Add `tabIndex={0}` on rows for screen-reader row selection |
-| Color contrast audit for error/warning states | Medium | Red badge text on white — run automated scan |
+| 39 remaining `div onClick` (non-table, non-modal) | Low | Non-critical UI decoration cards; not in tab order |
+| `aria-live` regions for toast notifications | Medium | Use `role="status"` on success toasts, `role="alert"` on error toasts |
+| Automated per-page color contrast scan | Medium | Run `axe-core` or `playwright-axe` across all 63 routes |
 
 ---
 
@@ -267,7 +224,8 @@ Critical text (labels, table headers, form labels) uses `text-gray-500` or darke
 | File | Changes |
 |------|---------|
 | `src/index.css` | Universal focus-visible ring, skip-link, admin-table-wrap, sr-only |
-| `src/components/layout/AdminLayout.tsx` | Skip link, main id, mobile drawer aria, ESC handler, aria-expanded |
-| `src/components/AdminShared.tsx` | Toggle → `button[role=switch][aria-checked]`, ModeBtn → `aria-pressed` |
-| `src/pages/DepositRequests.tsx` | 4 modals: `role=dialog`, `aria-modal`, `aria-labelledby`, ESC handler |
-| `src/pages/Withdrawals.tsx` | 2 modals: `role=dialog`, `aria-modal`, `aria-labelledby`, ESC handler |
+| `src/components/layout/AdminLayout.tsx` | Skip link, main id, mobile drawer ARIA, ESC handler, aria-expanded |
+| `src/components/AdminShared.tsx` | Toggle → `button[role=switch][aria-checked]`, ModeBtn → `aria-pressed`, `type=button` |
+| `src/pages/DepositRequests.tsx` | 4 modals replaced with Radix `Dialog` (focus trap, ESC, ARIA) |
+| `src/pages/Withdrawals.tsx` | 2 modals replaced with Radix `Dialog` (focus trap, ESC, ARIA) |
+| `src/pages/transactions.tsx` | Mobile card list added (`md:hidden`); table wrapped in `hidden md:block` |

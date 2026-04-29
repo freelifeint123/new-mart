@@ -7,6 +7,7 @@ import { useDepositRequests, useApproveDeposit, useRejectDeposit, useBulkApprove
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -101,22 +102,10 @@ function ApproveModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-      onKeyDown={e => e.key === "Escape" && onClose()}
-      aria-hidden="true"
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="approve-deposit-title"
-        onClick={e => e.stopPropagation()}
-        tabIndex={-1}
-      >
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 id="approve-deposit-title" className="text-lg font-extrabold text-white">Approve Deposit</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Approve Deposit</DialogTitle>
           <p className="text-green-200 text-sm mt-0.5">Wallet will be credited and the user notified</p>
         </div>
         <div className="p-5 space-y-4">
@@ -155,8 +144,8 @@ function ApproveModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -179,22 +168,10 @@ function RejectModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onClose}
-      onKeyDown={e => e.key === "Escape" && onClose()}
-      aria-hidden="true"
-    >
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="reject-deposit-title"
-        onClick={e => e.stopPropagation()}
-        tabIndex={-1}
-      >
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 id="reject-deposit-title" className="text-lg font-extrabold text-white">Reject Deposit</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Reject Deposit</DialogTitle>
           <p className="text-red-200 text-sm mt-0.5">Deposit will be rejected — wallet will not be credited</p>
         </div>
         <div className="p-5 space-y-4">
@@ -222,8 +199,8 @@ function RejectModal({ d, onClose }: { d: Deposit; onClose: () => void }) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -235,10 +212,10 @@ function BulkApproveModal({ count, totalAmount, onConfirm, onClose, isPending }:
   const T = (key: TranslationKey) => tDual(key, language);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="bulk-approve-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 id="bulk-approve-title" className="text-lg font-extrabold text-white">Bulk Approve Deposits</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Bulk Approve Deposits</DialogTitle>
           <p className="text-green-200 text-sm mt-0.5">Approve {count} deposits at once</p>
         </div>
         <div className="p-5 space-y-4">
@@ -265,8 +242,8 @@ function BulkApproveModal({ count, totalAmount, onConfirm, onClose, isPending }:
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -279,10 +256,10 @@ function BulkRejectModal({ count, totalAmount, onConfirm, onClose, isPending }: 
   const T = (key: TranslationKey) => tDual(key, language);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="bulk-reject-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 id="bulk-reject-title" className="text-lg font-extrabold text-white">Bulk Reject Deposits</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Bulk Reject Deposits</DialogTitle>
           <p className="text-red-200 text-sm mt-0.5">Reject {count} deposits at once</p>
         </div>
         <div className="p-5 space-y-4">
@@ -312,8 +289,8 @@ function BulkRejectModal({ count, totalAmount, onConfirm, onClose, isPending }: 
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -164,7 +164,67 @@ export default function Transactions() {
         </div>
       </Card>
 
-      <Card className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+      {/* Mobile card list — shown below md breakpoint */}
+      <section className="md:hidden space-y-3" aria-label={T("transactions")}>
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="rounded-2xl border-border/50 shadow-sm p-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-4 w-28 bg-muted rounded" />
+                  <div className="h-3 w-20 bg-muted rounded" />
+                </div>
+                <div className="h-5 w-14 bg-muted rounded-full" />
+              </div>
+            </Card>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Receipt className="w-10 h-10 text-muted-foreground/25 mb-3" aria-hidden="true" />
+            <p className="font-semibold text-muted-foreground">{T("noTransactions")}</p>
+          </div>
+        ) : (
+          filtered.map((t: any) => (
+            <Card key={t.id} className="rounded-2xl border-border/50 shadow-sm overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${t.type === 'credit' ? 'bg-green-100' : 'bg-red-100'}`} aria-hidden="true">
+                      {t.type === 'credit'
+                        ? <TrendingUp className="w-4 h-4 text-green-600" />
+                        : <TrendingDown className="w-4 h-4 text-red-600" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{t.userName || t.userId?.slice(-6).toUpperCase()}</p>
+                      {t.userPhone && <p className="text-xs text-muted-foreground">{t.userPhone}</p>}
+                    </div>
+                  </div>
+                  <p className={`text-base font-extrabold shrink-0 ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                    {t.type === 'credit' ? '+' : '-'}{formatCurrency(t.amount)}
+                  </p>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge
+                      variant="outline"
+                      className={t.type === 'credit'
+                        ? 'bg-green-50 text-green-700 border-green-200 uppercase text-[10px] font-bold shrink-0'
+                        : 'bg-red-50 text-red-700 border-red-200 uppercase text-[10px] font-bold shrink-0'}
+                    >
+                      {t.type === 'credit' ? T("creditLabel") : T("debitLabel")}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground truncate">{t.description}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{formatDate(t.createdAt)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </section>
+
+      {/* Desktop table — hidden below md breakpoint */}
+      <Card className="hidden md:block rounded-2xl border-border/50 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[580px]">
             <TableHeader className="bg-muted/50">
@@ -191,7 +251,7 @@ export default function Transactions() {
                     <TableCell>
                       {t.userName ? (
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center shrink-0" aria-hidden="true">
                             <User className="w-3.5 h-3.5 text-sky-600" />
                           </div>
                           <div>

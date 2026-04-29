@@ -7,6 +7,7 @@ import { useWithdrawalRequests, useApproveWithdrawal, useRejectWithdrawal, useBa
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -87,17 +88,17 @@ function ApproveModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="approve-withdrawal-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-5">
-          <h2 id="approve-withdrawal-title" className="text-lg font-extrabold text-white">Approve Withdrawal</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Approve Withdrawal</DialogTitle>
           <p className="text-green-200 text-sm mt-0.5">Mark as paid and enter proof of transfer</p>
         </div>
         <div className="p-5 space-y-4">
           <div className="bg-green-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-gray-500">Rider / Vendor</span><span className="font-bold">{w.user?.name}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Phone</span><span className="font-bold">{w.user?.phone}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-gray-500 flex items-center gap-1"><Landmark className="w-3.5 h-3.5" /> {methodLabel(w.paymentMethod ?? null)}</span><span className="font-bold">{parsed.bank}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-500 flex items-center gap-1"><Landmark className="w-3.5 h-3.5" aria-hidden="true" /> {methodLabel(w.paymentMethod ?? null)}</span><span className="font-bold">{parsed.bank}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Account</span><span className="font-bold">{parsed.account}</span></div>
             <div className="flex justify-between text-sm"><span className="text-gray-500">Account Name</span><span className="font-bold">{parsed.title}</span></div>
             <div className="flex justify-between items-center pt-1 border-t border-green-200">
@@ -127,8 +128,8 @@ function ApproveModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -152,10 +153,10 @@ function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose} onKeyDown={e => e.key === "Escape" && onClose()} aria-hidden="true">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="reject-withdrawal-title" onClick={e => e.stopPropagation()} tabIndex={-1}>
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="p-0 max-w-md overflow-hidden rounded-2xl border-0 shadow-2xl">
         <div className="bg-gradient-to-r from-red-600 to-rose-600 p-5">
-          <h2 id="reject-withdrawal-title" className="text-lg font-extrabold text-white">Reject Withdrawal</h2>
+          <DialogTitle className="text-lg font-extrabold text-white">Reject Withdrawal</DialogTitle>
           <p className="text-red-200 text-sm mt-0.5">Amount will be automatically refunded to rider's wallet</p>
         </div>
         <div className="p-5 space-y-4">
@@ -168,7 +169,7 @@ function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
             </div>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-xs text-amber-700 font-semibold">{fc(Number(w.amount))} will be refunded to the rider's wallet automatically and they will be notified.</p>
           </div>
 
@@ -187,8 +188,8 @@ function RejectModal({ w, onClose }: { w: Withdrawal; onClose: () => void }) {
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
