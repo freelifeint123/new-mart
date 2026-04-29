@@ -33,7 +33,7 @@ import {
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, Layers,
   GraduationCap, Bus, X, Users, RefreshCw, DollarSign, ArrowLeftRight,
   Eye, ChevronLeft, ChevronRight, ArrowUpDown, Radio, Shield, Save,
-  Filter,
+  Filter, Info,
 } from "lucide-react";
 import { useLanguage } from "@/lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -1064,6 +1064,14 @@ function RideSettings() {
           <p className="text-sm font-bold text-foreground flex items-center gap-2"><DollarSign className="w-4 h-4 text-green-600" /> Per-Service Fare Rates</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {FARE_KEYS.map(f => renderField({ ...f, type: "number" }))}
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex gap-2.5 mt-1">
+            <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <strong>Daba (On-Demand) fares above do not apply to Van bookings.</strong>{" "}
+              Van intercity routes use a fixed per-route fare set in the{" "}
+              <a href="/van" className="underline font-semibold hover:text-amber-900">Van Management page</a>.
+            </p>
           </div>
         </Card>
       </div>
