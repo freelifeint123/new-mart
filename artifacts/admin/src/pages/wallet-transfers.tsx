@@ -79,18 +79,11 @@ export default function WalletTransfersPage() {
 
 /* ─── Stats Cards ─────────────────────────────────────────────────────────── */
 function StatsPanel() {
-  const { data, isLoading } = useQuery<{ data: WalletStats }>({
+  const { data: stats, isLoading } = useQuery<WalletStats>({
     queryKey: ["admin-wallet-stats"],
     queryFn: () => fetcher("/wallet/stats"),
     staleTime: 30_000,
   });
-
-  // The wallet stats endpoint returns either `{ data: WalletStats }` or
-  // a bare `WalletStats` payload depending on the route version.
-  // Narrow via a typed cast through `unknown` instead of `as any` so the
-  // shape stays auditable.
-  const stats: WalletStats | undefined =
-    data?.data ?? (data as unknown as WalletStats | undefined);
 
   const cards = [
     { label: "Today's Transfers", value: stats?.today?.transfers ?? 0, color: "text-blue-600", icon: <ArrowRight className="w-4 h-4 text-blue-400" /> },
@@ -505,13 +498,16 @@ function FlagModal({ tx, onClose, onSubmit, loading }: {
 function SettingsPanel() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["admin-platform-settings"],
-    queryFn: () => fetcher("/settings"),
+    queryFn: () => fetcher("/platform-settings"),
     staleTime: 30_000,
   });
   const { toast } = useToast();
   const qc = useQueryClient();
 
-  const settings: Record<string, string> = (data as any)?.settings ?? {};
+  /* The platform-settings endpoint returns { settings: Array<{key, value, ...}>, grouped: {...} }.
+     Convert the array to a Record<key, value> for easy lookup. */
+  const settingsArr: Array<{ key: string; value: string }> = (data as any)?.settings ?? [];
+  const settings: Record<string, string> = Object.fromEntries(settingsArr.map(s => [s.key, s.value]));
 
   const [fields, setFields] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -522,7 +518,8 @@ function SettingsPanel() {
   const save = async () => {
     setSaving(true);
     try {
-      await apiFetch("/settings", { method: "PATCH", body: JSON.stringify(fields) });
+      const payload = Object.entries(fields).map(([key, value]) => ({ key, value }));
+      await apiFetch("/platform-settings", { method: "PUT", body: JSON.stringify({ settings: payload }) });
       qc.invalidateQueries({ queryKey: ["admin-platform-settings"] });
       setFields({});
       toast({ title: "Settings saved" });
