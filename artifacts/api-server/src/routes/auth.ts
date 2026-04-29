@@ -237,10 +237,32 @@ const router: IRouter = Router();
    GET /auth/config
    Public endpoint — returns auth mode + enabled method flags so
    frontend apps can show/hide login UI panels without hardcoding.
+   Also returns OTP bypass status for frontend UI notifications.
 ══════════════════════════════════════════════════════════════ */
 router.get("/config", async (_req, res) => {
   try {
     const settings = await getCachedSettings();
+    
+    /* ── Check if OTP bypass is currently active (global) ── */
+    const otpGlobalDisabledUntilStr = settings["otp_global_disabled_until"];
+    const now = new Date();
+    let otpBypassActive = false;
+    let otpBypassExpiresAt: string | null = null;
+    
+    if (otpGlobalDisabledUntilStr) {
+      try {
+        const disabledUntil = new Date(otpGlobalDisabledUntilStr);
+        if (disabledUntil > now) {
+          otpBypassActive = true;
+          otpBypassExpiresAt = disabledUntil.toISOString();
+        }
+      } catch (e) {
+        logger.error({ error: e }, "[/auth/config] Failed to parse OTP bypass timestamp");
+      }
+    }
+    
+    const bypassMessage = settings["otp_bypass_message"] ?? null;
+    
     res.json({
       auth_mode:             settings["auth_mode"]             ?? "OTP",
       firebase_enabled:      settings["firebase_enabled"]      ?? "off",
@@ -248,9 +270,23 @@ router.get("/config", async (_req, res) => {
       auth_email_enabled:    settings["auth_email_enabled"]    ?? "on",
       auth_google_enabled:   settings["auth_google_enabled"]   ?? "on",
       auth_facebook_enabled: settings["auth_facebook_enabled"] ?? "off",
+      otpBypassActive,
+      otpBypassExpiresAt,
+      bypassMessage,
     });
-  } catch {
-    res.json({ auth_mode: "OTP", firebase_enabled: "off", auth_otp_enabled: "on", auth_email_enabled: "on", auth_google_enabled: "on", auth_facebook_enabled: "off" });
+  } catch (e) {
+    logger.error({ error: e }, "[/auth/config] Failed to get config");
+    res.json({ 
+      auth_mode: "OTP", 
+      firebase_enabled: "off", 
+      auth_otp_enabled: "on", 
+      auth_email_enabled: "on", 
+      auth_google_enabled: "on", 
+      auth_facebook_enabled: "off",
+      otpBypassActive: false,
+      otpBypassExpiresAt: null,
+      bypassMessage: null,
+    });
   }
 });
 

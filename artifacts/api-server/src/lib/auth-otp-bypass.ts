@@ -1,0 +1,161 @@
+/**
+ * auth-otp-bypass.ts
+ *
+ * OTP bypass detection and logging for auth flow.
+ * Checks if a phone number has an active bypass (global suspend, per-user, or whitelist).
+ */
+
+import { db } from "@workspace/db";
+import { usersTable, platformSettingsTable, otpBypassAuditTable, whitelistUsersTable } from "@workspace/db/schema";
+import { eq, and, gt } from "drizzle-orm";
+import { generateId } from "../lib/id.js";
+import { logger } from "../lib/logger.js";
+
+export interface OTPBypassStatus {
+  isBypassed: boolean;
+  reason: "per_user" | "global" | "whitelist" | null;
+  expiresAt: Date | null;
+  bypassCode?: string;
+}
+
+/**
+ * Check if OTP can be bypassed for given phone
+ *
+ * Priority:
+ * 1. Per-user bypass (user.otpBypassUntil > now)
+ * 2. Global OTP disable (platform setting otp_global_disabled_until > now)
+ * 3. Whitelist bypass (phone in whitelist_users, active, not expired)
+ */
+export async function checkOTPBypass(phone: string): Promise<OTPBypassStatus> {
+  const now = new Date();
+
+  try {
+    // Priority 1: Per-user bypass
+    const user = await db.query.usersTable.findFirst({
+      where: and(eq(usersTable.phone, phone), gt(usersTable.otpBypassUntil, now)),
+      columns: { id: true, otpBypassUntil: true },
+    });
+
+    if (user && user.otpBypassUntil && user.otpBypassUntil > now) {
+      return {
+        isBypassed: true,
+        reason: "per_user",
+        expiresAt: user.otpBypassUntil,
+      };
+    }
+
+    // Priority 2: Global OTP disable
+    const settings = await db.query.platformSettingsTable.findFirst({
+      where: eq(platformSettingsTable.key, "otp_global_disabled_until"),
+      columns: { value: true },
+    });
+
+    if (settings && settings.value) {
+      try {
+        const disabledUntil = new Date(settings.value);
+        if (disabledUntil > now) {
+          return {
+            isBypassed: true,
+            reason: "global",
+            expiresAt: disabledUntil,
+          };
+        }
+      } catch (e) {
+        logger.error({ error: e }, "[OTPBypass] Failed to parse global disable timestamp");
+      }
+    }
+
+    // Priority 3: Whitelist bypass
+    const whitelisted = await db.query.whitelistUsersTable.findFirst({
+      where: and(
+        eq(whitelistUsersTable.identifier, phone),
+        eq(whitelistUsersTable.isActive, true),
+        (record) =>
+          !record.expiresAt || record.expiresAt > now
+      ),
+      columns: { id: true, bypassCode: true, expiresAt: true },
+    });
+
+    if (whitelisted) {
+      return {
+        isBypassed: true,
+        reason: "whitelist",
+        expiresAt: whitelisted.expiresAt || null,
+        bypassCode: whitelisted.bypassCode,
+      };
+    }
+
+    return {
+      isBypassed: false,
+      reason: null,
+      expiresAt: null,
+    };
+  } catch (error) {
+    logger.error({ error, phone }, "[OTPBypass] Check failed");
+    return {
+      isBypassed: false,
+      reason: null,
+      expiresAt: null,
+    };
+  }
+}
+
+/**
+ * Log OTP bypass event to audit table
+ */
+export async function logOTPBypassEvent(
+  eventType:
+    | "login_otp_bypass"
+    | "login_per_user_bypass"
+    | "login_global_bypass"
+    | "login_whitelist_bypass"
+    | "otp_send_bypassed",
+  userId: string | null,
+  phone: string,
+  ip: string,
+  bypassReason: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  try {
+    await db.insert(otpBypassAuditTable).values({
+      id: generateId(),
+      eventType,
+      userId,
+      phone,
+      bypassReason,
+      ipAddress: ip,
+      metadata: metadata || {},
+    });
+  } catch (error) {
+    logger.error({ error }, "[OTPBypass] Audit log failed");
+  }
+}
+
+/**
+ * Helper to create bypass response for send-otp endpoint
+ */
+export function createBypassResponse(bypassed: OTPBypassStatus) {
+  return {
+    otpRequired: !bypassed.isBypassed,
+    message: bypassed.isBypassed
+      ? "OTP sent successfully"
+      : "OTP verification required",
+    channel: bypassed.reason === "whitelist" ? "whitelist" : "sms",
+    fallbackChannels: bypassed.isBypassed ? [] : ["email", "whatsapp"],
+    bypass: bypassed.isBypassed
+      ? {
+          active: true,
+          reason: bypassed.reason,
+          expiresAt: bypassed.expiresAt?.toISOString() || null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Hash OTP for comparison (matches whitelist bypass code)
+ */
+export function hashOtp(otp: string): string {
+  return otp; // In this case, we compare plain OTPs internally
+  // For production, consider using bcrypt or similar
+}
