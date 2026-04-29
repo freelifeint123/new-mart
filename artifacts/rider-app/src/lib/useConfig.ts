@@ -235,14 +235,14 @@ const DEFAULT_CONFIG: PlatformConfig = {
     keepPct: 80,
     bonusPerTrip: 0,
     minPayout: 500,
-    maxPayout: 10000,
+    maxPayout: 50000,
     maxDeliveries: 3,
     cashAllowed: true,
     withdrawalEnabled: true,
     autoApprove: false,
     minBalance: 0,
     depositEnabled: false,
-    dailyGoal: 10,
+    dailyGoal: 5000,
   },
   uploads: {
     maxImageMb: 5,
@@ -328,7 +328,10 @@ export function usePlatformConfig() {
     refetchInterval: 2 * 60_000,
     retry: 2,
   });
-  return { config: data ?? DEFAULT_CONFIG, isLoading };
+  const config: PlatformConfig = data
+    ? { ...DEFAULT_CONFIG, ...data, rider: { ...DEFAULT_CONFIG.rider!, ...data.rider } }
+    : DEFAULT_CONFIG;
+  return { config, isLoading };
 }
 
 export function useCurrency() {

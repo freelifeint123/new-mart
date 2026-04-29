@@ -34,7 +34,7 @@ export default function Earnings() {
   });
 
   const periodData = data?.[period] || { earnings: 0, deliveries: 0 };
-  const dailyGoal  = config.rider?.dailyGoal ?? 5000;
+  const dailyGoal  = config.rider!.dailyGoal;
   const todayPct   = Math.min(100, Math.round(((data?.today?.earnings || 0) / dailyGoal) * 100));
 
   const totalDeliveries = user?.stats?.totalDeliveries || 0;

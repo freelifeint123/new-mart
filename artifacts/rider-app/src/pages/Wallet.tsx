@@ -203,9 +203,9 @@ export default function Wallet() {
   const { user, refreshUser } = useAuth();
   const { config } = usePlatformConfig();
   const currency = config.platform.currencySymbol ?? "Rs.";
-  const riderKeepPct      = config.rider?.keepPct        ?? config.finance.riderEarningPct;
-  const minPayout         = config.rider?.minPayout      ?? config.finance.minRiderPayout;
-  const maxPayout         = config.rider?.maxPayout      ?? 50000;
+  const riderKeepPct      = config.rider?.keepPct ?? config.finance.riderEarningPct;
+  const minPayout         = config.rider?.minPayout ?? config.finance.minRiderPayout;
+  const maxPayout         = config.rider!.maxPayout;
   const withdrawalEnabled = config.rider?.withdrawalEnabled !== false;
   const depositEnabled    = config.rider?.depositEnabled !== false;
   const minBalanceFallback = config.rider?.minBalance ?? 0;

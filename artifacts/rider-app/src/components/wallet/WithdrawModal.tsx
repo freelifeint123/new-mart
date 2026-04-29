@@ -379,7 +379,32 @@ export default function WithdrawModal({
               </div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{T("quickSelect")}</p>
               <div className="flex gap-2 mb-5 flex-wrap">
-                {[500, 1000, 2000, 5000, 10000].filter(v => v <= balance && v >= minPayout).map(v => (
+                {(() => {
+                  const cap = Math.min(maxPayout, balance);
+                  if (cap < minPayout) return [];
+                  const range = cap - minPayout;
+                  const step = range > 20000 ? 1000 : 500;
+                  const seen = new Set<number>();
+                  const amounts: number[] = [];
+                  // Sample 4 evenly-spaced points across the range
+                  for (let i = 1; i <= 4; i++) {
+                    const raw = minPayout + (range * i) / 4;
+                    const rounded = Math.round(raw / step) * step;
+                    if (rounded >= minPayout && rounded <= cap && !seen.has(rounded)) {
+                      seen.add(rounded);
+                      amounts.push(rounded);
+                    }
+                  }
+                  // Ensure at least 2 useful options in very narrow ranges
+                  if (amounts.length < 2) {
+                    const anchor = Math.ceil(minPayout / step) * step;
+                    if (anchor >= minPayout && anchor <= cap && !seen.has(anchor)) {
+                      amounts.unshift(anchor);
+                      seen.add(anchor);
+                    }
+                  }
+                  return amounts;
+                })().map(v => (
                   <button key={v} onClick={() => { setAmount(String(v)); setErr(""); }}
                     className={`px-3 py-1.5 rounded-xl text-sm font-bold border transition-all ${amount === String(v) ? "bg-green-600 text-white border-green-600" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
                     {fc(v)}
