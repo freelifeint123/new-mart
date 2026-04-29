@@ -52,6 +52,15 @@ function methodLabel(method: string | null) {
   return "Card";
 }
 
+function methodIcon(method: string | null): string {
+  if (!method) return "💳";
+  const m = method.toLowerCase();
+  if (m.includes("jazzcash"))  return "📱";
+  if (m.includes("easypaisa")) return "📲";
+  if (m.includes("bank"))      return "🏦";
+  return "💳";
+}
+
 function parseDesc(desc: string) {
   const stripped = desc
     .replace("Manual deposit — ", "")

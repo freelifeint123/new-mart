@@ -57,6 +57,16 @@ function methodLabel(method: string | null) {
   return "Card";
 }
 
+function methodIcon(method: string | null): string {
+  if (!method) return "🏦";
+  const m = method.toLowerCase();
+  if (m.includes("jazzcash"))  return "📱";
+  if (m.includes("easypaisa")) return "📲";
+  if (m.includes("wallet"))    return "👛";
+  if (m.includes("bank") || m.includes("hbl") || m.includes("mcb") || m.includes("ubl") || m.includes("meezan") || m.includes("alfalah") || m.includes("nbp") || m.includes("allied")) return "🏦";
+  return "💳";
+}
+
 function StatusBadge({ status }: { status: string }) {
   if (status === "pending")  return <Badge className="bg-amber-100 text-amber-700 border-0 text-xs font-bold gap-1"><Clock className="w-3 h-3" /> Pending</Badge>;
   if (status === "paid")     return <Badge className="bg-green-100 text-green-700 border-0 text-xs font-bold gap-1"><CheckCircle className="w-3 h-3" /> Paid</Badge>;
