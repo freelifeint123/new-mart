@@ -130,8 +130,13 @@ function GatewayCard({
                   ? apiEnv === "live" ? "bg-green-50 text-green-700 border-green-300" : "bg-yellow-50 text-yellow-700 border-yellow-300"
                   : "bg-blue-50 text-blue-700 border-blue-300"
               }`}>
-                {!enabled ? "Off" : modeType === "api" ? (apiEnv === "live" ? "API Live" : "API Sandbox") : "Manual"}
+                {!enabled ? "Off" : modeType === "api" ? (apiEnv === "live" ? "API Live" : "API Sandbox") : "Manual Top-up"}
               </Badge>
+              {enabled && modeType === "manual" && (
+                <Badge variant="outline" className="text-[10px] font-bold border flex-shrink-0 bg-amber-50 text-amber-700 border-amber-300">
+                  ⏳ Admin Approval Required
+                </Badge>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">{shortDesc}</p>
           </div>
@@ -143,9 +148,20 @@ function GatewayCard({
           <div className={`w-10 h-5 rounded-full relative transition-colors ${enabled ? "bg-green-500" : "bg-gray-300"}`}>
             <div className={`w-4 h-4 bg-white rounded-full shadow absolute top-0.5 transition-transform ${enabled ? "translate-x-5" : "translate-x-0.5"}`} />
           </div>
-          <span className={`text-xs font-bold ${enabled ? "text-green-700" : "text-muted-foreground"}`}>{enabled ? "Active" : "Inactive"}</span>
+          <span className={`text-xs font-bold ${enabled ? "text-green-700" : "text-muted-foreground"}`}>
+            {enabled ? (modeType === "manual" ? "Allow Manual Top-up" : "Gateway Enabled") : "Disabled"}
+          </span>
         </div>
       </div>
+      {/* Manual approval clarification note */}
+      {modeType === "manual" && (
+        <div className="px-5 py-2.5 flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border-b border-amber-200">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-600" />
+          <span>
+            <strong>Manual approval only.</strong> Customers enter a Transaction ID — no automated payment processing occurs. Each request must be reviewed and approved by an admin before funds are credited.
+          </span>
+        </div>
+      )}
 
       {/* Test result banner */}
       {testResult && (

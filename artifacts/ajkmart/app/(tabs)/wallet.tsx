@@ -946,6 +946,11 @@ let inMemorySubmittedTxIds: Set<string> = new Set();
 
 function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup }: { onClose: () => void; onSuccess: () => void; onFrozen?: () => void; token: string | null; minTopup: number; maxTopup: number }) {
   const { symbol: currencySymbol, code: currencyCode } = useCurrency();
+  const { config: platformCfg } = usePlatformConfig();
+  const withdrawalProcessingDays = platformCfg.customer.withdrawalProcessingDays;
+  const processingTimeText = withdrawalProcessingDays
+    ? `${withdrawalProcessingDays} business day${withdrawalProcessingDays !== 1 ? "s" : ""}`
+    : "24–48 hours";
   const [step, setStep]               = useState<DepositStep>("method");
   const [methods, setMethods]         = useState<PayMethod[]>([]);
   const [loadingMethods, setLoadingMethods] = useState(true);
@@ -1136,7 +1141,11 @@ function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup 
                     <Ionicons name="checkmark-circle" size={40} color={C.success} />
                   </View>
                   <Text style={{ ...Typ.title, color: C.text, marginBottom: 8 }}>Request Submitted!</Text>
-                  <Text style={{ ...Typ.body, color: C.textMuted, textAlign: "center", lineHeight: 20, maxWidth: 280 }}>Your wallet will be credited within 1-2 hours after verification.</Text>
+                  <Text style={{ ...Typ.body, color: C.textMuted, textAlign: "center", lineHeight: 20, maxWidth: 280 }}>Our team will review your transaction and credit your wallet after approval — usually within {processingTimeText}.</Text>
+                  <View style={{ backgroundColor: C.blueSoft, borderRadius: 12, padding: 12, marginTop: 12, borderWidth: 1, borderColor: C.brandBlueSoft, flexDirection: "row", alignItems: "flex-start", gap: 8, width: "100%" }}>
+                    <Ionicons name="information-circle-outline" size={16} color={C.primary} style={{ marginTop: 1 }} />
+                    <Text style={{ ...Typ.caption, color: C.textSecondary, flex: 1, lineHeight: 16 }}>This is a manual review process. Funds are NOT instant — an admin must verify and approve your Transaction ID first.</Text>
+                  </View>
                   <View style={{ backgroundColor: C.surfaceSecondary, borderRadius: 16, padding: 16, width: "100%", marginTop: 20, gap: 10, borderWidth: 1, borderColor: C.border }}>
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                       <Text style={{ ...Typ.body, fontSize: 13, color: C.textMuted }}>Method</Text>
@@ -1161,7 +1170,13 @@ function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup 
               {step === "method" && (
                 <View>
                   <Text style={ws.sheetTitle}>Add Money</Text>
-                  <Text style={{ ...Typ.body, color: C.textMuted, marginBottom: 18 }}>Choose how you'd like to deposit</Text>
+                  <Text style={{ ...Typ.body, color: C.textMuted, marginBottom: 12 }}>Choose how you'd like to deposit</Text>
+                  <View style={{ backgroundColor: C.amberSoft, borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: C.amberBorder, flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                    <Ionicons name="time-outline" size={15} color={C.amber} style={{ marginTop: 1 }} />
+                    <Text style={{ ...Typ.caption, color: C.amberDark, flex: 1, lineHeight: 15 }}>
+                      Top-ups require manual review. Your Transaction ID will be verified by our team before funds are credited — usually within <Text style={{ fontFamily: Font.bold }}>{processingTimeText}</Text>.
+                    </Text>
+                  </View>
                   {loadingMethods ? (
                     <ActivityIndicator color={C.primary} style={{ marginTop: 24 }} />
                   ) : methodsError ? (
@@ -1385,6 +1400,12 @@ function DepositModal({ onClose, onSuccess, onFrozen, token, minTopup, maxTopup 
                     </View>
                   </View>
 
+                  <View style={{ backgroundColor: C.blueSoft, borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: C.brandBlueSoft, flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                    <Ionicons name="time-outline" size={16} color={C.primary} style={{ marginTop: 1 }} />
+                    <Text style={{ ...Typ.caption, color: C.textSecondary, flex: 1, lineHeight: 16 }}>
+                      Your request will be reviewed by our team. Funds appear in your wallet after approval — usually within <Text style={{ fontFamily: Font.bold, color: C.primary }}>{processingTimeText}</Text>.
+                    </Text>
+                  </View>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: C.amberSoft, borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: C.amberBorder }}>
                     <Ionicons name="alert-circle-outline" size={16} color={C.amber} />
                     <Text style={{ ...Typ.caption, color: C.amberDark, flex: 1 }}>An incorrect TxID may cause rejection. Enter the real transaction ID.</Text>

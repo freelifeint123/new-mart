@@ -530,6 +530,11 @@ export default function DepositRequests() {
                                 </Badge>
                               )}
                               <StatusBadge status={d.status}/>
+                              {isPending && (
+                                <Badge className="text-[10px] font-bold bg-orange-50 text-orange-700 border-orange-300 px-1.5 gap-0.5" variant="outline">
+                                  ⏳ Awaiting Manual Review
+                                </Badge>
+                              )}
                               {duplicateTxIds.has(parseDesc(d.description || "").txId) && (
                                 <Badge className="text-[10px] font-bold bg-red-100 text-red-700 border-red-300 px-1.5" variant="outline">
                                   Duplicate TxID
@@ -539,6 +544,12 @@ export default function DepositRequests() {
                             <p className="text-xs text-gray-500 mt-0.5">
                               {methodIcon(d.paymentMethod ?? null)} {parsed.method} · {d.user?.phone} · {fd(d.createdAt)}
                             </p>
+                            {parsed.txId !== "—" && (
+                              <p className="text-xs font-mono font-bold text-gray-700 mt-0.5 flex items-center gap-1">
+                                <span className="text-[10px] font-sans font-semibold text-gray-400 uppercase tracking-wide">TxID:</span>
+                                {parsed.txId}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
