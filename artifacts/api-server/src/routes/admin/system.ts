@@ -132,6 +132,7 @@ const NUMERIC_SETTING_KEYS = new Set([
   "security_login_max_attempts", "security_lockout_minutes", "security_otp_cooldown_sec",
   "security_otp_max_per_phone", "security_otp_max_per_ip", "security_otp_window_min",
   "auth_trusted_device_days", "order_refund_days",
+  "wallet_withdrawal_processing",
 ]);
 
 /* Keys that must be strictly "on" or "off" */
