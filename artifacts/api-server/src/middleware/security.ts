@@ -1115,6 +1115,29 @@ export async function verifyCaptcha(req: Request, res: Response, next: NextFunct
 }
 
 /* ══════════════════════════════════════════════════════════════
+   FEATURE FLAG GUARD — reusable middleware factory.
+   Creates a middleware that reads a platform settings key and
+   returns 403 when the feature is not "on".  Modelled after the
+   requireChatEnabled middleware in support-chat.ts.
+
+   Usage (router-level):
+     router.use(requireFeatureEnabled("feature_weather"));
+   Usage (route-level):
+     router.get("/foo", requireFeatureEnabled("feature_referral"), handler);
+══════════════════════════════════════════════════════════════ */
+export function requireFeatureEnabled(settingKey: string, disabledMessage?: string) {
+  return async function (_req: Request, res: Response, next: NextFunction) {
+    const s = await getCachedSettings();
+    if ((s[settingKey] ?? "off") !== "on") {
+      const msg = disabledMessage ?? `This feature is currently disabled by the administrator.`;
+      res.status(403).json({ error: msg });
+      return;
+    }
+    next();
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════
    IDOR GUARD — ensures the requesting user owns the resource.
    Usage: if (idorGuard(res, requestedOwnerId, req.userId)) return;
 ══════════════════════════════════════════════════════════════ */
