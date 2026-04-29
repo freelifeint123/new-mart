@@ -12,6 +12,7 @@ import { isInServiceZone } from "../lib/geofence.js";
 import { checkDeliveryEligibility } from "../lib/delivery-access.js";
 import { sendSuccess, sendCreated, sendError, sendNotFound, sendForbidden, sendValidationError, sendErrorWithData } from "../lib/response.js";
 import { emitWebhookEvent } from "../lib/webhook-emitter.js";
+import { sendPushToUser } from "../lib/webpush.js";
 
 const router: IRouter = Router();
 
@@ -63,6 +64,19 @@ function broadcastNewOrder(order: ReturnType<typeof mapOrder>, vendorId?: string
   io.to("admin-fleet").emit("order:new", order);
   if (vendorId) {
     io.to(`vendor:${vendorId}`).emit("order:new", order);
+
+    /* FCM / VAPID push — reaches vendor even when their app is in the background
+       or completely killed.  data.orderId lets the vendor app deep-link to /orders
+       on tap (handled by pushNotificationActionPerformed in vendor push.ts). */
+    const itemCount = Array.isArray(order.items) ? order.items.length : 0;
+    sendPushToUser(vendorId, {
+      title: "📦 New Order",
+      body: `New order · Rs. ${Number(order.total).toFixed(0)} · ${itemCount} item${itemCount !== 1 ? "s" : ""}`,
+      tag: `new-order-${order.id}`,
+      data: { orderId: order.id },
+    }).catch((err: Error) =>
+      logger.warn({ orderId: order.id, vendorId, err: err.message }, "[broadcast] vendor push notification failed"),
+    );
   }
 }
 

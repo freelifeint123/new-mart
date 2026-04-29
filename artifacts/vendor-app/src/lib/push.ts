@@ -30,11 +30,41 @@ export interface PushCleanup {
   remove: () => void;
 }
 
+/** Called when the vendor taps a push notification. Receives the raw data payload. */
+export type NotificationTapHandler = (data: Record<string, string>) => void;
+
+/* ─── Cold-start tap capture ──────────────────────────────────────────────────
+ * When the app is launched from a killed state by tapping a notification,
+ * pushNotificationActionPerformed fires before auth is rehydrated.  We
+ * capture it eagerly at module load time so it can be consumed later, after
+ * the user session is available (see consumePendingNotificationTap in App.tsx).
+ * ────────────────────────────────────────────────────────────────────────── */
+let _pendingTapData: Record<string, string> | null = null;
+
+/** Returns and clears any notification tap data captured before auth loaded. */
+export function consumePendingNotificationTap(): Record<string, string> | null {
+  const d = _pendingTapData;
+  _pendingTapData = null;
+  return d;
+}
+
+if (Capacitor.isNativePlatform()) {
+  import("@capacitor/push-notifications").then(({ PushNotifications }) => {
+    PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      const data = (action.notification?.data ?? {}) as Record<string, string>;
+      if (Object.keys(data).length > 0) {
+        _pendingTapData = data;
+      }
+    }).catch(() => {});
+  }).catch(() => {});
+}
+
 export async function registerPush(
   onForegroundMessage?: (title: string, body: string) => void,
+  onNotificationTap?: NotificationTapHandler,
 ): Promise<PushCleanup | void> {
   if (Capacitor.isNativePlatform()) {
-    return registerFcmPush(onForegroundMessage);
+    return registerFcmPush(onForegroundMessage, onNotificationTap);
   }
   return registerVapidPush();
 }
@@ -47,6 +77,7 @@ function getAuthToken(): string {
 
 async function registerFcmPush(
   onForegroundMessage?: (title: string, body: string) => void,
+  onNotificationTap?: NotificationTapHandler,
 ): Promise<PushCleanup | void> {
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
@@ -109,6 +140,16 @@ async function registerFcmPush(
     if (onForegroundMessage) {
       PushNotifications.addListener("pushNotificationReceived", (notification) => {
         onForegroundMessage(notification.title ?? "", notification.body ?? "");
+      }).then((h) => cleanups.push(h)).catch(() => {});
+    }
+
+    /* Handle notification tap — fires when vendor taps the notification in the
+       system tray (background / killed app state).  data.orderId is included by
+       the server so the vendor app can deep-link straight to /orders on tap. */
+    if (onNotificationTap) {
+      PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+        const data = (action.notification?.data ?? {}) as Record<string, string>;
+        onNotificationTap(data);
       }).then((h) => cleanups.push(h)).catch(() => {});
     }
 

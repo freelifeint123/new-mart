@@ -1,10 +1,10 @@
 import { Component, type ReactNode, useEffect, useState, useRef } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { usePlatformConfig } from "./lib/useConfig";
 import { useLanguage } from "./lib/useLanguage";
-import { registerPush } from "./lib/push";
+import { registerPush, consumePendingNotificationTap } from "./lib/push";
 import { Capacitor } from "@capacitor/core";
 import { initSentry, setSentryUser } from "./lib/sentry";
 import { initAnalytics, trackEvent, identifyUser } from "./lib/analytics";
@@ -101,6 +101,20 @@ function AppRoutes() {
     }
   }, [user?.id]);
 
+  const [, navigate] = useLocation();
+
+  /* ── Cold-start notification tap: consume any tap captured before auth loaded ──
+     When the vendor taps a new-order push notification from a killed app, the
+     pushNotificationActionPerformed listener fires at module-load time and
+     stashes the data.  We drain it here once the session is ready. */
+  useEffect(() => {
+    if (!user) return;
+    const pending = consumePendingNotificationTap();
+    if (pending && pending.orderId) {
+      navigate("/orders");
+    }
+  }, [user?.id]);
+
   /* ── FCM foreground notification banner ── */
   const [fcmNotif, setFcmNotif] = useState<{ title: string; body: string } | null>(null);
   const fcmCleanupRef = useRef<{ remove: () => void } | null>(null);
@@ -113,8 +127,15 @@ function AppRoutes() {
       if (fcmDismissTimer.current) clearTimeout(fcmDismissTimer.current);
       fcmDismissTimer.current = setTimeout(() => setFcmNotif(null), 5000);
     };
+    /* When the vendor taps a push notification (background state), navigate
+       to the Orders screen so they can review the new order immediately. */
+    const onNotificationTap = (data: Record<string, string>) => {
+      if (data.orderId) {
+        navigate("/orders");
+      }
+    };
     if (Capacitor.isNativePlatform()) {
-      registerPush(onForeground).then(cleanup => {
+      registerPush(onForeground, onNotificationTap).then(cleanup => {
         if (cleanup) fcmCleanupRef.current = cleanup;
       }).catch(() => {});
       return () => {
