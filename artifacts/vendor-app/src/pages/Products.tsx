@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import Papa from "papaparse";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, apiFetch } from "../lib/api";
 import { usePlatformConfig, useCurrency } from "../lib/useConfig";
 import { useLanguage } from "../lib/useLanguage";
 import { tDual, type TranslationKey } from "@workspace/i18n";
@@ -12,7 +12,7 @@ import { fc, CARD, INPUT, SELECT, TEXTAREA, BTN_PRIMARY, BTN_SECONDARY, LABEL, e
 
 const EMPTY = { name:"", description:"", price:"", originalPrice:"", category:"", unit:"", stock:"", image:"", type:"mart", videoUrl:"" };
 const EMPTY_ROW = { name:"", price:"", description:"", image:"", category:"", unit:"", stock:"", type:"mart" };
-const CATS  = ["food","grocery","bakery","pharmacy","electronics","clothing","mart","general"];
+const CATS_FALLBACK = ["food","grocery","bakery","pharmacy","electronics","clothing","mart","general"];
 const TYPES = ["mart","food","pharmacy","parcel"];
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -79,6 +79,23 @@ export default function Products() {
       video.src = URL.createObjectURL(file);
     });
   }
+
+  const { data: catsData } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => apiFetch("/categories"),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const catList: string[] = useMemo(() => {
+    const raw = catsData;
+    if (Array.isArray(raw) && raw.length > 0) {
+      return raw.map((c: any) => (typeof c === "string" ? c : c.slug ?? c.name ?? String(c)));
+    }
+    if (raw && Array.isArray(raw.categories) && raw.categories.length > 0) {
+      return raw.categories.map((c: any) => (typeof c === "string" ? c : c.slug ?? c.name ?? String(c)));
+    }
+    return CATS_FALLBACK;
+  }, [catsData]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["vendor-products", search, filterCat],
@@ -241,7 +258,7 @@ export default function Products() {
               <Field label={T("categoryLabel")}>
                 <select value={form.category} onChange={e => f("category",e.target.value)} className={SELECT}>
                   <option value="">Select...</option>
-                  {CATS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+                  {catList.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
                 </select>
               </Field>
               <Field label={T("typeLabel")}>
@@ -355,7 +372,7 @@ export default function Products() {
               <label className={LABEL}>Default Category (for all rows)</label>
               <select value={bulkCat} onChange={e => setBulkCat(e.target.value)} className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-orange-400">
                 <option value="">— applies per row if set —</option>
-                {CATS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+                {catList.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
               </select>
             </div>
             <div className="flex gap-2 items-end">
@@ -430,7 +447,7 @@ export default function Products() {
                     <select className={`${B_INPUT} appearance-none`} value={row.category}
                       onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,category:e.target.value} : x))}>
                       <option value="">{bulkCat || "category"}</option>
-                      {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                      {catList.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <input className={B_INPUT} value={row.unit}
                       onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,unit:e.target.value} : x))} placeholder="kg/pcs"/>
@@ -476,7 +493,7 @@ export default function Products() {
                   <select className={`${B_INPUT} h-10 appearance-none`} value={row.category}
                     onChange={e => setBulkRows(r => r.map((x,j) => j===i ? {...x,category:e.target.value} : x))}>
                     <option value="">{bulkCat || "select"}</option>
-                    {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                    {catList.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">

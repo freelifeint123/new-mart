@@ -120,6 +120,9 @@ export interface PlatformConfig {
     lockoutMaxAttempts?: number;
     lockoutDurationSec?: number;
   };
+  wallet?: {
+    withdrawalProcessingDays?: number | null;
+  };
   integrations?: {
     pushNotif: boolean;
     analytics: boolean;
@@ -138,6 +141,8 @@ export interface PlatformConfig {
     whatsapp: boolean;
     sms: boolean;
     email: boolean;
+    jazzcash?: { enabled?: boolean };
+    easypaisa?: { enabled?: boolean };
   };
   network?: {
     apiTimeoutMs: number;

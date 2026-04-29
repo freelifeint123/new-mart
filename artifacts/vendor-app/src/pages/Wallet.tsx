@@ -10,13 +10,23 @@ import { PullToRefresh } from "../components/PullToRefresh";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { fc, fd, CARD, CARD_HEADER, INPUT, SELECT, BTN_PRIMARY, BTN_SECONDARY, LABEL, ROW, BADGE_GREEN, BADGE_RED, BADGE_BLUE, BADGE_GRAY, DEFAULT_COMMISSION_PCT, errMsg } from "../lib/ui";
 
-const BANKS = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","Habib Bank","NBP","Faysal Bank","Allied Bank","Other"];
+const ALL_BANKS = ["EasyPaisa","JazzCash","MCB","HBL","UBL","Meezan Bank","Bank Alfalah","Habib Bank","NBP","Faysal Bank","Allied Bank","Other"];
 
 function safeBalance(v: any): number { return v ? Number(v) : 0; }
 
 function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defaultBank, defaultAcNo, defaultAcName }: { balance: number; minPayout: number; maxPayout: number | null; onClose: () => void; onSuccess: () => void; defaultBank?: string; defaultAcNo?: string; defaultAcName?: string }) {
   const { symbol: currencySymbol } = useCurrency();
+  const { config } = usePlatformConfig();
   const fcLocal = (n: number) => fc(n, currencySymbol);
+  const processingDays = config.wallet?.withdrawalProcessingDays;
+  const processingText = processingDays
+    ? `${processingDays} business day${processingDays === 1 ? "" : "s"}`
+    : "24–48 hours";
+  const BANKS = ALL_BANKS.filter(b => {
+    if (b === "JazzCash") return config.integrations ? config.integrations.jazzcash?.enabled === true : true;
+    if (b === "EasyPaisa") return config.integrations ? config.integrations.easypaisa?.enabled === true : true;
+    return true;
+  });
   const [amount, setAmount]   = useState("");
   const [bank, setBank]       = useState(defaultBank || "");
   const [acNo, setAcNo]       = useState(defaultAcNo || "");
@@ -54,7 +64,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
           <div className="p-8 text-center">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">✅</div>
             <h3 className="text-xl font-extrabold text-gray-800">Request Submitted!</h3>
-            <p className="text-gray-500 mt-2 text-sm">Your withdrawal of <span className="font-bold text-orange-500">{fcLocal(Number(amount))}</span> has been queued. Admin will process within 24–48 hours.</p>
+            <p className="text-gray-500 mt-2 text-sm">Your withdrawal of <span className="font-bold text-orange-500">{fcLocal(Number(amount))}</span> has been queued. Admin will process within {processingText}.</p>
             <div className="mt-4 bg-amber-50 rounded-2xl p-4 text-left space-y-1.5">
               <div className="flex justify-between text-sm"><span className="text-gray-500">Bank / Wallet</span><span className="font-bold">{bank}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-500">Account #</span><span className="font-bold">{acNo}</span></div>
@@ -72,7 +82,7 @@ function WithdrawModal({ balance, minPayout, maxPayout, onClose, onSuccess, defa
               <div className="flex justify-between text-sm"><span className="text-gray-500">Name</span><span className="font-bold">{acName}</span></div>
             </div>
             <div className="bg-blue-50 rounded-xl p-3 mb-4">
-              <p className="text-xs text-blue-700 font-medium">🔒 This is a one-way action. Please verify details before confirming. Withdrawals are processed within 24–48 hours by admin.</p>
+              <p className="text-xs text-blue-700 font-medium">🔒 This is a one-way action. Please verify details before confirming. Withdrawals are processed within {processingText} by admin.</p>
             </div>
             {err && <p className="text-red-500 text-sm font-semibold mb-3">⚠️ {err}</p>}
             <div className="flex gap-3">
@@ -145,6 +155,10 @@ export default function Wallet() {
   const T = (key: TranslationKey) => tDual(key, language);
   const fin = config.finance;
   const vc = config.vendor;
+  const processingDays = config.wallet?.withdrawalProcessingDays;
+  const processingText = processingDays
+    ? `${processingDays} business day${processingDays === 1 ? "" : "s"}`
+    : "24–48 hours";
   const vendorKeepPct  = Math.round(100 - (fin.vendorCommissionPct ?? DEFAULT_COMMISSION_PCT));
   const commissionPct  = fin.vendorCommissionPct ?? DEFAULT_COMMISSION_PCT;
   const minPayout      = vc?.minPayout ?? fin.minVendorPayout;
@@ -293,7 +307,7 @@ export default function Wallet() {
           <span className="text-2xl flex-shrink-0">🔒</span>
           <div>
             <p className="text-sm font-bold text-blue-800">{T("secureWithdrawals")}</p>
-            <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">All withdrawal requests are reviewed by admin. Funds transferred within 24–48 hours. Min: {fc(minPayout, currencySymbol)}{maxPayout != null ? ` – Max: ${fc(maxPayout, currencySymbol)} per request` : " · No maximum limit configured"}.</p>
+            <p className="text-xs text-blue-600 mt-0.5 leading-relaxed">All withdrawal requests are reviewed by admin. Funds transferred within {processingText}. Min: {fc(minPayout, currencySymbol)}{maxPayout != null ? ` – Max: ${fc(maxPayout, currencySymbol)} per request` : " · No maximum limit configured"}.</p>
           </div>
         </div>
 

@@ -263,9 +263,14 @@ router.get("/", async (req, res) => {
     profile: {
       showSavedAddresses: (s["profile_show_saved_addresses"] ?? "on") === "on",
     },
+    wallet: {
+      withdrawalProcessingDays: s["wallet_withdrawal_processing"]
+        ? Math.ceil(parseInt(s["wallet_withdrawal_processing"]) / 24)
+        : null,
+    },
     integrations: {
-      jazzcash:  jazzcashEnabled,
-      easypaisa: easypaisaEnabled,
+      jazzcash:  { enabled: jazzcashEnabled },
+      easypaisa: { enabled: easypaisaEnabled },
       pushNotif: (s["integration_push_notif"] ?? "off") === "on",
       analytics: (s["integration_analytics"]  ?? "off") === "on",
       email:     (s["integration_email"]      ?? "off") === "on",

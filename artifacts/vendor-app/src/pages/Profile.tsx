@@ -332,7 +332,7 @@ export default function Profile() {
                           <label className={LABEL}>City</label>
                           <select value={city} onChange={e => setCity(e.target.value)} className={SELECT}>
                             <option value="">Select city</option>
-                            {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            {(config.cities?.length ? config.cities : CITIES).map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                         </div>
                         <div>
@@ -484,9 +484,9 @@ export default function Profile() {
                 <AccordionContent>
                   <div className="px-4 pb-1 space-y-2">
                     {[
-                      { icon: "✅", text: "85% earnings — 15% platform fee" },
+                      { icon: "✅", text: `${Math.round(100 - (config.finance.vendorCommissionPct ?? 15))}% earnings — ${config.finance.vendorCommissionPct ?? 15}% platform fee` },
                       { icon: "💸", text: `Minimum withdrawal: ${currencySymbol} ${config.vendor.minPayout}` },
-                      { icon: "⏱️", text: "Processed in 24–48 hours by admin" },
+                      { icon: "⏱️", text: `Processed in ${config.wallet?.withdrawalProcessingDays ? `${config.wallet.withdrawalProcessingDays} business day${config.wallet.withdrawalProcessingDays === 1 ? "" : "s"}` : "24–48 hours"} by admin` },
                       { icon: "🔒", text: "CNIC verification required for large withdrawals" },
                     ].map((p, i) => (
                       <div key={i} className="flex gap-2 text-xs text-orange-700">
