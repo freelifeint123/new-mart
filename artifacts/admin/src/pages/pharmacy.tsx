@@ -229,8 +229,12 @@ export default function Pharmacy() {
           filtered.map((order: any) => (
             <Card
               key={order.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`View pharmacy order ${order.id.slice(-8).toUpperCase()}, ${STATUS_LABELS[order.status] ?? order.status}`}
               className="rounded-2xl border-border/50 shadow-sm overflow-hidden cursor-pointer"
               onClick={() => { setSelectedOrder(order); setShowCancelConfirm(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedOrder(order); setShowCancelConfirm(false); } }}
             >
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">

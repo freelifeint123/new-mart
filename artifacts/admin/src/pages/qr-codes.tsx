@@ -173,8 +173,8 @@ export default function QrCodesPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <code className="text-xs font-mono bg-muted px-2 py-1 rounded">{c.code}</code>
-                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyCode(c.code)}>
-                            <Copy className="w-3 h-3" />
+                          <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copyCode(c.code)} aria-label={`Copy code ${c.code}`}>
+                            <Copy className="w-3 h-3" aria-hidden="true" />
                           </Button>
                         </div>
                       </TableCell>
@@ -194,6 +194,7 @@ export default function QrCodesPage() {
                           <Switch
                             checked={c.isActive}
                             onCheckedChange={(checked) => toggleMutation.mutate({ id: c.id, activate: checked })}
+                            aria-label={`${c.isActive ? "Deactivate" : "Activate"} ${c.label}`}
                           />
                         </div>
                       </TableCell>

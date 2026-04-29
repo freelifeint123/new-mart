@@ -187,8 +187,12 @@ export default function Parcel() {
           filtered.map((b: any) => (
             <Card
               key={b.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`View parcel booking ${b.id.slice(-8).toUpperCase()}, ${STATUS_LABELS[b.status] ?? b.status}`}
               className="rounded-2xl border-border/50 shadow-sm overflow-hidden cursor-pointer"
               onClick={() => { setSelectedBooking(b); setShowCancelConfirm(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedBooking(b); setShowCancelConfirm(false); } }}
             >
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
