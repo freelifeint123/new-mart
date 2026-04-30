@@ -28,29 +28,13 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Vendor App"
-
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
 
-[workflows.workflow.metadata]
-outputType = "webview"
-
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT_API=5000 node scripts/launchers/start.mjs replit"
-waitForPort = 5000
-
-[[workflows.workflow]]
-name = "Vendor App"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/vendor-app && PORT=21463 BASE_PATH=/vendor/ pnpm run dev"
+args = "pnpm run replit-start"
 waitForPort = 8080
 
 [workflows.workflow.metadata]

@@ -512,7 +512,9 @@ function CartScreenInner() {
         const codedOffers = offers.filter(o => o.code && (!o.minOrderAmount || o.minOrderAmount <= total));
         setAvailableOffers(codedOffers.slice(0, 3));
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (__DEV__) console.warn("[Cart] Failed to fetch available offers:", err instanceof Error ? err.message : String(err));
+      });
     return () => ctrl.abort();
   }, [token, promoApplied, total]);
 
@@ -543,7 +545,9 @@ function CartScreenInner() {
           setAutoApplyOffer(null);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (__DEV__) console.warn("[Cart] Auto-apply offers fetch failed:", err instanceof Error ? err.message : String(err));
+      });
     return () => ctrl.abort();
   }, [token, promoApplied, autoApplyDismissed, total, cartType]);
 
@@ -674,7 +678,9 @@ function CartScreenInner() {
             const parts = [geo.street, geo.name, geo.district].filter(Boolean);
             if (parts.length > 0) streetAddr = parts.join(", ");
           }
-        } catch {}
+        } catch (geoErr) {
+          if (__DEV__) console.warn("[Cart] Reverse geocode failed — using raw coordinates:", geoErr instanceof Error ? geoErr.message : String(geoErr));
+        }
         if (!cancelled) {
           const gpsAddr: SavedAddress = {
             id: "__gps__",
@@ -1088,7 +1094,9 @@ function CartScreenInner() {
             return;
           }
         }
-      } catch {}
+      } catch (eligErr) {
+        if (__DEV__) console.warn("[Cart] Delivery eligibility pre-check failed — proceeding to checkout:", eligErr instanceof Error ? eligErr.message : String(eligErr));
+      }
     }
 
     const cartResult = await validateCart();
@@ -1233,7 +1241,9 @@ function CartScreenInner() {
           result.customerLng = pos.coords.longitude;
           result.gpsAccuracy = pos.coords.accuracy ?? null;
         }
-      } catch {}
+      } catch (gpsErr) {
+        if (__DEV__) console.warn("[Cart] GPS capture failed — order placed without GPS metadata:", gpsErr instanceof Error ? gpsErr.message : String(gpsErr));
+      }
     }
     if (selectedAddr?.latitude != null && selectedAddr?.longitude != null) {
       result.deliveryLat = selectedAddr.latitude;
