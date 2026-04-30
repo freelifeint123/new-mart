@@ -59,7 +59,16 @@ function generateBypassCode() {
 
 type OTPStatus = { isGloballyDisabled: boolean; disabledUntil: string | null; activeBypassCount: number };
 type UserRow   = { id: string; name: string | null; phone: string | null; email?: string | null; otpBypassUntil?: string | null };
-type AuditRow  = { id: string; event: string; userId: string | null; phone: string | null; name: string | null; ip: string; result: string | null; createdAt: string };
+type OtpWhitelistEntry = {
+  id: string;
+  identifier: string;
+  label?: string;
+  bypassCode: string;
+  isActive: boolean;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -99,7 +108,7 @@ export default function OtpControl() {
   const loadStatus = useCallback(async () => {
     setStatusLoading(true);
     try {
-      const d = await api("GET", "/otp/status");
+      const d = await api("GET", "/admin/otp/status");
       if (d?.data) setStatus(d.data);
     } finally { setStatusLoading(false); }
   }, []);
@@ -108,7 +117,7 @@ export default function OtpControl() {
   const loadAudit = useCallback(async () => {
     setAuditLoading(true);
     try {
-      const d = await api("GET", "/otp/audit?page=1");
+      const d = await api("GET", "/admin/otp/audit?page=1");
       if (d?.data?.entries) {
         const bypass = (d.data.entries as AuditRow[]).filter(e =>
           e.event === "login_otp_bypass" || e.event === "login_global_otp_bypass"
@@ -130,7 +139,7 @@ export default function OtpControl() {
   /* ── Global suspension actions ── */
   const suspend = async (mins: number) => {
     if (!mins || mins <= 0) return;
-    const d = await api("POST", "/otp/disable", { minutes: mins });
+    const d = await api("POST", "/admin/otp/disable", { minutes: mins });
     if (d?.data) {
       toast({ title: "OTP Suspended", description: `All OTPs suspended for ${mins} minute(s).` });
       loadStatus(); loadAudit();
@@ -140,7 +149,7 @@ export default function OtpControl() {
   };
 
   const restore = async () => {
-    await api("DELETE", "/otp/disable");
+    await api("DELETE", "/admin/otp/disable");
     toast({ title: "OTPs Restored", description: "Global OTP suspension lifted." });
     loadStatus(); loadAudit();
   };
@@ -163,7 +172,7 @@ export default function OtpControl() {
   }, [query, searchUsers]);
 
   const grantBypass = async (userId: string, mins: number) => {
-    const d = await api("POST", `/users/${userId}/otp/bypass`, { minutes: mins });
+    const d = await api("POST", `/admin/users/${userId}/otp/bypass`, { minutes: mins });
     if (d?.data?.bypassUntil) {
       toast({ title: "Bypass Granted", description: `OTP bypass active for ${mins} minute(s).` });
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, otpBypassUntil: d.data.bypassUntil } : u));
@@ -174,7 +183,7 @@ export default function OtpControl() {
   };
 
   const cancelBypass = async (userId: string) => {
-    await api("DELETE", `/users/${userId}/otp/bypass`);
+    await api("DELETE", `/admin/users/${userId}/otp/bypass`);
     toast({ title: "Bypass Removed" });
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, otpBypassUntil: null } : u));
     loadStatus();
@@ -416,7 +425,7 @@ function WhitelistSection() {
   const [expiresAt, setExpiresAt] = useState("");
   const [adding, setAdding] = useState(false);
 
-  const entries: any[] = data?.entries ?? [];
+  const entries: Array<OtpWhitelistEntry> = data?.entries ?? [];
 
   async function handleAdd() {
     if (!identifier.trim()) {
@@ -486,7 +495,7 @@ function WhitelistSection() {
         <div className="text-center py-6 text-sm text-muted-foreground">No whitelist entries yet.</div>
       ) : (
         <div className="space-y-2">
-          {entries.map((entry: any) => (
+          {entries.map((entry: OtpWhitelistEntry) => (
             <div key={entry.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm ${entry.isActive ? "bg-indigo-50/50 border-indigo-200" : "bg-muted/20 border-border opacity-60"}`}>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold truncate">{entry.identifier}</p>

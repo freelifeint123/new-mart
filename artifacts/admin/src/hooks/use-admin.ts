@@ -1513,7 +1513,7 @@ export const useToggleSmsGateway = () => {
 // ══════════════════════════════════════════════════════
 
 export const useOtpWhitelist = () =>
-  useQuery({ queryKey: ["admin-otp-whitelist"], queryFn: () => fetcher("/whitelist"), refetchInterval: 30_000 });
+  useQuery({ queryKey: ["admin-otp-whitelist"], queryFn: () => fetcher("/admin/whitelist"), refetchInterval: 30_000 });
 
 export const useAddOtpWhitelist = () => {
   const qc = useQueryClient();
@@ -1527,7 +1527,8 @@ export const useAddOtpWhitelist = () => {
 export const useUpdateOtpWhitelist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: any) => fetcher(`/whitelist/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    mutationFn: ({ id, ...data }: { id: string; label?: string; bypassCode?: string; isActive?: boolean; expiresAt?: string | null }) => 
+      fetcher(`/admin/whitelist/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }),
   });
 };
@@ -1535,7 +1536,7 @@ export const useUpdateOtpWhitelist = () => {
 export const useDeleteOtpWhitelist = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => fetcher(`/whitelist/${id}`, { method: "DELETE" }),
+    mutationFn: (id: string) => fetcher(`/admin/whitelist/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-otp-whitelist"] }),
   });
 };
