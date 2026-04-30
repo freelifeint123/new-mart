@@ -1,30 +1,40 @@
 /**
  * API Health Check Integration Tests
  *
- * Verifies that key API endpoints respond with the expected HTTP status codes.
- * Run with: pnpm test (inside artifacts/api-server)
+ * Self-contained: the Express app is created in-process via createServer() and
+ * exercised through supertest — no separately running server is needed.
  *
- * Requirements:
- *   - API server must be running (started automatically in development).
- *   - JWT_SECRET env var must be set (required by the server itself).
- *   - Set API_BASE_URL to override the default server URL.
+ * Run with a single command from artifacts/api-server:
+ *   pnpm test
+ *
+ * The test suite sets fallback values for JWT_SECRET / ADMIN_JWT_SECRET so it
+ * works in CI environments where those variables are not pre-configured. When
+ * the real secrets are already present in the environment they are used as-is,
+ * keeping the test token compatible with a concurrently running dev server.
  */
 
 import { describe, it, expect, beforeAll } from "vitest";
+import supertest from "supertest";
 import jwt from "jsonwebtoken";
+import type { Express } from "express";
 
-const BASE_URL = process.env["API_BASE_URL"] ?? "http://localhost:8082";
-const JWT_SECRET = process.env["JWT_SECRET"] ?? "";
+const FALLBACK_JWT_SECRET =
+  "api_health_check_test_secret_placeholder_32chars";
+const FALLBACK_ADMIN_SECRET =
+  "api_health_check_admin_test_placeholder_32chars";
 
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET must be set before running API health checks.");
-}
+let app: Express;
+let jwtSecret: string;
 
-/**
- * Generate a valid admin JWT token for testing admin-protected routes.
- * adminAuth middleware verifies the token but does NOT look up the admin
- * in the database, so a well-formed signed token is sufficient.
- */
+beforeAll(async () => {
+  process.env["JWT_SECRET"] ??= FALLBACK_JWT_SECRET;
+  process.env["ADMIN_JWT_SECRET"] ??= FALLBACK_ADMIN_SECRET;
+  jwtSecret = process.env["JWT_SECRET"]!;
+
+  const { createServer } = await import("../app.js");
+  app = createServer();
+}, 30000);
+
 function makeAdminToken(overrides: Record<string, unknown> = {}): string {
   return jwt.sign(
     {
@@ -34,199 +44,160 @@ function makeAdminToken(overrides: Record<string, unknown> = {}): string {
       perms: [],
       ...overrides,
     },
-    JWT_SECRET,
+    jwtSecret,
     { expiresIn: "1h" },
   );
 }
 
-async function get(path: string, headers: Record<string, string> = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, { headers });
-  return res;
+function api() {
+  return supertest(app);
 }
-
-async function post(
-  path: string,
-  body: unknown,
-  headers: Record<string, string> = {},
-) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...headers },
-    body: JSON.stringify(body),
-  });
-  return res;
-}
-
-// ─── Server availability check ────────────────────────────────────────────────
-
-beforeAll(async () => {
-  try {
-    const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok && res.status !== 404) {
-      throw new Error(`Unexpected status from /health: ${res.status}`);
-    }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `API server not reachable at ${BASE_URL}. Start it with \`pnpm dev\` before running tests. (${msg})`,
-    );
-  }
-}, 10000);
 
 // ─── Public endpoints ─────────────────────────────────────────────────────────
 
 describe("Public endpoints", () => {
-  it("GET /health returns 200 with status ok", async () => {
-    const res = await get("/health");
+  it("GET /health returns 200 with {status: ok}", async () => {
+    const res = await api().get("/health");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toMatchObject({ status: "ok" });
-    expect(typeof body.timestamp).toBe("string");
+    expect(res.body).toMatchObject({ status: "ok" });
+    expect(typeof res.body.timestamp).toBe("string");
   });
 
   it("GET /api/categories returns 200 with a categories array", async () => {
-    const res = await get("/api/categories");
+    const res = await api().get("/api/categories");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.data?.categories)).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data?.categories)).toBe(true);
   });
 
   it("GET /api/products returns 200 with a products array", async () => {
-    const res = await get("/api/products");
+    const res = await api().get("/api/products");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.data?.products)).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data?.products)).toBe(true);
   });
 
   it("GET /api/banners returns 200 with a banners array", async () => {
-    const res = await get("/api/banners");
+    const res = await api().get("/api/banners");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.data?.banners)).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data?.banners)).toBe(true);
   });
 
   it("GET /api/platform-config returns 200 with config data", async () => {
-    const res = await get("/api/platform-config");
+    const res = await api().get("/api/platform-config");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(body.data).toBeDefined();
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toBeDefined();
   });
 
   it("GET /api/vendors returns 200 with a vendors array", async () => {
-    const res = await get("/api/vendors");
+    const res = await api().get("/api/vendors");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
-    expect(Array.isArray(body.data?.vendors)).toBe(true);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data?.vendors)).toBe(true);
   });
 
   it("GET /api/recommendations/trending returns 200", async () => {
-    const res = await get("/api/recommendations/trending");
+    const res = await api().get("/api/recommendations/trending");
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.success).toBe(true);
+    expect(res.body.success).toBe(true);
   });
 });
 
 // ─── Authentication boundary checks ──────────────────────────────────────────
 
-describe("Auth-protected customer endpoints reject unauthenticated requests", () => {
+describe("Customer-protected endpoints reject unauthenticated requests", () => {
   it("GET /api/orders returns 401 without token", async () => {
-    const res = await get("/api/orders");
+    const res = await api().get("/api/orders");
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 
   it("GET /api/wallet returns 401 without token", async () => {
-    const res = await get("/api/wallet");
+    const res = await api().get("/api/wallet");
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 
   it("GET /api/notifications returns 401 without token", async () => {
-    const res = await get("/api/notifications");
+    const res = await api().get("/api/notifications");
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 
   it("GET /api/addresses returns 401 without token", async () => {
-    const res = await get("/api/addresses");
+    const res = await api().get("/api/addresses");
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 });
 
-// ─── Admin-protected endpoints with valid JWT ─────────────────────────────────
+// ─── Admin JWT auth ───────────────────────────────────────────────────────────
 
-describe("Admin-protected endpoints with valid admin token", () => {
-  let adminToken: string;
-
-  beforeAll(() => {
-    adminToken = makeAdminToken();
-  });
-
-  it("GET /api/admin/system/stats returns 200 with valid admin JWT", async () => {
-    const res = await get("/api/admin/system/stats", {
-      Authorization: `Bearer ${adminToken}`,
-    });
+describe("Admin-protected endpoints with valid admin JWT", () => {
+  it("GET /api/admin/system/stats returns 200 with valid admin token", async () => {
+    const token = makeAdminToken();
+    const res = await api()
+      .get("/api/admin/system/stats")
+      .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.stats).toBeDefined();
-    expect(typeof body.stats.users).toBe("number");
-    expect(typeof body.generatedAt).toBe("string");
-  });
-
-  it("GET /api/legal returns 200 with valid admin JWT", async () => {
-    const res = await get("/api/legal", {
-      Authorization: `Bearer ${adminToken}`,
-    });
-    expect([200, 404]).toContain(res.status);
-    const body = await res.json();
-    expect(body.success).toBeDefined();
+    expect(res.body.stats).toBeDefined();
+    expect(typeof res.body.stats.users).toBe("number");
+    expect(typeof res.body.generatedAt).toBe("string");
   });
 
   it("GET /api/admin/system/stats returns 401 without token", async () => {
-    const res = await get("/api/admin/system/stats");
+    const res = await api().get("/api/admin/system/stats");
     expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
   });
 
-  it("GET /api/admin/system/stats returns 401 with invalid token", async () => {
-    const res = await get("/api/admin/system/stats", {
-      Authorization: "Bearer not-a-valid-token",
-    });
+  it("GET /api/admin/system/stats returns 401 with an invalid token", async () => {
+    const res = await api()
+      .get("/api/admin/system/stats")
+      .set("Authorization", "Bearer not-a-real-token");
     expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+  });
+
+  it("GET /api/legal returns 200 with valid admin token", async () => {
+    const token = makeAdminToken();
+    const res = await api()
+      .get("/api/legal")
+      .set("Authorization", `Bearer ${token}`);
+    expect([200, 404]).toContain(res.status);
+    expect(res.body.success).toBeDefined();
   });
 });
 
 // ─── Input validation ─────────────────────────────────────────────────────────
 
-describe("Input validation rejects bad requests", () => {
+describe("Input validation rejects malformed requests", () => {
   it("POST /api/auth/check-identifier with empty body returns 400", async () => {
-    const res = await post("/api/auth/check-identifier", {});
+    const res = await api()
+      .post("/api/auth/check-identifier")
+      .send({})
+      .set("Content-Type", "application/json");
     expect([400, 422]).toContain(res.status);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 
-  it("POST /api/auth/send-otp without a phone returns 400", async () => {
-    const res = await post("/api/auth/send-otp", {});
+  it("POST /api/auth/send-otp without phone returns 400", async () => {
+    const res = await api()
+      .post("/api/auth/send-otp")
+      .send({})
+      .set("Content-Type", "application/json");
     expect([400, 422]).toContain(res.status);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 
   it("POST /api/auth/verify-otp with missing fields returns 400", async () => {
-    const res = await post("/api/auth/verify-otp", { phone: "123" });
+    const res = await api()
+      .post("/api/auth/verify-otp")
+      .send({ phone: "123" })
+      .set("Content-Type", "application/json");
     expect([400, 422]).toContain(res.status);
-    const body = await res.json();
-    expect(body.success).toBe(false);
+    expect(res.body.success).toBe(false);
   });
 });
