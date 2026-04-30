@@ -622,8 +622,8 @@ export default function Login() {
 
   if (config.platform.appStatus === "maintenance") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-white/5 rounded-full pointer-events-none" />
         <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-orange-400/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -649,15 +649,15 @@ export default function Login() {
 
   if (step === "2fa") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-white/5 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative z-10">
           <button onClick={() => { setStep("input"); setTwoFaPending(null); setGlobalTwoFaPending(false); }}
-            className="text-indigo-600 text-sm font-semibold mb-5 flex items-center gap-1.5 hover:text-indigo-700">
+            className="text-gray-700 text-sm font-semibold mb-5 flex items-center gap-1.5 hover:text-black">
             <ArrowLeft size={15} /> {T("back")}
           </button>
-          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Shield size={30} className="text-indigo-600" />
+          <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Shield size={30} className="text-gray-800" />
           </div>
           <TwoFactorVerify
             onVerify={handle2faVerify}
@@ -673,8 +673,8 @@ export default function Login() {
 
   if (step === "pending") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-white/5 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <Clock size={40} className="text-amber-500" />
@@ -688,7 +688,7 @@ export default function Login() {
             <p className="text-amber-700 text-xs font-medium">{T("alreadyApproved")}</p>
           </div>
           <button onClick={() => { setStep("input"); setError(null); }}
-            className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-indigo-200">
+            className="w-full h-12 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-gray-500/30">
             <ArrowLeft size={15} /> {T("backToLogin")}
           </button>
         </div>
@@ -698,8 +698,8 @@ export default function Login() {
 
   if (step === "rejected") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-indigo-800 to-blue-900 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-white/5 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <Shield size={40} className="text-red-500" />
@@ -715,7 +715,7 @@ export default function Login() {
             </div>
           )}
           <button onClick={() => { setStep("input"); setLoginRejectionReason(null); setError(null); }}
-            className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-indigo-200">
+            className="w-full h-12 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-gray-500/30">
             <ArrowLeft size={15} /> {T("backToLogin")}
           </button>
         </div>
@@ -729,9 +729,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row" style={{ paddingTop: "env(safe-area-inset-top,0px)" }}>
 
-      <div className="hidden lg:flex lg:w-2/5 xl:w-[45%] bg-gradient-to-br from-indigo-700 via-indigo-600 to-blue-600 flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
+      <div className="hidden lg:flex lg:w-2/5 xl:w-[45%] bg-gradient-to-br from-gray-950 via-gray-900 to-black flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-orange-400/15 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-yellow-400/20 rounded-full pointer-events-none" />
         <div className="absolute top-1/3 right-0 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
 
         <div className="relative z-10 flex items-center gap-3">
@@ -740,7 +740,7 @@ export default function Login() {
           </div>
           <div>
             <p className="text-white font-extrabold text-xl leading-tight">{appName}</p>
-            <p className="text-indigo-200 text-sm font-medium">{T("riderPortal")}</p>
+            <p className="text-gray-300 text-sm font-medium">{T("riderPortal")}</p>
           </div>
         </div>
 
@@ -748,7 +748,7 @@ export default function Login() {
           <h1 className="text-5xl font-extrabold text-white leading-tight mb-4">
             Deliver Smart.<br /><span className="text-orange-300">Earn More.</span>
           </h1>
-          <p className="text-indigo-100 text-lg font-medium mb-10 leading-relaxed">
+          <p className="text-gray-100 text-lg font-medium mb-10 leading-relaxed">
             Join {appName} as a delivery partner and unlock flexible earnings, real-time tracking, and more.
           </p>
           <div className="space-y-3">
@@ -762,7 +762,7 @@ export default function Login() {
                 <span className="text-xl flex-shrink-0">{f.icon}</span>
                 <div>
                   <p className="text-white font-bold text-sm">{f.title}</p>
-                  <p className="text-indigo-200 text-xs">{f.desc}</p>
+                  <p className="text-gray-300 text-xs">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -770,26 +770,26 @@ export default function Login() {
         </div>
 
         <div className="relative z-10">
-          <p className="text-indigo-300 text-sm">© {new Date().getFullYear()} {appName} · Delivery Partner Program</p>
+          <p className="text-gray-400 text-sm">© {new Date().getFullYear()} {appName} · Delivery Partner Program</p>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col bg-slate-50">
 
         {/* Mobile hero header */}
-        <div className="lg:hidden bg-gradient-to-br from-indigo-700 to-blue-600 px-6 pt-10 pb-12 relative overflow-hidden flex-shrink-0">
+        <div className="lg:hidden bg-gradient-to-br from-gray-950 to-gray-900 px-6 pt-10 pb-12 relative overflow-hidden flex-shrink-0">
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
-          <div className="absolute -bottom-10 left-0 w-40 h-40 bg-orange-400/20 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-10 left-0 w-40 h-40 bg-yellow-400/25 rounded-full pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30">
               <Bike size={24} className="text-white" />
             </div>
             <div>
               <p className="text-white font-extrabold text-xl">{appName}</p>
-              <p className="text-indigo-200 text-sm">{T("riderPortal")}</p>
+              <p className="text-gray-300 text-sm">{T("riderPortal")}</p>
             </div>
           </div>
-          <p className="relative z-10 text-indigo-100 text-sm font-medium">Deliver smarter. Earn more.</p>
+          <p className="relative z-10 text-gray-100 text-sm font-medium">Deliver smarter. Earn more.</p>
         </div>
 
         {/* Form area */}
@@ -847,7 +847,7 @@ export default function Login() {
                         value={identifier}
                         onChange={e => setIdentifier(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && checkIdentifier()}
-                        className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                        className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-700 focus:border-transparent transition-all"
                         autoFocus
                       />
                     </div>
@@ -861,7 +861,7 @@ export default function Login() {
                   )}
 
                   <button onClick={checkIdentifier} disabled={loading || isLockedOut}
-                    className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-200">
+                    className="w-full h-12 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-gray-500/30">
                     {loading ? <><Loader2 size={18} className="animate-spin" /> Checking...</> : <>Continue →</>}
                   </button>
 
@@ -899,7 +899,7 @@ export default function Login() {
                   <div className="mt-5 text-center space-y-2">
                     <Link to="/register" className="text-sm text-gray-500">
                       New rider?{" "}
-                      <span className="text-indigo-600 font-bold hover:underline">Register here</span>
+                      <span className="text-gray-900 font-bold hover:underline">Register here</span>
                     </Link>
                     {(config.content.tncUrl || config.content.privacyUrl) && (
                       <div className="mt-1 flex items-center justify-center gap-3 flex-wrap">
@@ -921,7 +921,7 @@ export default function Login() {
               {step === "input" && enabledMethods.length > 1 && (
                 <div className="mb-5">
                   <button onClick={() => { setStep("continue"); clearError(); setDevOtp(""); setEmailDevOtp(""); }}
-                    className="text-indigo-600 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-indigo-700 transition-colors">
+                    className="text-gray-700 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-black transition-colors">
                     <ArrowLeft size={14} /> Change identifier
                   </button>
                   <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
@@ -929,7 +929,7 @@ export default function Login() {
                       <button key={m} onClick={() => selectMethod(m)}
                         className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                           method === m
-                            ? "bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200"
+                            ? "bg-white text-gray-800 shadow-sm ring-1 ring-gray-200"
                             : "text-gray-400 hover:text-gray-600"
                         }`}>
                         {m === "phone" ? <><Phone size={12} /> {T("phoneLabel")}</> : m === "email" ? <><Mail size={12} /> {T("email")}</> : <><User size={12} /> {T("username")}</>}
@@ -941,14 +941,14 @@ export default function Login() {
 
               {step === "input" && enabledMethods.length <= 1 && (
                 <button onClick={() => { setStep("continue"); clearError(); }}
-                  className="text-indigo-600 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-indigo-700 transition-colors">
+                  className="text-gray-700 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-black transition-colors">
                   <ArrowLeft size={14} /> Back
                 </button>
               )}
 
               {step === "otp" && (
                 <button onClick={() => { setStep("continue"); clearError(); setDevOtp(""); setEmailDevOtp(""); }}
-                  className="text-indigo-600 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-indigo-700 transition-colors">
+                  className="text-gray-700 text-sm font-semibold mb-4 flex items-center gap-1.5 hover:text-black transition-colors">
                   <ArrowLeft size={14} /> {T("back")}
                 </button>
               )}
@@ -965,7 +965,7 @@ export default function Login() {
                     <div className="relative flex-1">
                       <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                       <input type="tel" placeholder={phoneHint} value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                        className="w-full h-12 pl-9 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" autoFocus inputMode="numeric" />
+                        className="w-full h-12 pl-9 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-700 focus:border-transparent transition-all" autoFocus inputMode="numeric" />
                     </div>
                   </div>
                   <p className="text-[10px] text-gray-400 mb-4">Pakistan only (+92)</p>
@@ -977,7 +977,7 @@ export default function Login() {
                           onKeyDown={e => e.key === "Enter" && switchToEmailFallback()}
                           className="flex-1 h-10 px-3 bg-white border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                         <button onClick={switchToEmailFallback} disabled={loading}
-                          className="h-10 px-3 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-1">
+                          className="h-10 px-3 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black disabled:opacity-60 flex items-center gap-1">
                           <Mail size={12} /> Send
                         </button>
                       </div>
@@ -1017,7 +1017,7 @@ export default function Login() {
                     {fallbackChannels.length > 0 && fallbackChannels.map(ch => (
                       <button key={ch} onClick={() => { if (otpCooldown <= 0) sendPhoneOtp(ch); }}
                         disabled={otpCooldown > 0}
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-bold disabled:opacity-40">
+                        className="text-xs text-gray-800 hover:text-black font-bold disabled:opacity-40">
                         · Via {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : "SMS"}
                       </button>
                     ))}
@@ -1034,7 +1034,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          otp[i] ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          otp[i] ? "border-gray-700 bg-gray-100 text-gray-900" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {otp[i] || "·"}
                         </div>
@@ -1048,7 +1048,7 @@ export default function Login() {
                   <p className="text-center text-xs text-gray-400 mb-3">Tap above and type your 6-digit code</p>
 
                   <button onClick={() => { if (otpCooldown === 0) sendPhoneOtp(); }} disabled={otpCooldown > 0}
-                    className="w-full text-sm text-gray-400 hover:text-indigo-600 mb-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
+                    className="w-full text-sm text-gray-400 hover:text-gray-900 mb-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
                     {otpCooldown > 0 ? `${T("resendOtp")} (${otpCooldown}s)` : T("resendOtp")}
                   </button>
 
@@ -1065,7 +1065,7 @@ export default function Login() {
                           onKeyDown={e => e.key === "Enter" && switchToEmailFallback()}
                           className="flex-1 h-10 px-3 bg-white border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
                         <button onClick={switchToEmailFallback} disabled={loading}
-                          className="h-10 px-3 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-1">
+                          className="h-10 px-3 bg-gray-900 text-white text-xs font-bold rounded-lg hover:bg-black disabled:opacity-60 flex items-center gap-1">
                           <Mail size={12} /> Send
                         </button>
                       </div>
@@ -1082,7 +1082,7 @@ export default function Login() {
                   <div className="relative mb-4">
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" autoFocus />
+                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-700 focus:border-transparent transition-all" autoFocus />
                   </div>
                 </div>
               )}
@@ -1106,7 +1106,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          emailOtp[i] ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          emailOtp[i] ? "border-gray-700 bg-gray-100 text-gray-900" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {emailOtp[i] || "·"}
                         </div>
@@ -1120,7 +1120,7 @@ export default function Login() {
                   <p className="text-center text-xs text-gray-400 mb-3">Tap above and type your 6-digit code</p>
 
                   <button onClick={() => { if (otpCooldown === 0) sendEmailOtpFn(); }} disabled={otpCooldown > 0}
-                    className="w-full text-sm text-gray-400 hover:text-indigo-600 mb-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
+                    className="w-full text-sm text-gray-400 hover:text-gray-900 mb-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
                     {otpCooldown > 0 ? `${T("resendOtp")} (${otpCooldown}s)` : T("resendOtp")}
                   </button>
                 </div>
@@ -1134,12 +1134,12 @@ export default function Login() {
                   <div className="relative mb-3">
                     <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input type="text" placeholder="Phone, email, or username" value={username} onChange={e => setUsername(e.target.value.trim())} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" autoFocus />
+                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-700 focus:border-transparent transition-all" autoFocus />
                   </div>
                   <label className="text-xs font-bold text-gray-400 mb-2 block uppercase tracking-wider">{T("password")}</label>
                   <div className="relative mb-4">
                     <input type={showPwd ? "text" : "password"} placeholder={T("password")} value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" />
+                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-gray-700 focus:border-transparent transition-all" />
                     <button onClick={() => setShowPwd(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                       {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
@@ -1184,7 +1184,7 @@ export default function Login() {
 
               {step === "input" && enabledMethods.includes(method as "phone" | "email" | "username") && (
                 <button onClick={handleSubmit} disabled={loading || isLockedOut}
-                  className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-200">
+                  className="w-full h-12 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-gray-500/30">
                   {loading ? <><Loader2 size={18} className="animate-spin" /> {T("pleaseWait")}</> :
                     method === "phone" ? T("sendOtp") :
                     method === "email" ? T("sendEmailOtp") :
@@ -1194,7 +1194,7 @@ export default function Login() {
 
               {step === "otp" && (
                 <button onClick={handleSubmit} disabled={loading || isLockedOut}
-                  className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-200">
+                  className="w-full h-12 bg-gray-900 hover:bg-black text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-gray-500/30">
                   {loading ? <><Loader2 size={18} className="animate-spin" /> {T("pleaseWait")}</> : T("verifyAndLogin")}
                 </button>
               )}
@@ -1234,8 +1234,8 @@ export default function Login() {
 
               {step === "input" && (
                 <div className="mt-5 flex flex-col items-center gap-2">
-                  <Link href="/register" className="text-sm text-gray-600 font-medium hover:text-indigo-600 transition-colors">
-                    {T("dontHaveAccount")} <span className="text-indigo-600 font-bold">{T("register")}</span>
+                  <Link href="/register" className="text-sm text-gray-600 font-medium hover:text-gray-900 transition-colors">
+                    {T("dontHaveAccount")} <span className="text-gray-900 font-bold">{T("register")}</span>
                   </Link>
                   {(auth.phoneOtp || auth.emailOtp || auth.usernamePassword) && (
                     <Link href="/forgot-password" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">

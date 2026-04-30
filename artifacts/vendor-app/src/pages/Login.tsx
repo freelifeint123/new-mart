@@ -638,9 +638,9 @@ export default function Login() {
 
   if (config.platform.appStatus === "maintenance") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/10 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-teal-300/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-orange-700 to-amber-700 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-orange-400/10 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-16 -right-16 w-64 h-64 bg-amber-300/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <Wrench size={36} className="text-amber-500" />
@@ -665,8 +665,8 @@ export default function Login() {
 
   if (step === "pending") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-orange-700 to-amber-700 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-orange-400/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <span className="text-4xl">⏳</span>
@@ -680,7 +680,7 @@ export default function Login() {
             <p className="text-amber-700 text-xs font-medium">{T("alreadyApproved")}</p>
           </div>
           <button onClick={() => setStep("continue")}
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-emerald-200">
+            className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-orange-200">
             ← {T("backToLogin")}
           </button>
         </div>
@@ -690,10 +690,10 @@ export default function Login() {
 
   if (step === "2fa") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-orange-700 to-amber-700 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-orange-400/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative z-10">
-          <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-orange-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">🔐</span>
           </div>
           <h2 className="text-xl font-extrabold text-gray-800 mb-1 text-center">Two-Factor Authentication</h2>
@@ -706,7 +706,7 @@ export default function Login() {
                 <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className={`w-10 h-13 rounded-xl border-2 flex items-center justify-center text-xl font-bold transition-all ${
-                      totpCode[i] ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                      totpCode[i] ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 bg-gray-50 text-gray-300"
                     }`}>
                       {totpCode[i] || "·"}
                     </div>
@@ -732,11 +732,11 @@ export default function Login() {
             </div>
           )}
           <button onClick={verify2FA} disabled={loading}
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm shadow-emerald-200">
+            className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm shadow-orange-200">
             {loading ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Verify →"}
           </button>
           <button onClick={() => { setUseBackupCode(!useBackupCode); setBackupCode(""); setTotpCode(""); clearError(); }}
-            className="w-full text-sm text-emerald-600 hover:text-emerald-700 font-bold mt-3 py-1 transition-colors">
+            className="w-full text-sm text-orange-600 hover:text-orange-700 font-bold mt-3 py-1 transition-colors">
             {useBackupCode ? "Use authenticator app" : "Use a backup code"}
           </button>
           <button onClick={() => { setStep("continue"); setTotpCode(""); setBackupCode(""); clearError(); }}
@@ -750,24 +750,24 @@ export default function Login() {
 
   if (step === "register-submitted") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-orange-700 to-amber-700 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-orange-400/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
-          <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <span className="text-4xl">✅</span>
           </div>
           <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Application Submitted!</h2>
           <p className="text-gray-500 text-sm leading-relaxed mb-5">
             Your vendor registration for <strong className="text-gray-700">{regForm.storeName}</strong> has been submitted successfully. Admin will review and approve your account.
           </p>
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-5 text-left space-y-1.5">
-            <p className="text-emerald-700 text-xs font-bold mb-1">📋 What happens next:</p>
-            <p className="text-emerald-600 text-xs">1. Admin reviews your application</p>
-            <p className="text-emerald-600 text-xs">2. You'll be notified once approved</p>
-            <p className="text-emerald-600 text-xs">3. Login with your phone to start selling</p>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-5 text-left space-y-1.5">
+            <p className="text-orange-700 text-xs font-bold mb-1">📋 What happens next:</p>
+            <p className="text-orange-600 text-xs">1. Admin reviews your application</p>
+            <p className="text-orange-600 text-xs">2. You'll be notified once approved</p>
+            <p className="text-orange-600 text-xs">3. Login with your phone to start selling</p>
           </div>
           <button onClick={() => { setStep("continue"); setRegPhone(""); setRegOtp(""); setRegDevOtp(""); setRegForm({ storeName:"", storeCategory:"", name:"", cnic:"", address:"", city:"", bankName:"", bankAccount:"", bankAccountTitle:"" }); }}
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-emerald-200">
+            className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-orange-200">
             ← Back to Login
           </button>
         </div>
@@ -777,8 +777,8 @@ export default function Login() {
 
   if ((step === "register" || step === "register-otp" || step === "register-info") && !config.features.newUsers) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-700 flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-400/10 rounded-full pointer-events-none" />
+      <div className="min-h-screen bg-gradient-to-br from-orange-800 via-orange-700 to-amber-700 flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-orange-400/10 rounded-full pointer-events-none" />
         <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl relative z-10">
           <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <span className="text-4xl">🔒</span>
@@ -793,7 +793,7 @@ export default function Login() {
             </div>
           )}
           <button onClick={() => setStep("continue")}
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-emerald-200">
+            className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm shadow-orange-200">
             ← Back to Login
           </button>
         </div>
@@ -806,21 +806,21 @@ export default function Login() {
       <div className="min-h-screen flex flex-col md:flex-row" style={{ paddingTop: "env(safe-area-inset-top,0px)" }}>
 
         {/* Left panel */}
-        <div className="hidden md:flex md:w-1/2 lg:w-2/5 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
+        <div className="hidden md:flex md:w-1/2 lg:w-2/5 bg-gradient-to-br from-orange-700 via-orange-600 to-amber-600 flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
           <div className="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-300/10 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-300/10 rounded-full pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3">
             <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-lg"><span className="text-2xl">🏪</span></div>
             <div>
               <p className="text-white font-extrabold text-xl leading-tight">{appName}</p>
-              <p className="text-emerald-200 text-sm font-medium">Vendor Registration</p>
+              <p className="text-orange-200 text-sm font-medium">Vendor Registration</p>
             </div>
           </div>
           <div className="relative z-10">
             <h1 className="text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-4">
-              Start Selling on<br /><span className="text-emerald-200">{appName}</span>
+              Start Selling on<br /><span className="text-orange-200">{appName}</span>
             </h1>
-            <p className="text-emerald-100 text-lg font-medium mb-10 leading-relaxed">
+            <p className="text-orange-100 text-lg font-medium mb-10 leading-relaxed">
               Register your store and reach thousands of customers. Manage orders, products, and earnings — all in one place.
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -828,25 +828,25 @@ export default function Login() {
                 <div key={f.titleKey} className="bg-white/15 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                   <span className="text-2xl mb-2 block">{f.icon}</span>
                   <p className="text-white font-bold text-sm">{T(f.titleKey)}</p>
-                  <p className="text-emerald-100 text-xs mt-0.5">{T(f.descKey)}</p>
+                  <p className="text-orange-100 text-xs mt-0.5">{T(f.descKey)}</p>
                 </div>
               ))}
             </div>
           </div>
           <div className="relative z-10">
-            <p className="text-emerald-300 text-sm">© {new Date().getFullYear()} {appName} · {businessAddress} · Keep {vendorEarningsPct}% earnings</p>
+            <p className="text-orange-300 text-sm">© {new Date().getFullYear()} {appName} · {businessAddress} · Keep {vendorEarningsPct}% earnings</p>
           </div>
         </div>
 
         {/* Right form area */}
-        <div className="flex-1 bg-gradient-to-br from-emerald-700 to-teal-600 md:bg-none md:bg-slate-50 flex flex-col items-center justify-center px-5 py-10 md:px-12 relative overflow-y-auto">
+        <div className="flex-1 bg-gradient-to-br from-orange-700 to-amber-600 md:bg-none md:bg-slate-50 flex flex-col items-center justify-center px-5 py-10 md:px-12 relative overflow-y-auto">
           <div className="md:hidden absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
 
           <div className="w-full max-w-sm relative z-10">
             <div className="text-center mb-6 md:hidden">
               <div className="w-16 h-16 bg-white/20 rounded-[20px] flex items-center justify-center mx-auto mb-3 border border-white/30"><span className="text-3xl">🏪</span></div>
               <h1 className="text-2xl font-extrabold text-white">Become a Vendor</h1>
-              <p className="text-emerald-100 mt-1 font-medium text-sm">{appName} Business Partner</p>
+              <p className="text-orange-100 mt-1 font-medium text-sm">{appName} Business Partner</p>
             </div>
 
             <div className="hidden md:block mb-6">
@@ -862,8 +862,8 @@ export default function Login() {
               {/* Step progress */}
               <div className="flex items-center gap-3 mb-5">
                 <div className="flex gap-1.5">
-                  <div className={`h-1.5 rounded-full transition-all ${step === "register" || step === "register-otp" ? "w-10 bg-emerald-500" : "w-10 bg-emerald-400"}`} />
-                  <div className={`h-1.5 rounded-full transition-all ${step === "register-info" ? "w-10 bg-emerald-500" : "w-10 bg-gray-200"}`} />
+                  <div className={`h-1.5 rounded-full transition-all ${step === "register" || step === "register-otp" ? "w-10 bg-orange-500" : "w-10 bg-orange-400"}`} />
+                  <div className={`h-1.5 rounded-full transition-all ${step === "register-info" ? "w-10 bg-orange-500" : "w-10 bg-gray-200"}`} />
                 </div>
                 <span className="text-xs text-gray-400 font-semibold">
                   {step === "register" || step === "register-otp" ? "Step 1 of 2" : "Step 2 of 2"}
@@ -887,13 +887,13 @@ export default function Login() {
               {step === "register-otp" && (
                 <>
                   <button onClick={() => { setStep("register"); clearError(); setRegDevOtp(""); }}
-                    className="text-emerald-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-emerald-700 transition-colors">← Back</button>
+                    className="text-orange-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-orange-700 transition-colors">← Back</button>
                   <h2 className="text-lg font-extrabold text-gray-800 mb-1">{T("enterOtp")}</h2>
                   <p className="text-sm text-gray-500 mb-1">{T("sentTo_")} <strong className="text-gray-700">+92{regPhone}</strong></p>
                   {regDevOtp && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-3">
-                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
-                      <p className="text-emerald-700 font-extrabold text-xl tracking-[0.4em]">{regDevOtp}</p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 mb-3">
+                      <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
+                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{regDevOtp}</p>
                     </div>
                   )}
                   {/* 6-box OTP */}
@@ -901,7 +901,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          regOtp[i] ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          regOtp[i] ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {regOtp[i] || "·"}
                         </div>
@@ -919,7 +919,7 @@ export default function Login() {
               {step === "register-info" && (
                 <>
                   <button onClick={() => { setStep("register"); clearError(); }}
-                    className="text-emerald-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-emerald-700 transition-colors">← Back</button>
+                    className="text-orange-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-orange-700 transition-colors">← Back</button>
                   <h2 className="text-lg font-extrabold text-gray-800 mb-1">Store Information</h2>
                   <p className="text-sm text-gray-500 mb-4">Fill in your store details to complete registration</p>
 
@@ -946,7 +946,7 @@ export default function Login() {
                           onChange={e => { setRegUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20)); clearError(); }}
                           placeholder="e.g. alistore" className={INPUT_CLS + " pr-10"} autoCapitalize="none" autoCorrect="off" />
                         {regUsernameStatus === "checking" && <span className="absolute right-3 top-3.5 text-gray-400 text-sm animate-spin">⏳</span>}
-                        {regUsernameStatus === "available" && <span className="absolute right-3 top-3.5 text-emerald-500 text-sm font-bold">✓</span>}
+                        {regUsernameStatus === "available" && <span className="absolute right-3 top-3.5 text-orange-500 text-sm font-bold">✓</span>}
                         {regUsernameStatus === "taken" && <span className="absolute right-3 top-3.5 text-red-500 text-sm font-bold">✗</span>}
                       </div>
                       {regUsernameStatus === "taken" && <p className="text-[10px] text-red-500 mt-0.5 font-medium">Username already taken</p>}
@@ -997,17 +997,17 @@ export default function Login() {
                       type="checkbox"
                       checked={regTermsAccepted}
                       onChange={e => setRegTermsAccepted(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 accent-emerald-500 flex-shrink-0 cursor-pointer"
+                      className="mt-0.5 w-4 h-4 accent-orange-500 flex-shrink-0 cursor-pointer"
                     />
                     <span className="text-xs text-gray-500 leading-relaxed">
                       I have read and agree to the{" "}
                       {config.content.tncUrl ? (
-                        <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline">Terms & Conditions</a>
+                        <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 font-semibold hover:underline">Terms & Conditions</a>
                       ) : (
-                        <span className="text-emerald-600 font-semibold">Terms & Conditions</span>
+                        <span className="text-orange-600 font-semibold">Terms & Conditions</span>
                       )}
                       {config.content.privacyUrl ? (
-                        <> and <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-semibold hover:underline">Privacy Policy</a></>
+                        <> and <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 font-semibold hover:underline">Privacy Policy</a></>
                       ) : null}
                     </span>
                   </label>
@@ -1023,7 +1023,7 @@ export default function Login() {
 
               {step === "register" && (
                 <button onClick={sendRegOtp} disabled={loading}
-                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm mt-2 shadow-sm shadow-emerald-200">
+                  className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm mt-2 shadow-sm shadow-orange-200">
                   {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Please wait...</> : "Send OTP →"}
                 </button>
               )}
@@ -1031,13 +1031,13 @@ export default function Login() {
               {step === "register-otp" && (
                 <>
                   <button onClick={verifyRegOtp} disabled={loading}
-                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-emerald-200">
+                    className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-orange-200">
                     {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Verifying...</> : "Verify & Continue →"}
                   </button>
                   <button
                     onClick={() => { if (resendCooldown > 0) return; sendRegOtp(); }}
                     disabled={resendCooldown > 0}
-                    className="w-full mt-3 text-sm text-gray-400 hover:text-emerald-600 font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    className="w-full mt-3 text-sm text-gray-400 hover:text-orange-600 font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {resendCooldown > 0 ? `${T("resendOtp")} (${resendCooldown}s)` : T("resendOtp")}
                   </button>
                 </>
@@ -1045,13 +1045,13 @@ export default function Login() {
 
               {step === "register-info" && (
                 <button onClick={submitRegistration} disabled={loading || !regForm.storeName.trim() || !regForm.name.trim() || !regTermsAccepted}
-                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm mt-4 shadow-sm shadow-emerald-200">
+                  className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm mt-4 shadow-sm shadow-orange-200">
                   {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Submitting...</> : "Submit Application ✓"}
                 </button>
               )}
 
               <button onClick={() => { setStep("input"); clearError(); }}
-                className="w-full mt-3 text-sm text-gray-400 hover:text-emerald-600 font-medium py-2 transition-colors">
+                className="w-full mt-3 text-sm text-gray-400 hover:text-orange-600 font-medium py-2 transition-colors">
                 ← Already have an account? Login
               </button>
             </div>
@@ -1064,24 +1064,24 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row" style={{ paddingTop: "env(safe-area-inset-top,0px)" }}>
 
-      <div className="hidden md:flex md:w-1/2 lg:w-2/5 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
+      <div className="hidden md:flex md:w-1/2 lg:w-2/5 bg-gradient-to-br from-orange-700 via-orange-600 to-amber-600 flex-col justify-between p-10 relative overflow-hidden flex-shrink-0">
         <div className="absolute -top-24 -right-24 w-80 h-80 bg-white/10 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-300/10 rounded-full pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-amber-300/10 rounded-full pointer-events-none" />
         <div className="absolute top-1/3 right-0 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
 
         <div className="relative z-10 flex items-center gap-3">
           <div className="w-12 h-12 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-lg"><span className="text-2xl">🏪</span></div>
           <div>
             <p className="text-white font-extrabold text-xl leading-tight">{appName}</p>
-            <p className="text-emerald-200 text-sm font-medium">{T("vendorPortal")}</p>
+            <p className="text-orange-200 text-sm font-medium">{T("vendorPortal")}</p>
           </div>
         </div>
 
         <div className="relative z-10">
           <h1 className="text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-4">
-            {T("growBusiness")}<br /><span className="text-emerald-200">{appName}</span>
+            {T("growBusiness")}<br /><span className="text-orange-200">{appName}</span>
           </h1>
-          <p className="text-emerald-100 text-lg font-medium mb-10 leading-relaxed">
+          <p className="text-orange-100 text-lg font-medium mb-10 leading-relaxed">
             {T("manageDescription")}
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -1089,38 +1089,38 @@ export default function Login() {
               <div key={f.titleKey} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
                 <span className="text-2xl mb-2 block">{f.icon}</span>
                 <p className="text-white font-bold text-sm">{T(f.titleKey)}</p>
-                <p className="text-emerald-100 text-xs mt-0.5">{T(f.descKey)}</p>
+                <p className="text-orange-100 text-xs mt-0.5">{T(f.descKey)}</p>
               </div>
             ))}
           </div>
-          <div className="mt-8 bg-amber-400/20 border border-amber-300/30 rounded-2xl px-4 py-3 flex items-center gap-3">
+          <div className="mt-8 bg-orange-400/20 border border-orange-300/30 rounded-2xl px-4 py-3 flex items-center gap-3">
             <span className="text-2xl">💰</span>
             <div>
               <p className="text-white font-extrabold text-lg leading-tight">Keep {vendorEarningsPct}%</p>
-              <p className="text-emerald-100 text-xs">{T("vendorEarningsLabel")}</p>
+              <p className="text-orange-100 text-xs">{T("vendorEarningsLabel")}</p>
             </div>
           </div>
         </div>
 
         <div className="relative z-10">
-          <p className="text-emerald-300 text-sm">© {new Date().getFullYear()} {appName} · {businessAddress}</p>
+          <p className="text-orange-300 text-sm">© {new Date().getFullYear()} {appName} · {businessAddress}</p>
         </div>
       </div>
 
       <div className="flex-1 flex flex-col bg-slate-50">
 
         {/* Mobile hero header */}
-        <div className="md:hidden bg-gradient-to-br from-emerald-700 to-teal-600 px-6 pt-10 pb-12 relative overflow-hidden flex-shrink-0">
+        <div className="md:hidden bg-gradient-to-br from-orange-700 to-amber-600 px-6 pt-10 pb-12 relative overflow-hidden flex-shrink-0">
           <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-16 translate-x-16 pointer-events-none" />
-          <div className="absolute -bottom-10 left-0 w-40 h-40 bg-teal-300/15 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-10 left-0 w-40 h-40 bg-amber-300/15 rounded-full pointer-events-none" />
           <div className="relative z-10 flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center border border-white/30"><span className="text-2xl">🏪</span></div>
             <div>
               <p className="text-white font-extrabold text-xl">{T("vendorPortal")}</p>
-              <p className="text-emerald-200 text-sm">{appName}</p>
+              <p className="text-orange-200 text-sm">{appName}</p>
             </div>
           </div>
-          <p className="relative z-10 text-emerald-100 text-sm font-medium">{appName} {T("businessPartner")}</p>
+          <p className="relative z-10 text-orange-100 text-sm font-medium">{appName} {T("businessPartner")}</p>
         </div>
 
         {/* Form area */}
@@ -1157,7 +1157,7 @@ export default function Login() {
                         value={identifier}
                         onChange={e => setIdentifier(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && checkIdentifier()}
-                        className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                        className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                         autoFocus
                       />
                     </div>
@@ -1171,7 +1171,7 @@ export default function Login() {
                   )}
 
                   <button onClick={checkIdentifier} disabled={loading}
-                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-emerald-200">
+                    className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-orange-200">
                     {loading ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Checking...</> : "Continue →"}
                   </button>
 
@@ -1209,7 +1209,7 @@ export default function Login() {
                   <div className="mt-4 text-center">
                     <p className="text-sm text-gray-400">New vendor?{" "}
                       <button onClick={() => { clearError(); setStep("register"); }}
-                        className="text-emerald-600 font-bold hover:underline">Register your store</button>
+                        className="text-orange-600 font-bold hover:underline">Register your store</button>
                     </p>
                   </div>
                 </>
@@ -1218,13 +1218,13 @@ export default function Login() {
               {step === "input" && (
                 <>
                   <button onClick={() => { setStep("continue"); clearError(); setOtp(""); setEmailOtp(""); setDevOtp(""); setEmailDevOtp(""); }}
-                    className="text-emerald-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-emerald-700 transition-colors">← Change identifier</button>
+                    className="text-orange-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-orange-700 transition-colors">← Change identifier</button>
                   {availableMethods.length > 1 && (
                     <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-5">
                       {availableMethods.map(m => (
                         <button key={m} onClick={() => selectMethod(m)}
                           className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                            method === m ? "bg-white text-emerald-700 shadow-sm ring-1 ring-gray-200" : "text-gray-400 hover:text-gray-600"
+                            method === m ? "bg-white text-orange-700 shadow-sm ring-1 ring-gray-200" : "text-gray-400 hover:text-gray-600"
                           }`}>
                           {m === "phone" ? <><Phone size={12} /> {T("phone")}</> : m === "email" ? <><Mail size={12} /> {T("email")}</> : <><User size={12} /> {T("usernameLabel")}</>}
                         </button>
@@ -1236,7 +1236,7 @@ export default function Login() {
 
               {step === "otp" && (
                 <button onClick={() => { setStep("continue"); clearError(); setDevOtp(""); setEmailDevOtp(""); }}
-                  className="text-emerald-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-emerald-700 transition-colors">← {T("back")}</button>
+                  className="text-orange-600 text-sm font-bold mb-4 flex items-center gap-1.5 hover:text-orange-700 transition-colors">← {T("back")}</button>
               )}
 
               {method === "phone" && step === "input" && (
@@ -1250,7 +1250,7 @@ export default function Login() {
                       <div className="relative flex-1">
                         <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         <input type="tel" placeholder={phoneHint} value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                          className="w-full h-12 pl-8 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" autoFocus inputMode="tel" />
+                          className="w-full h-12 pl-8 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" autoFocus inputMode="tel" />
                       </div>
                     </div>
                   </div>
@@ -1288,15 +1288,15 @@ export default function Login() {
                     {fallbackChannels.length > 0 && fallbackChannels.map(ch => (
                       <button key={ch} onClick={() => { if (resendCooldown <= 0) sendPhoneOtp(ch); }}
                         disabled={resendCooldown > 0}
-                        className="text-xs text-emerald-600 hover:text-emerald-700 font-bold disabled:opacity-40">
+                        className="text-xs text-orange-600 hover:text-orange-700 font-bold disabled:opacity-40">
                         · Via {ch === "whatsapp" ? "WhatsApp" : ch === "email" ? "Email" : "SMS"}
                       </button>
                     ))}
                   </div>
                   {devOtp && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mb-4">
-                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
-                      <p className="text-emerald-700 font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-4">
+                      <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
+                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{devOtp}</p>
                     </div>
                   )}
                   {/* 6-box OTP cells */}
@@ -1304,7 +1304,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          otp[i] ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          otp[i] ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {otp[i] || "·"}
                         </div>
@@ -1326,7 +1326,7 @@ export default function Login() {
                   <div className="relative mb-4">
                     <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input type="email" placeholder="your@business.com" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" autoFocus />
+                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" autoFocus />
                   </div>
                 </>
               )}
@@ -1339,9 +1339,9 @@ export default function Login() {
                     <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full inline-block mb-4">via ✉️ Email</span>
                   )}
                   {emailDevOtp && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mb-4">
-                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
-                      <p className="text-emerald-700 font-extrabold text-xl tracking-[0.4em]">{emailDevOtp}</p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-4">
+                      <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">{T("devOtp")}</p>
+                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{emailDevOtp}</p>
                     </div>
                   )}
                   {/* 6-box OTP cells */}
@@ -1349,7 +1349,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          emailOtp[i] ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          emailOtp[i] ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {emailOtp[i] || "·"}
                         </div>
@@ -1371,17 +1371,17 @@ export default function Login() {
                   <div className="relative mb-3">
                     <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input type="text" placeholder="Phone, email, or username" value={username} onChange={e => setUsername(e.target.value.trim())} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" autoFocus autoCapitalize="none" />
+                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" autoFocus autoCapitalize="none" />
                   </div>
                   <label className="text-xs font-extrabold text-gray-400 mb-2 block uppercase tracking-wider">{T("passwordLabel")}</label>
                   <div className="relative mb-2">
                     <input type={showPwd ? "text" : "password"} placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" />
+                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" />
                     <button onClick={() => setShowPwd(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                       {showPwd ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
-                  <button onClick={() => { setStep("forgot"); clearError(); setForgotIdentifier(username); }} className="text-sm text-emerald-600 hover:text-emerald-700 font-semibold mb-3 ml-auto block text-right transition-colors">
+                  <button onClick={() => { setStep("forgot"); clearError(); setForgotIdentifier(username); }} className="text-sm text-orange-600 hover:text-orange-700 font-semibold mb-3 ml-auto block text-right transition-colors">
                     Forgot Password?
                   </button>
                 </>
@@ -1389,26 +1389,26 @@ export default function Login() {
 
               {step === "forgot" && (
                 <>
-                  <button onClick={() => { setStep("input"); clearError(); }} className="text-sm text-emerald-600 hover:text-emerald-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back to Login</button>
+                  <button onClick={() => { setStep("input"); clearError(); }} className="text-sm text-orange-600 hover:text-orange-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back to Login</button>
                   <h2 className="text-xl font-extrabold text-gray-800 mb-1">Reset Password</h2>
                   <p className="text-sm text-gray-500 mb-4">Enter your phone, email, or username</p>
                   <div className="relative mb-4">
                     <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     <input type="text" placeholder="Phone, email, or username" value={forgotIdentifier} onChange={e => setForgotIdentifier(e.target.value.trim())} onKeyDown={e => e.key === "Enter" && sendForgotOtp()}
-                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" autoFocus autoCapitalize="none" />
+                      className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" autoFocus autoCapitalize="none" />
                   </div>
                 </>
               )}
 
               {step === "forgot-otp" && (
                 <>
-                  <button onClick={() => { setStep("forgot"); clearError(); }} className="text-sm text-emerald-600 hover:text-emerald-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back</button>
+                  <button onClick={() => { setStep("forgot"); clearError(); }} className="text-sm text-orange-600 hover:text-orange-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back</button>
                   <h2 className="text-xl font-extrabold text-gray-800 mb-1">Enter Reset Code</h2>
                   <p className="text-sm text-gray-500 mb-1">A code was sent to your phone or email</p>
                   {forgotDevOtp && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2.5 mb-3">
-                      <p className="text-xs text-emerald-600 font-bold uppercase tracking-wide mb-0.5">DEV OTP</p>
-                      <p className="text-emerald-700 font-extrabold text-xl tracking-[0.4em]">{forgotDevOtp}</p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 mb-3">
+                      <p className="text-xs text-orange-600 font-bold uppercase tracking-wide mb-0.5">DEV OTP</p>
+                      <p className="text-orange-700 font-extrabold text-xl tracking-[0.4em]">{forgotDevOtp}</p>
                     </div>
                   )}
                   {/* 6-box OTP cells */}
@@ -1416,7 +1416,7 @@ export default function Login() {
                     <div className="flex gap-2 justify-center pointer-events-none select-none" aria-hidden>
                       {Array.from({ length: 6 }).map((_, i) => (
                         <div key={i} className={`w-11 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                          forgotOtp[i] ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-gray-200 bg-gray-50 text-gray-300"
+                          forgotOtp[i] ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-200 bg-gray-50 text-gray-300"
                         }`}>
                           {forgotOtp[i] || "·"}
                         </div>
@@ -1433,32 +1433,32 @@ export default function Login() {
 
               {step === "forgot-reset" && (
                 <>
-                  <button onClick={() => { setStep("forgot-otp"); clearError(); }} className="text-sm text-emerald-600 hover:text-emerald-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back</button>
+                  <button onClick={() => { setStep("forgot-otp"); clearError(); }} className="text-sm text-orange-600 hover:text-orange-700 font-bold mb-4 flex items-center gap-1.5 transition-colors">← Back</button>
                   <h2 className="text-xl font-extrabold text-gray-800 mb-1">Set New Password</h2>
                   <p className="text-sm text-gray-500 mb-4">Choose a strong password</p>
                   <label className="text-xs font-extrabold text-gray-400 mb-2 block uppercase tracking-wider">New Password</label>
                   <div className="relative mb-3">
                     <input type={showForgotPwd ? "text" : "password"} placeholder="Min 8 chars, 1 uppercase, 1 number" value={forgotNewPwd} onChange={e => setForgotNewPwd(e.target.value)}
-                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all" />
+                      className="w-full h-12 px-4 pr-12 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" />
                     <button onClick={() => setShowForgotPwd(v => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                       {showForgotPwd ? <EyeOff size={17} /> : <Eye size={17} />}
                     </button>
                   </div>
                   <label className="text-xs font-extrabold text-gray-400 mb-2 block uppercase tracking-wider">Confirm Password</label>
                   <input type="password" placeholder="Re-enter password" value={forgotConfirmPwd} onChange={e => setForgotConfirmPwd(e.target.value)} onKeyDown={e => e.key === "Enter" && resetForgotPassword()}
-                    className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent mb-4 transition-all" />
+                    className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent mb-4 transition-all" />
                 </>
               )}
 
               {step === "forgot-done" && (
                 <div className="text-center py-6">
-                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <span className="text-3xl">✓</span>
                   </div>
                   <h2 className="text-xl font-extrabold text-gray-800 mb-2">Password Reset!</h2>
                   <p className="text-sm text-gray-500 mb-4">Your password has been changed successfully. You can now log in.</p>
                   <button onClick={() => { setStep("input"); setMethod("username"); clearError(); }}
-                    className="text-emerald-600 font-bold hover:text-emerald-700 transition-colors">← Back to Login</button>
+                    className="text-orange-600 font-bold hover:text-orange-700 transition-colors">← Back to Login</button>
                 </div>
               )}
 
@@ -1504,7 +1504,7 @@ export default function Login() {
                   : step === "forgot-reset" ? resetForgotPassword
                   : handleSubmit
                 } disabled={loading}
-                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-emerald-200">
+                  className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-2xl transition-all disabled:opacity-60 flex items-center justify-center gap-2 text-sm shadow-sm shadow-orange-200">
                   {loading
                     ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> {T("pleaseWait")}</>
                     : step === "forgot" ? "Send Reset Code →"
@@ -1539,7 +1539,7 @@ export default function Login() {
                     </button>
                   )}
                   <button onClick={() => { setStep("continue"); clearError(); }}
-                    className="w-full text-sm text-gray-400 hover:text-emerald-600 font-medium py-2 transition-colors">
+                    className="w-full text-sm text-gray-400 hover:text-orange-600 font-medium py-2 transition-colors">
                     ← Back to login
                   </button>
                 </div>
@@ -1549,7 +1549,7 @@ export default function Login() {
                 <button
                   onClick={() => { if (resendCooldown > 0) return; (method === "phone" ? sendPhoneOtp : sendEmailOtp)(); }}
                   disabled={resendCooldown > 0}
-                  className="w-full mt-3 text-sm text-gray-400 hover:text-emerald-600 font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  className="w-full mt-3 text-sm text-gray-400 hover:text-orange-600 font-medium py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   {resendCooldown > 0 ? `${T("resendOtp")} (${resendCooldown}s)` : T("resendOtp")}
                 </button>
               )}
@@ -1557,7 +1557,7 @@ export default function Login() {
               {step !== "continue" && (
                 <div className="border-t border-gray-100 mt-5 pt-4">
                   <button onClick={() => { setStep("register"); clearError(); }}
-                    className="w-full h-11 border-2 border-emerald-200 text-emerald-700 font-bold rounded-2xl transition-all hover:bg-emerald-50 text-sm flex items-center justify-center gap-2">
+                    className="w-full h-11 border-2 border-orange-200 text-orange-700 font-bold rounded-2xl transition-all hover:bg-orange-50 text-sm flex items-center justify-center gap-2">
                     🏪 Become a Vendor / Register
                   </button>
                 </div>
@@ -1577,12 +1577,12 @@ export default function Login() {
                     <div className="flex items-center justify-center gap-3">
                       {config.content.tncUrl && (
                         <a href={config.content.tncUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-gray-400 hover:text-emerald-600 underline underline-offset-2">Terms</a>
+                          className="text-xs text-gray-400 hover:text-orange-600 underline underline-offset-2">Terms</a>
                       )}
                       {config.content.tncUrl && config.content.privacyUrl && <span className="text-gray-300 text-xs">·</span>}
                       {config.content.privacyUrl && (
                         <a href={config.content.privacyUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-gray-400 hover:text-emerald-600 underline underline-offset-2">Privacy Policy</a>
+                          className="text-xs text-gray-400 hover:text-orange-600 underline underline-offset-2">Privacy Policy</a>
                       )}
                     </div>
                   )}
