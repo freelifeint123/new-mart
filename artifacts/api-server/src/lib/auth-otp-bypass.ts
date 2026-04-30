@@ -7,9 +7,12 @@
 
 import { db } from "@workspace/db";
 import { usersTable, platformSettingsTable, otpBypassAuditTable, whitelistUsersTable } from "@workspace/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, or, isNull } from "drizzle-orm";
+import bcrypt from "bcrypt";
 import { generateId } from "../lib/id.js";
 import { logger } from "../lib/logger.js";
+
+const OTP_HASH_ROUNDS = 10;
 
 export interface OTPBypassStatus {
   isBypassed: boolean;
@@ -63,12 +66,20 @@ export async function checkOTPBypass(phone: string): Promise<OTPBypassStatus> {
     }
 
     // Priority 3: Whitelist bypass
+    /* The previous `(record) => !record.expiresAt || record.expiresAt > now`
+       callback isn't a valid Drizzle predicate — Drizzle's `where` expects
+       a `SQLWrapper`, not a JS function — so TypeScript was failing the
+       build and at runtime this branch silently matched nothing. Express
+       the same intent with `or(isNull(...), gt(...))` so it compiles to
+       real SQL. */
     const whitelisted = await db.query.whitelistUsersTable.findFirst({
       where: and(
         eq(whitelistUsersTable.identifier, phone),
         eq(whitelistUsersTable.isActive, true),
-        (record) =>
-          !record.expiresAt || record.expiresAt > now
+        or(
+          isNull(whitelistUsersTable.expiresAt),
+          gt(whitelistUsersTable.expiresAt, now),
+        ),
       ),
       columns: { id: true, bypassCode: true, expiresAt: true },
     });
@@ -150,9 +161,25 @@ export function createBypassResponse(bypassed: OTPBypassStatus) {
 }
 
 /**
- * Hash OTP for comparison (matches whitelist bypass code)
+ * Hash OTP for storage using bcrypt.
+ *
+ * Storing OTPs as a one-way hash means a database leak cannot be replayed
+ * to log in: only the hash is persisted, never the user-visible code.
  */
-export function hashOtp(otp: string): string {
-  return otp; // In this case, we compare plain OTPs internally
-  // For production, consider using bcrypt or similar
+export async function hashOtp(otp: string): Promise<string> {
+  return bcrypt.hash(otp, OTP_HASH_ROUNDS);
+}
+
+/**
+ * Verify a user-supplied OTP against its stored bcrypt hash.
+ * Returns false (without throwing) on any malformed input or hash format.
+ */
+export async function verifyOtp(otp: string, hash: string): Promise<boolean> {
+  if (!otp || !hash) return false;
+  try {
+    return await bcrypt.compare(otp, hash);
+  } catch (error) {
+    logger.error({ error }, "[OTPBypass] verifyOtp failed");
+    return false;
+  }
 }

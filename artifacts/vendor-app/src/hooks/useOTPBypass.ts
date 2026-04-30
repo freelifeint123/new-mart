@@ -52,26 +52,33 @@ export const useOTPBypass = () => {
         }
         setBypassMessage(config.bypassMessage || null);
 
-        // Cache for 5 minutes
-        localStorage.setItem("authConfigCache", JSON.stringify(config));
-        localStorage.setItem("authConfigCacheTime", Date.now().toString());
+        /* SSR guard — same reasoning as the rider-app version: any
+           non-browser environment (build-time pre-render, tests, future
+           SSR migration) doesn't expose `localStorage`, and a bare
+           reference throws synchronously instead of falling back. */
+        if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+          localStorage.setItem("authConfigCache", JSON.stringify(config));
+          localStorage.setItem("authConfigCacheTime", Date.now().toString());
+        }
       } catch (error) {
         console.error("[useOTPBypass] Failed to fetch config:", error);
 
-        // Try to use cached config
-        const cacheTime = localStorage.getItem("authConfigCacheTime");
-        if (cacheTime && Date.now() - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
-          const cached = localStorage.getItem("authConfigCache");
-          if (cached) {
-            try {
-              const config: AuthConfig = JSON.parse(cached);
-              setBypassActive(!!config.otpBypassActive);
-              if (config.otpBypassExpiresAt) {
-                setBypassExpiresAt(new Date(config.otpBypassExpiresAt));
+        // Try to use cached config (skip on the server — no localStorage there)
+        if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+          const cacheTime = localStorage.getItem("authConfigCacheTime");
+          if (cacheTime && Date.now() - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
+            const cached = localStorage.getItem("authConfigCache");
+            if (cached) {
+              try {
+                const config: AuthConfig = JSON.parse(cached);
+                setBypassActive(!!config.otpBypassActive);
+                if (config.otpBypassExpiresAt) {
+                  setBypassExpiresAt(new Date(config.otpBypassExpiresAt));
+                }
+                setBypassMessage(config.bypassMessage || null);
+              } catch (parseError) {
+                console.error("[useOTPBypass] Failed to parse cache:", parseError);
               }
-              setBypassMessage(config.bypassMessage || null);
-            } catch (parseError) {
-              console.error("[useOTPBypass] Failed to parse cache:", parseError);
             }
           }
         }
